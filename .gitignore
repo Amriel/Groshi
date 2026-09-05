@@ -1,0 +1,33 @@
+# збірки
+desktop/src-tauri/target/
+desktop/node_modules/
+node_modules/
+*.exe
+*.msi
+*.zip
+
+# зібрані артефакти (генеруються скриптами)
+app/Groshi_app.html
+desktop/dist/index.html
+
+# ДАНІ КОРИСТУВАЧА — ніколи не комітити
+app/dataset.private.json
+app/meta.private.json
+*_raw.json
+mono_raw.json
+ibkr_raw.json
+binance_raw.json
+state.json
+networth.json
+inv_cache.json
+quotes.json
+nbu_rates.json
+cry_hist.json
+logos.json
+backup-*/
+pkg/
+
+# службове
+.DS_Store
+Thumbs.db
+*.log

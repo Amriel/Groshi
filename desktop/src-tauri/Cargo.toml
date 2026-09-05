@@ -1,0 +1,45 @@
+[package]
+name = "groshi"
+version = "1.31.7"
+description = "Гроші — облік витрат на даних Monobank"
+authors = ["Oleksandr"]
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# rustls, а не native-tls: schannel/openssl під час крос-збірки з Linux
+# тягне за собою нативні бібліотеки, яких у Windows-таргеті тут немає.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["time", "rt-multi-thread", "macros"] }
+
+# Токен банку не лягає у файл: тільки Диспетчер облікових даних Windows.
+keyring = { version = "3", features = ["windows-native"] }
+
+# Підпис запитів Binance (HMAC-SHA256). Тільки читання: апка відмовляється
+# від ключа, у якого є будь-які права, крім Enable Reading.
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
