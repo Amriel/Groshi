@@ -1,0 +1,76 @@
+# Збірка Windows-інсталятора. Запускається на теґ vX.Y.Z і руками.
+# Інсталятор не підписаний — SmartScreen попереджатиме; підпис вимагає
+# платного сертифіката, якого в проєкті свідомо немає.
+name: build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Зібрати браузерний шаблон
+        run: python app/build_app.py
+        working-directory: .
+
+      - name: Вставити шаблон у десктопну оболонку
+        run: python build_desktop.py
+        working-directory: desktop
+
+      - name: Залежності
+        run: npm install
+        working-directory: desktop
+
+      # build:win із package.json — це крос-збірка з Linux через cargo-xwin.
+      # Тут ранер уже Windows, cargo-xwin не встановлений і не потрібен:
+      # реальний випадок — саме на цьому кроці впала перша збірка
+      # («`cargo-xwin` command not found»). Ціль лишаємо явною, щоб шлях
+      # до інсталятора нижче не змінювався.
+      - name: Інсталятор
+        run: npx tauri build --target x86_64-pc-windows-msvc
+        working-directory: desktop
+
+      # GitHub викидає з імені вкладення все не-ASCII, і «Гроші_1.31.3_x64-setup.exe»
+      # приїхав у Реліз як «_1.31.3_x64-setup.exe» — реальний випадок. Перейменовуємо
+      # самі, поки файл ще наш: заразом імʼя збігається з тим, що показує апка.
+      - name: Назвати інсталятор латиницею
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          $v = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $dir = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis"
+          Get-ChildItem "$dir/*.exe" | ForEach-Object {
+            Rename-Item $_.FullName -NewName "Groshi_Setup_$v.exe" -Force }
+          Get-ChildItem "$dir/*.exe" | ForEach-Object { Write-Host $_.Name }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: groshi-windows
+          path: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+
+      - name: Реліз
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          body: |
+            Інсталятор не підписаний: SmartScreen покаже попередження —
+            «Докладніше» → «Виконати все одно».
