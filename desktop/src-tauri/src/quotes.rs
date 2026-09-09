@@ -18,13 +18,51 @@
 use serde_json::{json, Map, Value};
 use std::time::Duration;
 
+/// Дані з імпорту й кешу не повинні ставати шляхом або додатковим query.
+/// Крапки, дефіси, ^ та = потрібні справжнім символам Yahoo.
+fn valid_symbol(symbol: &str) -> bool {
+    !symbol.is_empty() && symbol.len() <= 64
+        && symbol.bytes().any(|b| b.is_ascii_alphanumeric())
+        && symbol.bytes().all(|b| b.is_ascii_alphanumeric() || b".-^=".contains(&b))
+}
+
+fn valid_exchange(exchange: &str) -> bool {
+    exchange.len() <= 32
+        && exchange.bytes().all(|b| b.is_ascii_alphanumeric() || b".-_".contains(&b))
+}
+
+fn valid_domain(domain: &str) -> bool {
+    domain.len() <= 253 && domain.contains('.') && domain.split('.').all(|label| {
+        !label.is_empty() && label.len() <= 63
+            && label.as_bytes()[0].is_ascii_alphanumeric()
+            && label.as_bytes()[label.len() - 1].is_ascii_alphanumeric()
+            && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    })
+}
+
+fn valid_range(range: &str) -> bool {
+    matches!(range, "1d" | "5d" | "1mo" | "6mo" | "1y" | "5y")
+}
+
+fn valid_headline(text: &str) -> bool {
+    !text.is_empty() && text.len() <= 2000 && !text.chars().any(char::is_control)
+}
+
+fn require_symbol(symbol: &str) -> Result<(), String> {
+    if valid_symbol(symbol) { Ok(()) } else { Err("Некоректний символ паперу".into()) }
+}
+
 fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        // Перенаправлення можуть віддати токени іншому вузлу; API мають фіксовані адреси.
+        .https_only(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .referer(false)
         .timeout(Duration::from_secs(20))
         // Без браузерного User-Agent Yahoo відповідає 429/403.
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Groshi/1.0")
         .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.without_url().to_string())
 }
 
 /// Кандидати Yahoo-символа за біржею лістингу IBKR.
@@ -60,6 +98,9 @@ pub fn granularity(range: &str) -> (&'static str, &'static str) {
 }
 
 async fn chart_at(c: &reqwest::Client, ysym: &str, range: &str, interval: &str, with_time: bool) -> Option<Value> {
+    if !valid_symbol(ysym) || !valid_range(range) || !matches!(interval, "5m" | "15m" | "1d" | "1wk") {
+        return None;
+    }
     let url = format!(
         "https://query1.finance.yahoo.com/v8/finance/chart/{ysym}?range={range}&interval={interval}"
     );
@@ -141,6 +182,10 @@ async fn chart(c: &reqwest::Client, ysym: &str) -> Option<Value> {
 /// З них фронтенд складає внутрішньоденну лінію портфеля — NAV з IBKR
 /// денний, «динаміку за сьогодні» з нього не зібрати.
 pub async fn today(list: Vec<(String, String)>) -> Result<Value, String> {
+    for (sym, ysym) in &list {
+        require_symbol(sym)?;
+        require_symbol(ysym)?;
+    }
     let c = client()?;
     let mut out = Map::new();
     for (sym, ysym) in list {
@@ -163,6 +208,8 @@ pub async fn today(list: Vec<(String, String)>) -> Result<Value, String> {
 
 /// Один папір, один діапазон — для картки акції з перемикачем періодів.
 pub async fn detail(ysym: &str, range: &str) -> Result<Value, String> {
+    require_symbol(ysym)?;
+    if !valid_range(range) { return Err("Некоректний період котирувань".into()); }
     let c = client()?;
     let (r, i) = granularity(range);
     let with_time = r == "1d" || r == "5d";
@@ -178,6 +225,7 @@ pub async fn detail(ysym: &str, range: &str) -> Result<Value, String> {
 /// (client=gtx), без ключів. Суворо best-effort: не вийшло — лишається
 /// оригінал, жодних помилок користувачу.
 async fn tr_uk(c: &reqwest::Client, text: &str) -> Option<String> {
+    if !valid_headline(text) { return None; }
     let r = c
         .get("https://translate.googleapis.com/translate_a/single")
         .query(&[("client", "gtx"), ("sl", "en"), ("tl", "uk"), ("dt", "t"), ("q", text)])
@@ -202,6 +250,7 @@ async fn tr_uk(c: &reqwest::Client, text: &str) -> Option<String> {
 /// мереж відповідає капчею — тоді пробуємо тут; не вийшло і тут —
 /// заголовок чесно лишається англійським.
 async fn tr_uk2(c: &reqwest::Client, text: &str) -> Option<String> {
+    if !valid_headline(text) { return None; }
     let r = c
         .get("https://api.mymemory.translated.net/get")
         .query(&[("q", text), ("langpair", "en|uk")])
@@ -217,15 +266,15 @@ async fn tr_uk2(c: &reqwest::Client, text: &str) -> Option<String> {
 }
 
 pub async fn news(ysym: &str, uk: bool) -> Result<Value, String> {
+    require_symbol(ysym)?;
     let c = client()?;
-    let url = format!(
-        "https://feeds.finance.yahoo.com/rss/2.0/headline?s={ysym}&region=US&lang=en-US"
-    );
-    let r = c.get(&url).send().await.map_err(|e| format!("мережа: {e}"))?;
+    let r = c.get("https://feeds.finance.yahoo.com/rss/2.0/headline")
+        .query(&[("s", ysym), ("region", "US"), ("lang", "en-US")])
+        .send().await.map_err(|e| format!("мережа: {}", e.without_url()))?;
     if !r.status().is_success() {
         return Err(format!("Yahoo відповів {}", r.status().as_u16()));
     }
-    let body = r.text().await.map_err(|e| e.to_string())?;
+    let body = r.text().await.map_err(|e| e.without_url().to_string())?;
     let mut items = Vec::new();
     for chunk in body.split("<item>").skip(1).take(8) {
         let tag = |t: &str| -> Option<String> {
@@ -298,6 +347,7 @@ pub fn chrono_date(ts: i64) -> String {
 /// chart (інколи хоче crumb-підпис) — тому суворо best-effort: не
 /// вийшло — цих полів просто не буде, картка їх не покаже.
 async fn profile(c: &reqwest::Client, ysym: &str) -> Option<Value> {
+    if !valid_symbol(ysym) { return None; }
     let url = format!(
         "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ysym}\
          ?modules=assetProfile,summaryDetail,defaultKeyStatistics,calendarEvents"
@@ -330,7 +380,7 @@ async fn profile(c: &reqwest::Client, ysym: &str) -> Option<Value> {
             let w = w.strip_prefix("www.").unwrap_or(w);
             w.split('/').next().unwrap_or(w).to_lowercase()
         })
-        .filter(|d| d.contains('.'));
+        .filter(|d| valid_domain(d));
     let mut out = Map::new();
     if let Some(s) = sector { out.insert("sector".into(), json!(s)); }
     if let Some(d) = domain { out.insert("domain".into(), json!(d)); }
@@ -358,6 +408,9 @@ async fn profile(c: &reqwest::Client, ysym: &str) -> Option<Value> {
 /// оживе → favicon-сервіс Google. Для крипти — свої набори іконок.
 /// Байти повертаються data-URL-ом: кеш logos.json працює без мережі.
 async fn logo_bytes(c: &reqwest::Client, sym: &str, domain: Option<&str>, kind: &str) -> Option<String> {
+    if !valid_symbol(sym) || domain.map(|d| !valid_domain(d)).unwrap_or(false) {
+        return None;
+    }
     let mut urls: Vec<String> = Vec::new();
     if kind == "crypto" {
         let l = sym.to_lowercase();
@@ -444,6 +497,12 @@ pub fn b64(data: &[u8]) -> String {
 /// Тягне історію для набору (symbol, exch, cachedYahoo?) послідовно з
 /// короткою паузою: Yahoo не любить черги паралельних запитів з одного IP.
 pub async fn fetch(list: Vec<(String, String, Option<String>)>) -> Result<Value, String> {
+    // Перевіряємо весь пакет до першого запиту, щоб помилка не дала часткового витоку.
+    for (sym, exch, cached) in &list {
+        require_symbol(sym)?;
+        if !valid_exchange(exch) { return Err("Некоректне позначення біржі".into()); }
+        if let Some(ysym) = cached { require_symbol(ysym)?; }
+    }
     let c = client()?;
     let mut out = Map::new();
     let mut misses = Vec::new();
@@ -489,4 +548,59 @@ pub async fn fetch(list: Vec<(String, String, Option<String>)>) -> Result<Value,
             .map(|d| d.as_secs())
             .unwrap_or(0),
     }))
+}
+
+#[cfg(test)]
+mod privacy_tests {
+    use super::*;
+
+    #[test]
+    fn market_symbols_keep_yahoo_punctuation() {
+        for symbol in ["BRK.B", "BRK-B", "^GSPC", "EURUSD=X", "BTC-USD", "HY9H.F", "0700.HK"] {
+            assert!(valid_symbol(symbol), "{symbol}");
+        }
+    }
+
+    #[test]
+    fn symbols_reject_url_injection_and_unbounded_data() {
+        for symbol in ["", ".", "..", "AAPL/../../x", "AAPL?secret=x", "AAPL&secret=x", "AAPL#x", "AAPL%2Fx", "AAPL\\x", "AAPL\n", " AAPL", "AAPL ", "таємниця"] {
+            assert!(!valid_symbol(symbol), "{symbol:?}");
+        }
+        assert!(!valid_symbol(&"A".repeat(65)));
+        assert!(!valid_exchange("NASDAQ&secret=x"));
+        assert!(valid_exchange("BVME.ETF"));
+        assert!(valid_exchange(""));
+    }
+
+    #[test]
+    fn logo_domains_are_only_bounded_dns_names() {
+        for domain in ["microsoft.com", "investor.example.co.uk", "xn--example-test.com"] {
+            assert!(valid_domain(domain));
+        }
+        for domain in ["", "localhost", "https://example.com", "example.com/path", "example.com?secret=x", "example.com#x", "user@example.com", "example.com:443", "-example.com", "example-.com", "example..com", "example.com.", "example.com\n"] {
+            assert!(!valid_domain(domain), "{domain:?}");
+        }
+        assert!(!valid_domain(&format!("{}.com", "a".repeat(64))));
+    }
+
+    #[test]
+    fn query_values_reject_silent_rewriting() {
+        assert!(valid_range("1y"));
+        assert!(!valid_range("1y&secret=x"));
+        assert!(!valid_range("unknown"));
+        assert!(valid_headline("Company A & B: earnings rise 5%"));
+        assert!(!valid_headline("Headline\nsecret"));
+        assert!(!valid_headline(&"x".repeat(2001)));
+    }
+
+    #[tokio::test]
+    async fn invalid_market_input_fails_before_network() {
+        assert!(detail("AAPL?secret=x", "1y").await.is_err());
+        assert!(detail("AAPL", "unknown").await.is_err());
+        assert!(news("AAPL&secret=x", false).await.is_err());
+        assert!(today(vec![("AAPL".into(), "AAPL/../../x".into())]).await.is_err());
+        assert!(fetch(vec![("AAPL".into(), "NASDAQ".into(), Some("AAPL?secret=x".into()))]).await.is_err());
+        let c = client().unwrap();
+        assert!(logo_bytes(&c, "AAPL", Some("example.com?secret=x"), "stock").await.is_none());
+    }
 }

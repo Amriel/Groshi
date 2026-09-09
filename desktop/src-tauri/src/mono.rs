@@ -49,10 +49,14 @@ pub struct Progress {
 
 fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        // Перенаправлення можуть віддати токени іншому вузлу; API мають фіксовані адреси.
+        .https_only(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .referer(false)
         .timeout(Duration::from_secs(30))
         .user_agent("Groshi/1.0")
         .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.without_url().to_string())
 }
 
 async fn get(token: &str, path: &str) -> Result<Value, String> {
@@ -65,13 +69,13 @@ async fn get(token: &str, path: &str) -> Result<Value, String> {
             .header("X-Token", token)
             .send()
             .await
-            .map_err(|e| format!("мережа: {e}"))?;
+            .map_err(|e| format!("мережа: {}", e.without_url()))?;
         let code = r.status().as_u16();
         let body = r.text().await.unwrap_or_default();
         match code {
             200 => {
                 return serde_json::from_str(&body)
-                    .map_err(|e| format!("відповідь банку не читається: {e}"))
+                    .map_err(|_| "Відповідь банку не читається".to_string())
             }
             401 | 403 => return Err("Токен відхилено банком. Перевірте його в налаштуваннях.".into()),
             // 429 — впертись у ліміт це нормально: чекаємо й пробуємо ще
@@ -83,17 +87,13 @@ async fn get(token: &str, path: &str) -> Result<Value, String> {
             }
             _ => {
                 if tries > 3 {
-                    return Err(format!("Банк відповів {code}: {}", trim(&body)));
+                    // Сервер або проксі може повторити токен у тілі помилки.
+                    return Err(format!("Банк відповів {code}"));
                 }
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         }
     }
-}
-
-fn trim(s: &str) -> String {
-    let t: String = s.chars().take(200).collect();
-    t
 }
 
 /// Рахунки й банки. Дає ще й імена, щоб у списку операцій було видно,
@@ -190,14 +190,14 @@ pub async fn currency() -> Result<Vec<(String, f64)>, String> {
         .get(format!("{BASE}/bank/currency"))
         .send()
         .await
-        .map_err(|e| format!("мережа: {e}"))?;
+        .map_err(|e| format!("мережа: {}", e.without_url()))?;
     if r.status().as_u16() == 429 {
         return Err("Курси щойно запитували — банк дає їх раз на 5 хвилин".into());
     }
     if !r.status().is_success() {
         return Err(format!("Банк відповів {}", r.status().as_u16()));
     }
-    let v: Value = r.json().await.map_err(|e| e.to_string())?;
+    let v: Value = r.json().await.map_err(|e| e.without_url().to_string())?;
     let mut out = Vec::new();
     for it in v.as_array().unwrap_or(&vec![]) {
         // цікавлять лише пари «валюта → гривня»

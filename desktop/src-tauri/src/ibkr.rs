@@ -47,10 +47,14 @@ fn transient(code: &str) -> bool {
 fn client() -> Result<reqwest::Client, String> {
     // Без User-Agent IB мовчки відхиляє запит — заголовок обовʼязковий.
     reqwest::Client::builder()
+        // Перенаправлення можуть віддати токени іншому вузлу; API мають фіксовані адреси.
+        .https_only(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .referer(false)
         .timeout(Duration::from_secs(60))
         .user_agent("Groshi/1.0")
         .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.without_url().to_string())
 }
 
 /// Витягнути значення тега без повного XML-парсера: службові теги статусу
@@ -66,10 +70,10 @@ fn xml_tag(xml: &str, tag: &str) -> Option<String> {
 
 /// МЕРЕЖЕВА помилка reqwest вкладає в текст ПОВНИЙ URL — разом із
 /// токеном у query (реальний випадок: користувач побачив свій токен у
-/// повідомленні апки). Тому будь-який текст помилки проходить через
-/// цю зачистку, а людині спершу кажемо, ЩО робити.
-fn net_err(e: &reqwest::Error, token: &str) -> String {
-    let raw = e.to_string().replace(token, "•••");
+/// повідомленні апки). Вилучаємо весь URL: проста заміна токена не
+/// знаходить його URL-кодований вигляд.
+fn net_err(e: reqwest::Error) -> String {
+    let raw = e.without_url().to_string();
     format!(
         "Не вдалося достукатись до IBKR — перевірте інтернет і спробуйте ще раз \
          (якщо повторюється, портал може бути тимчасово недоступний; звіт завжди \
@@ -94,7 +98,7 @@ async fn get(path: &str, token: &str, q: &str) -> Result<String, String> {
             Ok(resp) => {
                 let code = resp.status().as_u16();
                 if code == 200 {
-                    return resp.text().await.map_err(|e| net_err(&e, token));
+                    return resp.text().await.map_err(net_err);
                 }
                 // 5xx в IB трапляється на нічних вікнах обслуговування —
                 // варте кількох повторів, а не одразу помилки користувачу
@@ -109,7 +113,7 @@ async fn get(path: &str, token: &str, q: &str) -> Result<String, String> {
                     tokio::time::sleep(Duration::from_secs(5)).await;
                     continue;
                 }
-                return Err(net_err(&e, token));
+                return Err(net_err(e));
             }
         }
     }
@@ -117,7 +121,7 @@ async fn get(path: &str, token: &str, q: &str) -> Result<String, String> {
 
 /// Людський переклад кодів помилок Flex-сервісу. Оригінальні тексти IB
 /// («Statement is not available» тощо) користувачу ні про що не кажуть.
-fn human(code: &str, message: &str) -> String {
+fn human(code: &str, _message: &str) -> String {
     match code {
         "1003" => "Звіт недоступний — перевірте Query ID".into(),
         "1012" | "1013" | "1015" => {
@@ -128,13 +132,8 @@ fn human(code: &str, message: &str) -> String {
         // Сімʼя transient() сюди зазвичай не доходить (її повторюємо
         // самі), але якщо ретраї вичерпано — кажемо чесно й людяно.
         c if transient(c) => "IBKR зараз не може зібрати звіт — тимчасове, спробуйте за кілька хвилин".into(),
-        _ => {
-            if message.is_empty() {
-                format!("IBKR: помилка {code}")
-            } else {
-                format!("IBKR: {message}")
-            }
-        }
+        // Навіть ErrorCode може містити довільний текст із токеном.
+        _ => "IBKR відхилив запит — перевірте налаштування або спробуйте пізніше".into(),
     }
 }
 
@@ -227,5 +226,31 @@ pub async fn fetch(token: &str, query_id: &str) -> Result<String, String> {
         // Не звіт і не помилка — таке буває, коли замість сервісу
         // відповіла сторінка обслуговування
         return Err("IBKR віддав не звіт — спробуйте за кілька хвилин".into());
+    }
+}
+
+#[cfg(test)]
+mod privacy_tests {
+    use super::*;
+
+    #[test]
+    fn server_error_does_not_echo_credentials() {
+        let secret = "synthetic-secret%2F%3F";
+        assert!(!human("9999", secret).contains(secret));
+        assert!(!human(secret, "").contains(secret));
+    }
+
+    #[tokio::test]
+    async fn encoded_query_credentials_are_removed_from_transport_errors() {
+        // HTTPS-only завершує запит локально: жодного DNS або HTTP до сервера.
+        let err = client().unwrap().get("http://example.invalid/flex")
+            .query(&[("t", "synthetic secret/?&="), ("q", "synthetic-query")])
+            .send().await.unwrap_err();
+        assert!(err.url().is_some());
+        assert!(err.to_string().contains("synthetic"));
+        let message = net_err(err);
+        assert!(!message.contains("synthetic"));
+        assert!(!message.contains("example.invalid"));
+        assert!(!message.contains("t="));
     }
 }

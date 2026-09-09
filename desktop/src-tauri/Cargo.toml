@@ -1,10 +1,10 @@
 [package]
 name = "groshi"
-version = "1.31.7"
+version = "1.32.0"
 description = "Гроші — облік витрат на даних Monobank"
 authors = ["Oleksandr"]
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.81"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -32,6 +32,9 @@ keyring = { version = "3", features = ["windows-native"] }
 hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
+ed25519-dalek = "2.2"
+tempfile = "3"
+percent-encoding = "2"
 
 [features]
 default = ["custom-protocol"]

@@ -1,0 +1,6 @@
+{
+  "name": "groshi-checks",
+  "private": true,
+  "scripts": {"test": "node tests/security.mjs && node tests/allcheck.mjs && node tests/modal.mjs && node tests/pjjump.mjs"},
+  "devDependencies": {"playwright": "1.62.1"}
+}

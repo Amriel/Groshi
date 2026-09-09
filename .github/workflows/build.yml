@@ -1,76 +1,205 @@
-# Збірка Windows-інсталятора. Запускається на теґ vX.Y.Z і руками.
-# Інсталятор не підписаний — SmartScreen попереджатиме; підпис вимагає
-# платного сертифіката, якого в проєкті свідомо немає.
+# Перевірки запускаються для кожної зміни; підписані інсталятори — лише
+# для теґів і ручного запуску. Ed25519 захищає оновлення, а не SmartScreen.
 name: build
 
 on:
   push:
+    branches: ['**']
     tags: ['v*']
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  checks:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Перевірити приватність умісту коміту
+        run: python scripts/privacy_check.py --staged
+
+      - name: Перевірити захист приватності та збирання HTML
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  ui:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
 
-      - uses: actions/setup-python@v5
+      - name: Установити зафіксовані залежності проб
+        run: npm ci --ignore-scripts
+
+      - name: Установити Chromium для перевірок
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Зібрати браузерний шаблон
+        run: python app/build_app.py
+
+      - name: Зібрати десктопний шаблон
+        run: python build_desktop.py
+        working-directory: desktop
+
+      - name: Перевірити захист і поведінку інтерфейсу
+        run: npm test
+
+  native:
+    needs: checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
       - name: Зібрати браузерний шаблон
         run: python app/build_app.py
-        working-directory: .
+
+      - name: Зібрати десктопний шаблон
+        run: python build_desktop.py
+        working-directory: desktop
+
+      - name: Перевірити десктопний захист
+        run: cargo test --locked
+        working-directory: desktop/src-tauri
+
+  windows:
+    needs: [checks, ui, native]
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      # Відсутній секрет має зупинити випуск до довгої збірки; його
+      # вміст доступний лише цій перевірці та кроку підписування.
+      - name: Перевірити наявність ключа підписування
+        shell: pwsh
+        env:
+          GROSHI_SIGNING_KEY: ${{ secrets.GROSHI_SIGNING_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GROSHI_SIGNING_KEY)) {
+            throw 'Не задано GROSHI_SIGNING_KEY: непідписаний інсталятор не випускається.'
+          }
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Перевірити версію теґа
+        shell: pwsh
+        run: |
+          $version = (Get-Content desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF -like 'refs/tags/*' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw 'Версія теґа не збігається з версією застосунку.'
+          }
+
+      - name: Зібрати браузерний шаблон
+        run: python app/build_app.py
 
       - name: Вставити шаблон у десктопну оболонку
         run: python build_desktop.py
         working-directory: desktop
 
-      - name: Залежності
-        run: npm install
+      - name: Установити зафіксовані залежності
+        run: npm ci
         working-directory: desktop
 
-      # build:win із package.json — це крос-збірка з Linux через cargo-xwin.
-      # Тут ранер уже Windows, cargo-xwin не встановлений і не потрібен:
-      # реальний випадок — саме на цьому кроці впала перша збірка
-      # («`cargo-xwin` command not found»). Ціль лишаємо явною, щоб шлях
-      # до інсталятора нижче не змінювався.
-      - name: Інсталятор
-        run: npx tauri build --target x86_64-pc-windows-msvc
+      # Ранер уже Windows: cargo-xwin тут не потрібен. Аргумент після
+      # -- передається Cargo й забороняє непомітно змінювати Cargo.lock.
+      - name: Зібрати інсталятор
+        run: npx --no-install tauri build --target x86_64-pc-windows-msvc -- --locked
         working-directory: desktop
 
-      # GitHub викидає з імені вкладення все не-ASCII, і «Гроші_1.31.3_x64-setup.exe»
-      # приїхав у Реліз як «_1.31.3_x64-setup.exe» — реальний випадок. Перейменовуємо
-      # самі, поки файл ще наш: заразом імʼя збігається з тим, що показує апка.
-      - name: Назвати інсталятор латиницею
+      # GitHub прибирає не-ASCII з назв вкладень. Остаточне імʼя задаємо
+      # перед підписуванням, щоб .exe та його .sig утворювали одну пару.
+      - name: Назвати та підписати інсталятор
         shell: pwsh
-        working-directory: desktop
+        env:
+          GROSHI_SIGNING_KEY: ${{ secrets.GROSHI_SIGNING_KEY }}
         run: |
-          $v = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $dir = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis"
-          Get-ChildItem "$dir/*.exe" | ForEach-Object {
-            Rename-Item $_.FullName -NewName "Groshi_Setup_$v.exe" -Force }
-          Get-ChildItem "$dir/*.exe" | ForEach-Object { Write-Host $_.Name }
+          $version = (Get-Content desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $bundleDir = 'desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis'
+          $installers = @(Get-ChildItem -LiteralPath $bundleDir -Filter '*.exe' -File)
+          if ($installers.Count -ne 1) {
+            throw 'Очікувався рівно один інсталятор.'
+          }
+          $installerPath = Join-Path $bundleDir "Groshi_Setup_$version.exe"
+          if ($installers[0].Name -ne "Groshi_Setup_$version.exe") {
+            Rename-Item -LiteralPath $installers[0].FullName -NewName "Groshi_Setup_$version.exe"
+          }
+          node scripts/sign-update.cjs $installerPath --public-key desktop/src-tauri/update-key.pub
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Підписування не вдалося; артефакти не публікуються.'
+          }
+          if (!(Test-Path -LiteralPath "$installerPath.sig" -PathType Leaf)) {
+            throw 'Файл підпису не створений.'
+          }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: groshi-windows
-          path: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          path: |
+            desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig
+
+  # Право змінювати релізи має лише цей короткий крок після перевірок
+  # і підписування; залежності та код застосунку тут не виконуються.
+  release:
+    needs: windows
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: groshi-windows
+          path: release
 
       - name: Реліз
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          files: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          fail_on_unmatched_files: true
+          files: |
+            release/*.exe
+            release/*.exe.sig
           body: |
-            Інсталятор не підписаний: SmartScreen покаже попередження —
-            «Докладніше» → «Виконати все одно».
+            Інсталятор має підпис Ed25519 для перевірки автоматичних оновлень.
+            Підпис Authenticode Windows не застосовано.

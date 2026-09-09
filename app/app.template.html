@@ -2247,6 +2247,15 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
     </div>
   </div>
 
+  <div class="card" data-sec="src" style="margin-bottom:12px" id="privacyCard">
+    <div class="cardhead"><h2>Приватність і зовнішні сервіси</h2></div>
+    <p class="muted" style="margin:0 0 12px">Необов’язкові запити вимкнені, доки ви їх не дозволите.
+      Банк і брокери працюють окремо за вашими підключеннями. Зовнішній сервіс бачить вашу IP-адресу та запит.
+      Збережені дані можна переглядати без цих дозволів.</p>
+    <div id="privacyOptions"></div>
+    <p class="muted" id="privacyStatus" role="status" style="min-height:18px;margin:8px 0 0;font-size:12px"></p>
+  </div>
+
   <div class="card" data-sec="src" style="margin-bottom:12px">
     <div class="cardhead"><h2>ПриватБанк — виписка</h2><span class="hint" id="pvHint"></span></div>
     <p class="muted" style="margin:0 0 12px">Приват API для фізосіб не дає, але виписку віддає файлом:
@@ -2521,7 +2530,9 @@ function fxOf(c){
   return live || (typeof RATE_NOW !== 'undefined' ? RATE_NOW[c] : 0) || 0;
 }
 const baseK = () => fxOf(BASE) || 1;             // курс зник — не ділимо на нуль
-const sgn   = c => CCYSGN[c] || c;
+// Старий кеш також може містити довільний рядок: не повертаємо його як HTML.
+const sgn   = c => Object.hasOwn(CCYSGN,c) ? CCYSGN[c]
+  : (/^[A-Z][A-Z0-9]{1,9}$/.test(String(c)) ? String(c) : '—');
 const money = n => fmt(n / baseK()) + ' ' + sgn(BASE);
 const amt2  = n => fmt2(n / baseK()) + ' ' + sgn(BASE);
 const num2  = n => fmt2(n / baseK());            // без знака валюти — для списку
@@ -2544,6 +2555,15 @@ const nName = n => plural(n, 'назва', 'назви', 'назв');
 const MON  = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
 const monthLabel = ym => { const [y,m]=ym.split('-'); return MON[+m-1]+' '+y.slice(2); };
 const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Лапки CSV захищають структуру, але Excel усе ще виконує формули в тексті.
+function csvCell(value){
+  let text=String(value==null?'':value);
+  if(typeof value!=='number' && /^[\s]*[=+@\-\t\r\n]/.test(text))text="'"+text;
+  return `"${text.replace(/"/g,'""')}"`;
+}
+const safeImage = value => typeof value === 'string' && value.length <= 3000000
+  && /^data:image\/(?:png|jpeg|webp|gif|x-icon);base64,[a-z0-9+/=\s]+$/i.test(value) ? value : null;
+const privacyAllowed = key => store.get('privacyServices', {})?.[key] === true;
 const el  = (id) => document.getElementById(id);
 
 /* ── чия категорія головніша ──────────────────────────────────────
@@ -3697,7 +3717,7 @@ function fopBook(){
     && (!accs.size || accs.has(t.account)))
     .sort((a,b)=> a.date < b.date ? -1 : 1);
   if(!rows.length){ appToast(`За ${Y} рік надходжень на рахунки ФОП не знайдено`); return; }
-  const q = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const q = csvCell;
   const L = [['№','Дата','Сума, грн','Валюта','Сума у валюті','Курс НБУ','Від кого','Рахунок','Призначення']
     .map(q).join(';')];
   let n = 0, tot = 0;
@@ -5862,7 +5882,7 @@ if(!BIZPROF){
   if(BIZPROF.length) store.set('bizProfiles', BIZPROF);
 }
 const bizSave = () => store.set('bizProfiles', BIZPROF);
-let BIZSIGN = store.get('bizSign', null);     // підпис, data-URL
+let BIZSIGN = safeImage(store.get('bizSign', null));     // лише вбудоване растрове зображення
 let CLIENTS = store.get('clientsDB', {});     // клієнт → реквізити
 let INVSEQ  = store.get('invSeq', {});        // рік → останній номер
 let INVCLOG = store.get('invcLog', []);       // виставлені рахунки: звірка з оплатами
@@ -6040,11 +6060,12 @@ function invoiceHtml(p, o){
   const total = rows.reduce((s,r)=>s+r.amount,0);
   const f2 = n => new Intl.NumberFormat('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
   const dd = s => { const m = String(s||'').match(/(\d{4})-(\d{2})-(\d{2})/);
-    return m ? `${m[3]}.${m[2]}.${m[1]}` : s; };
+    return m ? `${m[3]}.${m[2]}.${m[1]}` : esc(s); };
   const title = o.act ? L('INVOICE-ACT','РАХУНОК-АКТ') : L('INVOICE','РАХУНОК');
   const purposeEN = `Payment for services by the invoice No. ${esc(o.no)} dated ${dd(o.date)}${o.agr?`, under the ${esc(o.agr)}${o.agrd?` dated ${dd(o.agrd)}`:''}`:''}.`;
   const purposeUA = `Оплата послуг згідно з рахунком № ${esc(o.no)} від ${dd(o.date)}${o.agr?`, за договором ${esc(o.agr)}${o.agrd?` від ${dd(o.agrd)}`:''}`:''}.`;
   return `<!doctype html><html lang="${o.lang==='en'?'en':'uk'}"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <title>${esc(o.no)}</title>
 <style>
   body{font:13px/1.45 'Segoe UI',Arial,sans-serif;color:#111;max-width:820px;margin:0 auto;padding:44px 40px;background:#fff}
@@ -6085,17 +6106,17 @@ function invoiceHtml(p, o){
   ? `<br>${L('under','за')} ${esc(o.agr)}${o.agrd?` ${L('dated','від')} ${dd(o.agrd)}`:''}` : ''}</p>
 <table>
   <tr><th>#</th><th>${L('Description','Опис')}</th><th>${L('Unit','Од.')}</th>
-      <th class="n">${L('Qty','К-сть')}</th><th class="n">${L('Price','Ціна')}, ${o.ccy}</th>
-      <th class="n">${L('Amount','Сума')}, ${o.ccy}</th></tr>
+      <th class="n">${L('Qty','К-сть')}</th><th class="n">${L('Price','Ціна')}, ${esc(o.ccy)}</th>
+      <th class="n">${L('Amount','Сума')}, ${esc(o.ccy)}</th></tr>
   ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.desc)}</td><td>${esc(r.unit)}</td>
       <td class="n">${r.qty}</td><td class="n">${f2(r.price)}</td><td class="n">${f2(r.amount)}</td></tr>`).join('')}
-  <tr class="sum"><td colspan="5">${L('Subtotal','Разом')}, ${o.ccy}</td><td class="n">${f2(total)}</td></tr>
+  <tr class="sum"><td colspan="5">${L('Subtotal','Разом')}, ${esc(o.ccy)}</td><td class="n">${f2(total)}</td></tr>
   <tr class="sum"><td colspan="5">${L('VAT','ПДВ')}</td><td class="n">0.00</td></tr>
-  <tr class="due"><td colspan="5">${L('Amount due','До сплати')}, ${o.ccy}</td><td class="n">${f2(total)}</td></tr>
+  <tr class="due"><td colspan="5">${L('Amount due','До сплати')}, ${esc(o.ccy)}</td><td class="n">${f2(total)}</td></tr>
 </table>
 <p class="words"><b>${L('Amount due in words','Сума прописом')}:</b> ${
-  o.lang==='ua' ? wordsUA(total, o.ccy) : wordsEN(total, o.ccy)}.${
-  o.lang==='both' ? `<br><span class="small">${wordsUA(total, o.ccy)}.</span>` : ''}</p>
+  esc(o.lang==='ua' ? wordsUA(total, o.ccy) : wordsEN(total, o.ccy))}.${
+  o.lang==='both' ? `<br><span class="small">${esc(wordsUA(total, o.ccy))}.</span>` : ''}</p>
 <p class="small">${L('Without VAT (the Supplier is not a VAT payer).','Без ПДВ (виконавець не є платником ПДВ).')}</p>
 ${o.act ? `<p>${L('This document is also an act of services rendered: the services listed above have been provided in full and on time; the Customer has accepted them and has no claims as to their scope, quality or timing.',
   'Цей документ є одночасно актом наданих послуг: перелічені послуги надано в повному обсязі і вчасно, замовник прийняв їх і не має претензій до обсягу, якості та строків.')}</p>` : ''}
@@ -6103,7 +6124,7 @@ ${o.act ? `<p>${L('This document is also an act of services rendered: the servic
 <i>${o.lang==='ua' ? purposeUA : purposeEN}</i>${
   o.lang==='both' ? `<br><i class="small">${purposeUA}</i>` : ''}</p>
 <div class="sig"><b>${L('Issued by','Виконавець')}:</b><br>
-  ${BIZSIGN ? `<img src="${BIZSIGN}" alt="">` : ''}
+  ${safeImage(BIZSIGN) ? `<img src="${safeImage(BIZSIGN)}" alt="">` : ''}
   <div class="sigline"></div>
   <b>${esc(B.name)}</b><br><span class="small">${L('Signature','Підпис')}</span></div>
 </body></html>`;
@@ -7063,8 +7084,8 @@ const invUAH = p => p.value == null ? null : p.value * (fxOf(p.ccy) || 0);
 /* логотип або монограма: однакова ширина в обох випадках, щоб рядки
    з логотипом і без стояли в одну лінію */
 const logoImg = sym => {
-  const u = LOGOS[sym];
-  return typeof u === 'string'
+  const u = safeImage(LOGOS[sym]);
+  return u
     ? `<img class="ivlogo" src="${u}" alt="">`
     : `<span class="ivlogo mono">${esc(String(sym||'?').replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,1) || '?')}</span>`;
 };
@@ -8349,10 +8370,10 @@ function renderInv(){
 /* Новини за тікером тягнуться один раз при відкритті картки. */
 function invNewsKick(sym){
   const D = window.__DESK__;
-  if(!D || !D.tauri || QNEWS[sym]) return;
+  if(!D || !D.tauri || !privacyAllowed('news') || QNEWS[sym]) return;
   QNEWS[sym] = { loading:true };
   const ys = (qOf(sym)||{}).ysym || sym;
-  D.quoteNews(ys, store.get('newsUk', true) !== false)
+  D.quoteNews(ys, privacyAllowed('translation') && store.get('newsUk', true) !== false)
     .then(items=>{ QNEWS[sym] = { items }; if(S.tab==='inv') render(); })
     .catch(()=>{ QNEWS[sym] = { items: [] }; });
 }
@@ -8454,13 +8475,13 @@ async function invNbuKick(){
    монограмами). Раз на сесію на символ, щоб не молотити мережу. */
 async function invLogosKick(){
   const D = window.__DESK__;
-  if(!D || !D.tauri || window.__logoBusy) return;
+  if(!D || !D.tauri || !privacyAllowed('logos') || window.__logoBusy) return;
   window.__logoTried = window.__logoTried || new Set();
   const items = [], seen = new Set();
   const add = (sym, kind)=>{
     if(!sym || seen.has(sym)) return;
     seen.add(sym);
-    if(typeof LOGOS[sym] === 'string' || __logoTried.has(sym)) return;
+    if(safeImage(LOGOS[sym]) || __logoTried.has(sym)) return;
     items.push({ sym, domain: (qOf(sym)||{}).domain || null, kind });
   };
   for(const p of ((INV && INV.pos)||[]))
@@ -8796,8 +8817,8 @@ el('reset').onclick = ()=>{ store.del('rules'); store.del('budgets'); store.del(
   RULES=[]; EXCL=new Set(); invalidate(); render(); };
 /* У десктопі (WebView2) шлях Blob + <a download> МОВЧКИ заблокований:
    «Створити рахунок» і всі експорти закінчувались нічим (реальний
-   випадок). Тому в застосунку файл пише Rust у «Завантаження» і одразу
-   відкриває; браузерна версія лишається на класичному download. */
+   випадок). Тому в застосунку файл пише Rust у «Завантаження»;
+   відкриття лишається свідомою дією користувача. */
 function download(name, text, type){
   const D = window.__DESK__;
   if(D && D.tauri && D.saveText){
@@ -8815,7 +8836,7 @@ const exportRows = ()=>{ const [a,b]=periodRange(); return TX.filter(t=>t.date>=
 el('expCsv').onclick = ()=>{
   const rows = exportRows();
   const head = 'date,merchant,category,subcategory,direction,amount,mcc\n';
-  const body = rows.map(t=>[t.date,`"${t.merchant.replace(/"/g,'""')}"`,`"${catOf(t)}"`,`"${subOf(t)}"`,t.dir,t.amount,t.mcc||''].join(',')).join('\n');
+  const body = rows.map(t=>[t.date,t.merchant,catOf(t),subOf(t),t.dir,t.amount,t.mcc||''].map(csvCell).join(',')).join('\n');
   download('expenses.csv', '﻿'+head+body, 'text/csv;charset=utf-8');
 };
 el('expJson').onclick = ()=> download('expenses.json', JSON.stringify(exportRows(),null,1), 'application/json');
@@ -8824,7 +8845,7 @@ el('expJson').onclick = ()=> download('expenses.json', JSON.stringify(exportRows
    ніхто не тисне — раз на добу перевіряємо самі й кажемо тостом ── */
 setTimeout(async ()=>{
   const D = window.__DESK__;
-  if(!D || !D.tauri || !D.updCheck) return;
+  if(!D || !D.tauri || !D.updCheck || !privacyAllowed('updates')) return;
   if(Date.now() - store.get('updLastCheck', 0) < 20*3600e3) return;
   store.set('updLastCheck', Date.now());
   try{
@@ -8847,7 +8868,9 @@ el('bizSignFile').onchange = e=>{
   if(!f) return;
   if(f.size > 800*1024){ el('bizMsg').textContent = 'Файл завеликий — до 800 КБ. Обріжте/стисніть підпис.'; return; }
   const rd = new FileReader();
-  rd.onload = ()=>{ BIZSIGN = rd.result; store.set('bizSign', BIZSIGN); bizUi();
+  rd.onload = ()=>{ const image = safeImage(rd.result);
+    if(!image){ el('bizMsg').textContent = 'Потрібне зображення PNG, JPEG або WebP.'; return; }
+    BIZSIGN = image; store.set('bizSign', BIZSIGN); bizUi();
     el('bizMsg').textContent = 'Підпис збережено — додаватиметься на кожен рахунок автоматично.'; };
   rd.readAsDataURL(f);
 };
@@ -9065,6 +9088,46 @@ el('invcDueDays').onchange = e=>{
   store.set('invcDueDays', Math.max(1, Math.min(180, parseInt(e.target.value)||14)));
   renderInvcDue();
 };
+
+const PRIVACY_OPTIONS = [
+  ['quotes','Котирування','Yahoo Finance: тікери та періоди, без кількості акцій і балансів.'],
+  ['news','Новини','Yahoo Finance: тікер вибраної компанії.'],
+  ['logos','Логотипи','Parqet, GitHub, Clearbit і Google: тікери або домени компаній.'],
+  ['translation','Переклад новин','Google Translate і MyMemory: заголовки новин.'],
+  ['updates','Оновлення апки','GitHub: перевірка версії та завантаження підписаної збірки.']
+];
+el('privacyOptions').innerHTML = PRIVACY_OPTIONS.map(([key,name,detail])=>
+  `<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-soft)">
+    <div style="flex:1;min-width:0"><b>${name}</b><div class="muted" style="font-size:12px">${detail}</div></div>
+    <button class="btn glass" data-privacy="${key}" aria-pressed="false" style="flex:0 0 125px;width:125px">Увімкнути</button></div>`).join('');
+function privacyUi(){
+  document.querySelectorAll('[data-privacy]').forEach(button=>{
+    const on = privacyAllowed(button.dataset.privacy);
+    button.setAttribute('aria-pressed', String(on));
+    button.classList.toggle('pri', on);
+    button.textContent = on ? 'Вимкнути' : 'Увімкнути';
+  });
+}
+let privacySaving=false;
+document.querySelectorAll('[data-privacy]').forEach(button=>button.onclick=async()=>{
+  if(privacySaving)return;
+  privacySaving=true;
+  const key=button.dataset.privacy, value={...store.get('privacyServices',{}),[key]:!privacyAllowed(key)};
+  document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=true);
+  try{
+    // Rust має бачити дозвіл до наступного запиту, а не після відкладеного flush.
+    const D=window.__DESK__;
+    if(D) await D.stateSet('privacyServices',value);
+    if(store.committed)store.committed('privacyServices',value);
+    else store.set('privacyServices',value);
+    for(const symbol of Object.keys(QNEWS))delete QNEWS[symbol];
+    window.__logoTried=new Set();
+    el('privacyStatus').textContent=value[key]?'Сервіс дозволено. Запити виконуються лише для відповідної можливості.':'Нові запити до сервісу вимкнено. Уже розпочатий запит може завершитися.';
+    privacyUi();
+  }catch(e){el('privacyStatus').textContent='Не вдалося зберегти дозвіл. Спробуйте ще раз.';}
+  finally{privacySaving=false;document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=false);}
+});
+privacyUi();
 
 el('alertPct').value = store.get('invAlertPct', 5);
 el('alertPct').onchange = e=> store.set('invAlertPct', parseFloat(e.target.value)||0);

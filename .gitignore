@@ -1,5 +1,6 @@
 # збірки
 desktop/src-tauri/target/
+desktop/src-tauri/gen/
 desktop/node_modules/
 node_modules/
 *.exe
@@ -9,6 +10,7 @@ node_modules/
 # зібрані артефакти (генеруються скриптами)
 app/Groshi_app.html
 desktop/dist/index.html
+desktop/dist/app.js
 
 # ДАНІ КОРИСТУВАЧА — ніколи не комітити
 app/dataset.private.json
@@ -27,7 +29,60 @@ logos.json
 backup-*/
 pkg/
 
+# Порожні публічні seeds відстежуються; будь-які інші копії є даними.
+dataset.json
+meta.json
+legacy.json
+!/app/dataset.json
+!/app/meta.json
+!/desktop/dist/legacy.json
+*.private.*
+
+# Виписки, локальні секрети та атомарні записи сховища.
+.env
+.env.*
+!.env.example
+*.csv
+*.CSV
+*.tsv
+*.TSV
+*.xml
+*.XML
+*.tmp
+*.bak
+*.backup
+*.key
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+credentials*
+secrets*
+
+# Копії даних часто мають нові назви файлів, тому закриваємо й теки.
+private/
+data/
+user-data/
+userdata/
+snapshots/
+snapshot/
+snapshot-*/
+backups/
+backup/
+exports/
+statements/
+tmp/
+temp/
+
 # службове
 .DS_Store
 Thumbs.db
 *.log
+__pycache__/
+*.pyc
+.test-artifacts/

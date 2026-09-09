@@ -35,10 +35,14 @@ const PAGE: usize = 100;
 
 fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        // Перенаправлення можуть віддати токени іншому вузлу; API мають фіксовані адреси.
+        .https_only(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .referer(false)
         .timeout(Duration::from_secs(30))
         .user_agent("Groshi/1.0")
         .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.without_url().to_string())
 }
 
 fn now_ms() -> i64 {
@@ -46,10 +50,6 @@ fn now_ms() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
-}
-
-fn trim(s: &str) -> String {
-    s.chars().take(200).collect()
 }
 
 /// Рядок-число з відповіді біржі. Binance віддає суми рядками, щоб не
@@ -87,7 +87,7 @@ fn sign(secret: &str, query: &str) -> Result<String, String> {
 /// підписується; timestamp рахується заново на кожну спробу, бо між
 /// спробами могло минути більше, ніж recvWindow.
 ///
-/// У повідомленнях про помилки — лише код і шматок тіла відповіді:
+/// У повідомленнях про помилки — лише HTTP-код:
 /// ані ключ, ані секрет, ані підписаний URL туди не потрапляють.
 async fn call(
     c: &reqwest::Client,
@@ -130,10 +130,8 @@ async fn call(
         }
 
         let r = req.send().await.map_err(|e| {
-            /* мережева помилка reqwest містить повний URL — відрізаємо
-               підпис запиту (він одноразовий, але гігієна є гігієна) */
-            let mut m = e.to_string();
-            if let Some(i) = m.find("signature=") { m.truncate(i); m.push_str("signature=•••"); }
+            // Вилучаємо весь URL, щоб підпис не залежав від способу кодування.
+            let m = e.without_url().to_string();
             format!("Binance недоступний — перевірте інтернет. Деталь: {m}")
         })?;
         let code = r.status().as_u16();
@@ -159,7 +157,7 @@ async fn call(
         match code {
             200 => {
                 return serde_json::from_str(&body)
-                    .map_err(|e| format!("відповідь біржі не читається: {e}"))
+                    .map_err(|_| "Відповідь біржі не читається".to_string())
             }
             // 429 — ліміт ваги, 418 — попередження перед баном за
             // ігнорування 429. В обох випадках єдине правильне — чекати.
@@ -171,11 +169,11 @@ async fn call(
             }
             c if c >= 500 => {
                 if tries > 3 {
-                    return Err(format!("Біржа відповіла {c}: {}", trim(&body)));
+                    return Err(format!("Біржа відповіла {c}"));
                 }
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
-            _ => return Err(format!("Біржа відповіла {code}: {}", trim(&body))),
+            _ => return Err(format!("Біржа відповіла {code}")),
         }
     }
 }
@@ -218,11 +216,9 @@ pub async fn check(key: &str, secret: &str) -> Result<Value, String> {
         }
     }
     if !extra.is_empty() {
-        return Err(format!(
-            "Ключ має зайві права: {}. Апці потрібне лише читання — створіть ключ, \
-             де ввімкнено тільки «Enable Reading».",
-            extra.join(", ")
-        ));
+        // Назви невідомих полів теж надходять із мережі й можуть повторити ключ.
+        return Err("Ключ має зайві права. Апці потрібне лише читання — створіть ключ, \
+             де ввімкнено тільки «Enable Reading».".into());
     }
 
     Ok(v)

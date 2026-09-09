@@ -6,8 +6,8 @@
   · store пише в state.json, а не в localStorage;
   · зʼявляється екран Monobank у налаштуваннях;
   · сам застосунок стартує ПІСЛЯ того, як дані прийшли, тож головний
-    скрипт лежить у <script type="text/plain"> і виконується вручну.
-    Інакше довелося б переписувати три тисячі рядків на async.
+    зовнішній app.js завантажується після читання даних;
+  · CSP дозволяє лише власні скрипти та локальний IPC.
 """
 import io, json, pathlib, re, sys
 
@@ -20,6 +20,8 @@ import io, json, pathlib, re, sys
 ROOT = pathlib.Path(__file__).resolve().parent
 SRC = ROOT.parent / 'app'
 OUT = ROOT / 'dist'
+sys.path.insert(0, str(SRC))
+from build_security import script_json, protect_html
 
 tpl = (SRC / 'app.template.html').read_text('utf-8')
 glass = (SRC / 'glassgl.js').read_text('utf-8')
@@ -60,6 +62,7 @@ function _flush(){
 }
 const store = {
   get(k, d){ return k in mem ? mem[k] : d; },
+  committed(k,v){ mem[k]=v; _dirty.delete(k); },
   set(k, v){ mem[k] = v; _dirty.set(k, v);
              if(!_flushT) _flushT = setTimeout(_flush, 400); },
   del(k){ delete mem[k]; _dirty.set(k, undefined);
@@ -508,13 +511,9 @@ function monoWire(){
 }
 
 /* ── оновлення ────────────────────────────────────────────────────
-   Штатний updater Tauri вимагає підписаних збірок, ключів і власного
-   сервера з маніфестом. Нічого з цього немає — зате є Релізи GitHub,
-   куди збірку кладе сам GitHub Actions за тегом. Тому за замовчуванням
-   апка питає Releases API, а джерело все одно лишається змінним: тека
-   чи адреса з latest.json працюють як раніше і рятують, коли інтернету
-   немає або збірку зробили руками. Розбір джерела — у Rust
-   (`update.rs`), тут лише поле й показ результату. */
+   Rust перевіряє Ed25519-підпис точних байтів до запуску інсталятора.
+   GitHub, HTTPS-маніфест і локальна тека вимагають однаковий .exe.sig.
+   Адреса джерела не надає права запускати непідписану програму. */
 function updWire(){
   if(!el('updCheck')) return;
   D.version().then(v=>{ el('updVer').textContent = 'версія ' + v; });
@@ -796,11 +795,20 @@ const DIR_FILES = [
   ['mono_raw.json', 'сирі відповіді банку — операції, рахунки, баланси'],
   ['legacy.json',   'знімок історії з Notion'],
   ['fx.json',       'останні курси валют'],
+  ['ibkr_raw.json', 'звіт Interactive Brokers'],
+  ['binance_raw.json', 'дані Binance'],
+  ['inv_cache.json', 'оброблені інвестиції'],
+  ['networth.json', 'історія капіталу'],
+  ['quotes.json', 'кеш котирувань'],
+  ['logos.json', 'кеш логотипів'],
+  ['cry_hist.json', 'історія криптовалют'],
+  ['nbu_rates.json', 'кеш курсів НБУ'],
 ];
 async function dirShow(){
   const [cur, def] = await Promise.all([D.dir(), D.dirDefault()]);
   el('dirPath').innerHTML = `<code>${esc(cur)}</code>`
-    + (cur === def ? ' <span class="muted">· стандартна</span>' : '');
+    + (cur === def ? ' <span class="muted">· стандартна</span>' : '')
+    + (store.get('migrationError','') ? `<p class="warnbox">${esc(store.get('migrationError',''))}</p>` : '');
   el('dirReset').hidden = cur === def;
   el('dirFiles').innerHTML =
     `<div class="muted" style="font-size:12px;margin-bottom:8px">Що саме там лежить</div>`
@@ -837,9 +845,8 @@ async function dirMove(path){
     const ok = await uiConfirm({
       title:'Перезапустити зараз?',
       text: r.used_existing
-        ? `Апка працюватиме з даними в «${r.dir}». Поточні лишились на місці — приберете їх самі.`
-        : `Перенесено файлів: ${r.copied}${r.removed ? `, зі старої теки прибрано ${r.removed}` : ''}.`
-          + ` Нова тека: ${r.dir}.`,
+        ? `Після перезапуску апка працюватиме з даними в «${r.dir}». Поточні дані залишаться у старій теці.`
+        : `Після перезапуску апка перенесе актуальні дані в «${r.dir}». До цього вона працює у поточній теці. Старі резервні копії залишаться на місці.`,
       ok:'Перезапустити', danger:false});
     if(ok) D.restart(); else dirShow();
   }catch(e){ toastMono(String(e)); }
@@ -1033,15 +1040,17 @@ tpl = sub(tpl, '\nrender();\n', MONO_JS + '\nrender();\n', 'tail')
 
 # ── 6. головний скрипт не виконується сам ─────────────────────────────
 tpl = tpl.replace('__GLASSGL__', glass).replace('__DESIGNER__', designer)
-tpl = tpl.replace('__MCCNAME__', json.dumps(mcc, ensure_ascii=False, separators=(',', ':')))
+tpl = tpl.replace('__MCCNAME__', script_json(mcc))
 
 BOOT = """<script src="mononorm.js"></script>
 <script src="invnorm.js"></script>
-<script src="desktop.js"></script>
-<script id="appsrc" type="text/plain">"""
+<script src="desktop.js"></script>"""
 # останній <script> у файлі — головний
 k = tpl.rindex('<script>')
-tpl = tpl[:k] + BOOT + tpl[k + len('<script>'):]
+end = tpl.rindex('</script>')
+# Окремий локальний файл дозволяє заборонити виконання довільних inline-скриптів.
+(OUT / 'app.js').write_text(tpl[k + len('<script>'):end], encoding='utf-8')
+tpl = protect_html(tpl[:k] + BOOT + tpl[end + len('</script>'):], desktop=True)
 
 (OUT / 'index.html').write_text(tpl, encoding='utf-8')
 print('desktop built', len(tpl))

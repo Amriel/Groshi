@@ -3,9 +3,8 @@
    функцій. Дані ж із диска приходять асинхронно. Щоб не переписувати
    три тисячі рядків на await, робимо навпаки: спершу дочитуємо все, що
    треба, кладемо в window.__BOOT__, і аж тоді запускаємо застосунок —
-   головний скрипт лежить у <script type="text/plain"> і не виконується
-   доти, доки ми не вставимо його як справжній <script>. Так він працює
-   у глобальній області, як і в браузерній версії.                     */
+   зовнішній app.js завантажується лише після цього. Так він працює
+   у глобальній області, а CSP не потребує дозволу на довільний код. */
 (function () {
   const T = window.__TAURI__;
   const inv = T ? T.core.invoke : null;
@@ -54,7 +53,7 @@
        бо йдеться про файлову систему, і власного файлового браузера ми
        не пишемо. Якщо плагін не відповість — лишається текстове поле. */
     pickDirT: title => inv
-      ? inv('plugin:dialog|open', { options: { directory: true, multiple: false, title } })
+      ? inv('pick_directory', { title })
           .catch(() => null)
       : Promise.resolve(null),
 
@@ -79,8 +78,7 @@
     /* Вибір файлу — системний діалог ОС, як і вибір теки: це файлова
        система, власного браузера файлів ми не пишемо. */
     pickXml: () => inv
-      ? inv('plugin:dialog|open', { options: { multiple: false,
-          filters: [{ name: 'Flex XML', extensions: ['xml'] }] } }).catch(() => null)
+      ? inv('pick_file', { kind: 'xml' }).catch(() => null)
       : Promise.resolve(null),
     binHas: () => inv ? inv('binance_has') : Promise.resolve(false),
     binSet: (k, s) => inv ? inv('binance_set', { key: k, secret: s }) : Promise.reject('лише в застосунку'),
@@ -101,11 +99,10 @@
     nbuRates: items => inv ? inv('nbu_rates', { items }) : Promise.reject('лише в застосунку'),
     backupRun: dir => inv ? inv('backup_run', { dir: dir || null }) : Promise.reject('лише в застосунку'),
     pickDir: () => inv
-      ? inv('plugin:dialog|open', { options: { directory: true } }).catch(() => null)
+      ? inv('pick_directory', { title: 'Виберіть теку для даних' }).catch(() => null)
       : Promise.resolve(null),
     pickStatement: () => inv
-      ? inv('plugin:dialog|open', { options: { multiple: false,
-          filters: [{ name: 'Виписка', extensions: ['csv', 'xls', 'xlsx'] }] } }).catch(() => null)
+      ? inv('pick_file', { kind: 'statement' }).catch(() => null)
       : Promise.resolve(null),
     fileB64: p => inv ? inv('file_b64', { path: p }) : Promise.reject('лише в застосунку'),
     nwAdd: (date, value) => inv ? inv('nw_add', { date, value }) : Promise.resolve(),
@@ -197,9 +194,9 @@
          документ. Тому чекаємо на готовність DOM. */
       if (document.readyState === 'loading')
         await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
-      const src = document.getElementById('appsrc');
       const s = document.createElement('script');
-      s.textContent = src.textContent;      // виконується у глобальній області
+      s.src = 'app.js';
+      s.onerror = () => fail('Не вдалося завантажити код застосунку. Перевстановіть перевірену збірку.');
       document.body.appendChild(s);
     } catch (e) {
       fail(e && e.stack ? e.stack : e);

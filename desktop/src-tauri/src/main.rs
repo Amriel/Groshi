@@ -7,6 +7,7 @@ mod ibkr;
 mod mono;
 mod nbu;
 mod quotes;
+mod safety;
 mod store;
 mod update;
 
@@ -15,6 +16,7 @@ use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use store::Store;
+use tauri_plugin_dialog::DialogExt;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
@@ -27,6 +29,7 @@ const KEYRING_USER: &str = "monobank-token";
 struct App {
     st: Arc<Store>,
     base: std::path::PathBuf,   // стандартна тека; там же лежить покажчик
+    grants: Mutex<safety::Grants>,
 
     busy: Arc<Mutex<bool>>, // синхронізація одна за раз: ліміт банку спільний
     stop: Arc<std::sync::atomic::AtomicBool>, // «Зупинити» під час довгої історії
@@ -34,6 +37,49 @@ struct App {
 
 fn now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64
+}
+
+fn service_enabled(st: &Store, name: &str) -> bool {
+    st.state().get("privacyServices").and_then(|v| v.get(name)).and_then(|v| v.as_bool()) == Some(true)
+}
+
+fn require_service(st: &Store, name: &str) -> Result<(), String> {
+    if service_enabled(st, name) { Ok(()) }
+    else { Err("Цей зовнішній сервіс вимкнено в налаштуваннях приватності".into()) }
+}
+
+fn validate_backup_preference(app: &App, value: &Value) -> Result<(), String> {
+    let dir = value.as_str().ok_or("Потрібен шлях до теки резервних копій")?;
+    if !dir.is_empty() {
+        app.grants.lock().map_err(|_| "Дозволи тек недоступні")?
+            .directory(std::path::Path::new(dir))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn pick_file(handle: tauri::AppHandle, app: State<'_, App>, kind: String) -> Result<Option<String>, String> {
+    let kind = safety::FileKind::parse(&kind)?;
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        handle.dialog().file().add_filter("Файл імпорту", kind.extensions()).blocking_pick_file()
+    }).await.map_err(|e| e.to_string())?;
+    let Some(picked) = picked else { return Ok(None) };
+    let path = picked.into_path().map_err(|e| e.to_string())?;
+    let path = app.grants.lock().map_err(|_| "Дозволи файлів недоступні")?.add_file(&path, kind)?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+async fn pick_directory(handle: tauri::AppHandle, app: State<'_, App>, title: Option<String>) -> Result<Option<String>, String> {
+    let title = title.unwrap_or_else(|| "Виберіть теку".into());
+    if title.len() > 200 || title.chars().any(char::is_control) { return Err("Некоректний заголовок діалогу".into()); }
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        handle.dialog().file().set_title(title).blocking_pick_folder()
+    }).await.map_err(|e| e.to_string())?;
+    let Some(picked) = picked else { return Ok(None) };
+    let path = picked.into_path().map_err(|e| e.to_string())?;
+    let path = app.grants.lock().map_err(|_| "Дозволи тек недоступні")?.add_directory(&path)?;
+    Ok(Some(path.to_string_lossy().to_string()))
 }
 
 // ─────────────────────────────── токен
@@ -153,8 +199,10 @@ async fn ibkr_sync(app: State<'_, App>) -> Result<Value, String> {
 /// слоту ще нема) стає головним; однаковий вміст не дублюється.
 #[tauri::command]
 fn ibkr_import(app: State<App>, path: String) -> Result<Value, String> {
-    let xml = std::fs::read_to_string(&path)
-        .map_err(|e| format!("не вдалося прочитати файл: {e}"))?;
+    let path = app.grants.lock().map_err(|_| "Дозволи файлів недоступні")?
+        .consume_file(std::path::Path::new(&path), safety::FileKind::Xml)?;
+    let xml = String::from_utf8(safety::read_import(&path)?)
+        .map_err(|_| "XML має бути у кодуванні UTF-8".to_string())?;
     if !xml.contains("<FlexQueryResponse") {
         return Err("Це не Flex-звіт IBKR: у файлі немає FlexQueryResponse. \
                     Потрібен XML, який портал віддає кнопкою Run на вашому query.".into());
@@ -239,6 +287,7 @@ async fn binance_sync(app: State<'_, App>) -> Result<Value, String> {
 /// щоб вкладка відкривалась зі свіжими цінами і без мережі.
 #[tauri::command]
 async fn quotes_sync(app: State<'_, App>, symbols: Vec<Value>) -> Result<Value, String> {
+    require_service(&app.st, "quotes")?;
     let list: Vec<(String, String, Option<String>)> = symbols
         .iter()
         .filter_map(|s| {
@@ -264,18 +313,21 @@ fn quotes_cached(app: State<App>) -> Value {
 
 /// Картка акції: один символ, один діапазон (1d/5d/1mo/6mo/1y/5y).
 #[tauri::command]
-async fn quote_detail(ysym: String, range: String) -> Result<Value, String> {
+async fn quote_detail(app: State<'_, App>, ysym: String, range: String) -> Result<Value, String> {
+    require_service(&app.st, "quotes")?;
     quotes::detail(&ysym, &range).await
 }
 
 #[tauri::command]
-async fn quote_news(ysym: String, uk: Option<bool>) -> Result<Value, String> {
-    quotes::news(&ysym, uk.unwrap_or(false)).await
+async fn quote_news(app: State<'_, App>, ysym: String, uk: Option<bool>) -> Result<Value, String> {
+    require_service(&app.st, "news")?;
+    quotes::news(&ysym, uk.unwrap_or(false) && service_enabled(&app.st, "translation")).await
 }
 
 /// Внутрішньоденний рух набору паперів — для вікна «Сьогодні» у динаміці.
 #[tauri::command]
-async fn quotes_today(symbols: Vec<Value>) -> Result<Value, String> {
+async fn quotes_today(app: State<'_, App>, symbols: Vec<Value>) -> Result<Value, String> {
+    require_service(&app.st, "quotes")?;
     let list: Vec<(String, String)> = symbols
         .iter()
         .filter_map(|s| {
@@ -322,15 +374,15 @@ async fn nbu_rates(app: State<'_, App>, items: Vec<Value>) -> Result<Value, Stri
 /// ПриватБанку: CSV звідти буває у windows-1251, тож текстом читати не
 /// можна, а розкодовує фронтенд (TextDecoder знає всі кодування).
 #[tauri::command]
-fn file_b64(path: String) -> Result<String, String> {
-    let bytes = std::fs::read(&path).map_err(|e| format!("не вдалося прочитати файл: {e}"))?;
-    if bytes.len() > 20_000_000 {
-        return Err("Файл завеликий для виписки (понад 20 МБ)".into());
-    }
+fn file_b64(app: State<App>, path: String) -> Result<String, String> {
+    let path = app.grants.lock().map_err(|_| "Дозволи файлів недоступні")?
+        .consume_file(std::path::Path::new(&path), safety::FileKind::Statement)?;
+    let bytes = safety::read_import(&path)?;
     Ok(quotes::b64(&bytes))
 }
 
-/// Зберегти текстовий файл у «Завантаження» і одразу відкрити.
+/// Зберегти експорт у «Завантаження». Автозапуск HTML/CSV може виконати
+/// активний вміст поза обмеженнями WebView, тому відкриває файл сама людина.
 /// НАВІЩО: браузерний шлях `<a download>` + Blob у WebView2 мовчки
 /// заблокований — «Створити рахунок» і всі експорти в десктопі
 /// закінчувались нічим (реальний випадок). Rust пише файл сам.
@@ -340,15 +392,8 @@ fn save_text(app_handle: tauri::AppHandle, name: String, text: String) -> Result
         .path()
         .download_dir()
         .map_err(|e| format!("тека «Завантаження»: {e}"))?;
-    let safe: String = name
-        .chars()
-        .map(|c| if "/\\:*?\"<>|".contains(c) { '_' } else { c })
-        .collect();
-    let path = dir.join(safe);
-    std::fs::write(&path, text.as_bytes()).map_err(|e| e.to_string())?;
-    let shown = path.to_string_lossy().to_string();
-    let _ = tauri_plugin_opener::open_path(shown.clone(), None::<&str>);
-    Ok(shown)
+    let path = safety::save_export(&dir, &name, &text)?;
+    Ok(path.to_string_lossy().to_string())
 }
 
 /// Логотипи компаній: домен приходить із профілю Yahoo (quotes_sync),
@@ -357,6 +402,7 @@ fn save_text(app_handle: tauri::AppHandle, name: String, text: String) -> Result
 /// щоб не повторювати марні запити щозапуску.
 #[tauri::command]
 async fn logos_sync(app: State<'_, App>, items: Vec<Value>) -> Result<Value, String> {
+    require_service(&app.st, "logos")?;
     let cur = app.st.read("logos.json");
     let mut map = cur.as_object().cloned().unwrap_or_default();
     // Знайдені логотипи не перекачуються; давні невдачі (false) —
@@ -370,12 +416,13 @@ async fn logos_sync(app: State<'_, App>, items: Vec<Value>) -> Result<Value, Str
             let kind = s.get("kind").and_then(|x| x.as_str()).unwrap_or("stock").to_string();
             Some((sym, dom, kind))
         })
-        .filter(|(sym, _, _)| !map.get(sym).map(|v| v.is_string()).unwrap_or(false))
+        .filter(|(sym, _, _)| !map.get(sym).and_then(|v| v.as_str()).map(safety::raster_data_url).unwrap_or(false))
         .collect();
     if !list.is_empty() {
         if let Value::Object(got) = quotes::logos(list).await {
             for (k, v) in got {
-                map.insert(k, v);
+                let safe = v.as_str().map(safety::raster_data_url).unwrap_or(false);
+                map.insert(k, if safe { v } else { json!(false) });
             }
         }
     }
@@ -389,49 +436,19 @@ async fn logos_sync(app: State<'_, App>, items: Vec<Value>) -> Result<Value, Str
 /// Тримаємо 8 останніх: старіші тихо прибираються.
 #[tauri::command]
 fn backup_run(app: State<App>, dir: Option<String>) -> Result<Value, String> {
-    let target_root = match dir.filter(|d| !d.trim().is_empty()) {
-        Some(d) => std::path::PathBuf::from(d),
-        None => app.st.dir.join("backups"),
-    };
-    std::fs::create_dir_all(&target_root).map_err(|e| format!("тека бекапу: {e}"))?;
-    let day = quotes::chrono_date(now());
-    let target = target_root.join(format!("backup-{day}"));
-    std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
-    const FILES: [&str; 9] = [
-        "state.json", "mono_raw.json", "legacy.json", "ibkr_raw.json",
-        "binance_raw.json", "quotes.json", "logos.json", "cry_hist.json",
-        "nbu_rates.json",
-    ];
-    let mut copied = 0u32;
-    let mut bytes = 0u64;
-    for f in FILES {
-        let src = app.st.path(f);
-        if src.exists() {
-            std::fs::copy(&src, target.join(f)).map_err(|e| format!("{f}: {e}"))?;
-            copied += 1;
-            bytes += std::fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
+    let target_root = match dir.filter(|d| !d.is_empty()) {
+        Some(d) => app.grants.lock().map_err(|_| "Дозволи тек недоступні")?.directory(std::path::Path::new(&d))?,
+        None => {
+            let root = safety::directory(&app.st.dir)?.join("backups");
+            safety::reject_links(&root)?;
+            if !root.exists() { std::fs::create_dir(&root).map_err(|e| e.to_string())?; }
+            safety::directory(&root)?
         }
-    }
-    // прибрати старі: лишаємо 8 найсвіжіших тек backup-*
-    let mut old: Vec<std::path::PathBuf> = std::fs::read_dir(&target_root)
-        .map(|rd| {
-            rd.filter_map(|e| e.ok())
-                .map(|e| e.path())
-                .filter(|p| {
-                    p.is_dir()
-                        && p.file_name()
-                            .and_then(|n| n.to_str())
-                            .map(|n| n.starts_with("backup-"))
-                            .unwrap_or(false)
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    old.sort();
-    while old.len() > 8 {
-        let p = old.remove(0);
-        let _ = std::fs::remove_dir_all(p);
-    }
+    };
+    safety::check_data_dir(&app.st.dir)?;
+    let day = quotes::chrono_date(now());
+    let (target, copied, bytes) = safety::write_backup(&app.st.dir, &target_root, &format!("backup-{day}"))?;
+    safety::prune_backups(&target_root)?;
     Ok(json!({
         "path": target.to_string_lossy(),
         "files": copied,
@@ -535,6 +552,7 @@ fn state_all(app: State<App>) -> Value {
 
 #[tauri::command]
 fn state_set(app: State<App>, key: String, value: Value) -> Result<(), String> {
+    if key == "backupDir" { validate_backup_preference(&app, &value)?; }
     app.st.state_set(&key, value)
 }
 
@@ -545,6 +563,7 @@ fn state_del(app: State<App>, key: String) -> Result<(), String> {
 
 #[tauri::command]
 fn state_replace(app: State<App>, value: Value) -> Result<(), String> {
+    if let Some(dir) = value.get("backupDir") { validate_backup_preference(&app, dir)?; }
     app.st.state_replace(value)
 }
 
@@ -577,26 +596,8 @@ fn legacy_import(app: State<App>, value: Value) -> Result<usize, String> {
 /// цього і незручний, і зайвий ризик.
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
-    // Пускаємо лише те, що самі й показуємо: жодних file:// чи довільних схем.
-    if !url.starts_with("https://") {
-        return Err("Дозволені лише https-посилання".into());
-    }
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| e.to_string())
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&url)
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| e.to_string())
-    }
+    let url = safety::external_url(&url)?;
+    tauri_plugin_opener::open_url(url.as_str(), None::<&str>).map_err(|e| e.to_string())
 }
 
 /* ── ДЕ ЛЕЖАТЬ ДАНІ ───────────────────────────────────────────────
@@ -611,18 +612,47 @@ fn pointer(base: &std::path::Path) -> std::path::PathBuf {
     base.join("location.json")
 }
 
-fn resolve_dir(base: &std::path::Path) -> std::path::PathBuf {
-    if let Ok(txt) = std::fs::read_to_string(pointer(base)) {
-        if let Ok(v) = serde_json::from_str::<Value>(&txt) {
-            if let Some(d) = v.get("dir").and_then(|x| x.as_str()) {
-                let p = std::path::PathBuf::from(d);
-                if p.is_dir() {
-                    return p;
-                }
-            }
-        }
+fn write_pointer(base: &std::path::Path, value: &Value) -> Result<(), String> {
+    safety::write_atomic(&pointer(base), &serde_json::to_vec(value).map_err(|e| e.to_string())?)
+}
+
+fn resolve_dir(base: &std::path::Path) -> Result<(std::path::PathBuf, Option<String>), String> {
+    let path = pointer(base);
+    match std::fs::symlink_metadata(&path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok((base.to_path_buf(), None)),
+        Err(error) => return Err(format!("Не вдалося прочитати налаштоване місце даних: {error}")),
+        Ok(_) => (),
     }
-    base.to_path_buf()
+    let value = safety::read_import(&path).and_then(|bytes| serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string()))
+        .map_err(|error| format!("Не вдалося прочитати налаштоване місце даних: {error}"))?;
+    let configured = value.get("dir").and_then(|v| v.as_str()).filter(|dir| !dir.is_empty())
+        .ok_or("У покажчику відсутній шлях до даних; запуск зупинено, щоб не створити іншу історію")?;
+    let current = safety::directory(std::path::Path::new(configured))
+        .map_err(|error| format!("Налаштована тека даних недоступна. Підключіть диск або відновіть доступ і запустіть застосунок знову: {error}"))?;
+    let Some(pending) = value.get("pending") else { return Ok((current, None)) };
+    let migrate = || -> Result<std::path::PathBuf, String> {
+        let source = pending.get("source").and_then(|v| v.as_str()).ok_or("Не вказано початкову теку перенесення")?;
+        if safety::directory(std::path::Path::new(source))? != safety::directory(&current)? {
+            return Err("Початкова тека перенесення змінилася".into());
+        }
+        let target = pending.get("target").and_then(|v| v.as_str()).ok_or("Не вказано цільову теку перенесення")?;
+        let target = safety::directory(std::path::Path::new(target))?;
+        let mode = pending.get("mode").and_then(|v| v.as_str()).ok_or("Не вказано спосіб перенесення")?;
+        safety::copy_migration(&current, &target, mode)?;
+        // Нове місце стає чинним лише після успішної копії всіх файлів.
+        write_pointer(base, &json!({"dir": target.to_string_lossy()}))?;
+        Ok(target)
+    };
+    match migrate() {
+        Ok(target) => {
+            let error = if pending.get("mode").and_then(|v| v.as_str()) != Some("adopt") {
+                safety::remove_migrated_sources(&current, &target).err()
+                    .map(|e| format!("Дані перенесено, але частина старих копій залишилася: {e}"))
+            } else { None };
+            Ok((target, error))
+        }
+        Err(error) => Ok((current, Some(format!("Теку не змінено; дані збережено на попередньому місці: {error}")))),
+    }
 }
 
 #[derive(Serialize)]
@@ -631,6 +661,7 @@ struct Moved {
     copied: usize,
     removed: usize,
     used_existing: bool,
+    pending: bool,
 }
 
 /// Що лежить у теці, куди збираємось переїхати. Питати про це ПЕРЕД
@@ -643,14 +674,10 @@ struct Peek {
 }
 
 #[tauri::command]
-fn data_peek(path: String) -> Result<Peek, String> {
-    const FILES: [&str; 3] = ["state.json", "mono_raw.json", "legacy.json"];
-    let p = std::path::PathBuf::from(path.trim());
-    std::fs::create_dir_all(&p).map_err(|e| format!("не вдалося створити теку: {e}"))?;
-    let probe = p.join(".groshi-probe");
-    let writable = std::fs::write(&probe, b"1").is_ok();
-    let _ = std::fs::remove_file(&probe);
-    Ok(Peek { has_data: FILES.iter().any(|f| p.join(f).is_file()), writable })
+fn data_peek(app: State<App>, path: String) -> Result<Peek, String> {
+    let p = app.grants.lock().map_err(|_| "Дозволи тек недоступні")?.directory(std::path::Path::new(&path))?;
+    safety::check_data_dir(&p)?;
+    Ok(Peek { has_data: safety::DATA_FILES.iter().any(|f| p.join(f).is_file()), writable: safety::writable(&p)? })
 }
 
 #[tauri::command]
@@ -670,70 +697,31 @@ fn data_default(app: State<App>) -> String {
 ///   `adopt`     лишити те, що вже лежить у цільовій теці, свої не чіпати;
 ///   `overwrite` перенести поверх того, що там є.
 ///
-/// Переносимо, а не копіюємо: дві копії однакових даних у різних теках —
-/// це гарантована плутанина, у якій за тиждень уже не скажеш, котра з них
-/// справжня.
+/// План виконується під час наступного запуску, доки Store ще не відкрито:
+/// інакше зміни, зроблені після копіювання й до перезапуску, загубилися б.
 #[tauri::command]
 fn data_set(app: State<App>, path: Option<String>, mode: Option<String>) -> Result<Moved, String> {
-    const FILES: [&str; 3] = ["state.json", "mono_raw.json", "legacy.json"];
-    let target = match path.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-        Some(p) => std::path::PathBuf::from(p),
+    let target = match path.as_deref().filter(|s| !s.is_empty()) {
+        Some(p) => app.grants.lock().map_err(|_| "Дозволи тек недоступні")?.directory(std::path::Path::new(p))?,
         None => app.base.clone(),
     };
-    if target == app.st.dir {
-        return Err("Це вже поточна тека".into());
-    }
-    std::fs::create_dir_all(&target).map_err(|e| format!("не вдалося створити теку: {e}"))?;
-
-    // перевірка, що туди справді можна писати — краще дізнатись зараз
-    let probe = target.join(".groshi-probe");
-    std::fs::write(&probe, b"1").map_err(|e| format!("тека недоступна для запису: {e}"))?;
-    let _ = std::fs::remove_file(&probe);
-
     let mode = mode.as_deref().unwrap_or("move");
+    let (source, target) = safety::migration_paths(&app.st.dir, &target, mode)?;
+    if !safety::writable(&target)? { return Err("Тека недоступна для запису".into()); }
+    if mode == "move" && safety::DATA_FILES.iter().any(|name| target.join(name).exists()) {
+        return Err("У теці вже є дані — виберіть підключення або заміну".into());
+    }
     let used_existing = mode == "adopt";
-    let mut copied = 0usize;
-    let mut removed = 0usize;
-
-    if mode != "adopt" {
-        // Спершу переносимо все, і лише коли жоден крок не впав —
-        // прибираємо старе. Інакше збій на середині лишив би людину
-        // без даних в обох теках.
-        let mut done: Vec<&str> = Vec::new();
-        for f in FILES {
-            let from = app.st.dir.join(f);
-            if !from.is_file() {
-                continue;
-            }
-            std::fs::copy(&from, target.join(f))
-                .map_err(|e| format!("не вдалося перенести {f}: {e}"))?;
-            copied += 1;
-            done.push(f);
-        }
-        for f in done {
-            if std::fs::remove_file(app.st.dir.join(f)).is_ok() {
-                removed += 1;
-            }
-        }
-    }
-
-    if target == app.base {
-        let _ = std::fs::remove_file(pointer(&app.base));
-    } else {
-        std::fs::create_dir_all(&app.base).ok();
-        std::fs::write(
-            pointer(&app.base),
-            serde_json::to_vec(&json!({ "dir": target.to_string_lossy() }))
-                .map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| format!("не вдалося запамʼятати шлях: {e}"))?;
-    }
-
+    // До перезапуску Store продовжує писати у source, тому зараз лише плануємо.
+    write_pointer(&app.base, &json!({"dir": source.to_string_lossy(), "pending": {
+        "source": source.to_string_lossy(), "target": target.to_string_lossy(), "mode": mode,
+    }}))?;
     Ok(Moved {
         dir: target.to_string_lossy().to_string(),
-        copied,
-        removed,
+        copied: 0,
+        removed: 0,
         used_existing,
+        pending: true,
     })
 }
 
@@ -747,29 +735,10 @@ fn restart(app: tauri::AppHandle) {
 #[tauri::command]
 fn reveal(app: State<App>, name: Option<String>) -> Result<(), String> {
     let p = match name {
-        Some(n) => app.st.path(&n),
-        None => app.st.dir.clone(),
+        Some(n) => safety::data_path(&app.st.dir, &n)?,
+        None => safety::directory(&app.st.dir)?,
     };
-    opener_open(&p.to_string_lossy())
-}
-
-fn opener_open(p: &str) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(p)
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| e.to_string())
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(p)
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| e.to_string())
-    }
+    tauri_plugin_opener::reveal_item_in_dir(&p).map_err(|e| e.to_string())
 }
 
 // ─────────────────────────────── синхронізація
@@ -1108,6 +1077,7 @@ fn update_source(app: State<App>) -> String {
 
 #[tauri::command]
 async fn update_check(app: State<'_, App>, source: Option<String>) -> Result<update::Found, String> {
+    require_service(&app.st, "updates")?;
     let src = source
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| upd_source(&app.st));
@@ -1123,6 +1093,7 @@ async fn update_install(
     source: Option<String>,
     file: String,
 ) -> Result<(), String> {
+    require_service(&st.st, "updates")?;
     let src = source
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| upd_source(&st.st));
@@ -1260,21 +1231,29 @@ fn main() {
                 .app_data_dir()
                 .unwrap_or_else(|_| std::path::PathBuf::from("."));
             std::fs::create_dir_all(&base).ok();
-            let st = Arc::new(Store::new(resolve_dir(&base)));
+            let (dir, migration_error) = resolve_dir(&base)?;
+            safety::check_data_dir(&dir)?;
+            let st = Arc::new(Store::new(dir));
+            if let Some(error) = migration_error { st.state_set("migrationError", json!(error))?; }
+            else { st.state_del("migrationError")?; }
+            let mut grants = safety::Grants::default();
+            grants.add_directory(&base)?;
+            grants.add_directory(&st.dir)?;
+            // Лише шлях, уже налаштований під час старту; state_set не може додати довільну теку.
+            if let Some(dir) = st.state().get("backupDir").and_then(|v| v.as_str()) {
+                if !dir.is_empty() { let _ = grants.add_directory(std::path::Path::new(dir)); }
+            }
 
-            /* Знімок із Notion вшито у застосунок і розкладається під час
-               першого запуску. Інакше апка стартувала б порожньою, а вся
-               історія до переходу на десктоп чекала б, поки банк віддасть
-               рік виписки по хвилині на запит. Далі файл ніхто не чіпає:
-               щойно банк принесе той самий період, старі записи
-               відсуваються (див. merge() у mononorm.js). */
+            /* Публічна збірка містить порожній початковий файл: приватна
+               історія з’являється лише після явного імпорту користувача.
+               Наявну історію під час запуску не перезаписуємо. */
             if !st.path("legacy.json").exists() {
                 const SEED: &str = include_str!("../../dist/legacy.json");
                 if let Ok(v) = serde_json::from_str::<Value>(SEED) {
                     let _ = st.write("legacy.json", &v);
                 }
             }
-            app.manage(App { st: st.clone(), base: base.clone(), busy: Arc::new(Mutex::new(false)),
+            app.manage(App { st: st.clone(), base: base.clone(), grants: Mutex::new(grants), busy: Arc::new(Mutex::new(false)),
                              stop: Arc::new(std::sync::atomic::AtomicBool::new(false)) });
 
             // Трей: апка живе далі після закриття вікна, інакше нагадування
@@ -1374,6 +1353,8 @@ fn main() {
             logos_cached,
             nbu_rates,
             file_b64,
+            pick_file,
+            pick_directory,
             backup_run,
             save_text,
             quote_detail,
@@ -1393,4 +1374,91 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("не вдалося запустити застосунок");
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    struct Fixture { root: PathBuf, base: PathBuf, source: PathBuf, target: PathBuf }
+    impl Fixture {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!("groshi-migration-test-{}-{}", std::process::id(),
+                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+            std::fs::create_dir(&root).unwrap();
+            let root = std::fs::canonicalize(root).unwrap();
+            let base = root.join("base"); let source = root.join("source"); let target = root.join("target");
+            for dir in [&base, &source, &target] { std::fs::create_dir(dir).unwrap(); }
+            Self { root, base, source, target }
+        }
+        fn schedule(&self) {
+            write_pointer(&self.base, &json!({"dir": self.source.to_string_lossy(), "pending": {
+                "source": self.source.to_string_lossy(), "target": self.target.to_string_lossy(), "mode": "move",
+            }})).unwrap();
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let temp = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+            if self.root.parent() == Some(temp.as_path()) && self.root.file_name().unwrap().to_string_lossy().starts_with("groshi-migration-test-") {
+                let _ = std::fs::remove_dir_all(&self.root);
+            }
+        }
+    }
+
+    #[test]
+    fn pending_move_includes_changes_made_after_scheduling() {
+        let fixture = Fixture::new();
+        for name in safety::DATA_FILES { std::fs::write(fixture.source.join(name), b"before scheduling").unwrap(); }
+        fixture.schedule();
+        assert!(!fixture.target.join("state.json").exists());
+        std::fs::write(fixture.source.join("state.json"), b"changed before restart").unwrap();
+        let (dir, error) = resolve_dir(&fixture.base).unwrap();
+        assert_eq!(dir, fixture.target);
+        assert!(error.is_none());
+        assert_eq!(std::fs::read(dir.join("state.json")).unwrap(), b"changed before restart");
+        for name in safety::DATA_FILES { assert!(dir.join(name).exists()); assert!(!fixture.source.join(name).exists()); }
+        let value: Value = serde_json::from_slice(&std::fs::read(pointer(&fixture.base)).unwrap()).unwrap();
+        assert!(value.get("pending").is_none());
+    }
+
+    #[test]
+    fn failed_pending_move_keeps_current_pointer_and_source_data() {
+        let fixture = Fixture::new();
+        std::fs::write(fixture.source.join("state.json"), b"source settings").unwrap();
+        fixture.schedule();
+        std::fs::write(fixture.target.join("state.json"), b"other settings").unwrap();
+        let (dir, error) = resolve_dir(&fixture.base).unwrap();
+        assert_eq!(dir, fixture.source);
+        assert!(error.is_some());
+        assert_eq!(std::fs::read(fixture.source.join("state.json")).unwrap(), b"source settings");
+        assert_eq!(std::fs::read(fixture.target.join("state.json")).unwrap(), b"other settings");
+        let value: Value = serde_json::from_slice(&std::fs::read(pointer(&fixture.base)).unwrap()).unwrap();
+        assert!(value.get("pending").is_some());
+    }
+
+    #[test]
+    fn missing_custom_directory_blocks_startup_without_creating_alternate_data() {
+        let fixture = Fixture::new();
+        let missing = fixture.root.join("disconnected-drive");
+        write_pointer(&fixture.base, &json!({"dir": missing.to_string_lossy()})).unwrap();
+        let original = std::fs::read(pointer(&fixture.base)).unwrap();
+        assert!(resolve_dir(&fixture.base).is_err());
+        assert!(!missing.exists());
+        for name in safety::DATA_FILES { assert!(!fixture.base.join(name).exists()); }
+        assert_eq!(std::fs::read(pointer(&fixture.base)).unwrap(), original);
+        std::fs::create_dir(&missing).unwrap();
+        assert_eq!(resolve_dir(&fixture.base).unwrap().0, missing);
+    }
+
+    #[test]
+    fn only_absent_pointer_uses_default_directory() {
+        let fixture = Fixture::new();
+        assert_eq!(resolve_dir(&fixture.base).unwrap().0, fixture.base);
+        write_pointer(&fixture.base, &json!({"dir": ""})).unwrap();
+        assert!(resolve_dir(&fixture.base).is_err());
+        write_pointer(&fixture.base, &json!({"unexpected": true})).unwrap();
+        assert!(resolve_dir(&fixture.base).is_err());
+    }
 }

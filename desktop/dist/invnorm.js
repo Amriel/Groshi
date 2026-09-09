@@ -43,6 +43,19 @@
       warn.push("IBKR: файл не схожий на коректний XML — звіт пропущено.");
       return;
     }
+    // Поля XML не є розміткою: відхиляємо некоректний код валюти ще до
+    // накопичення позицій, щоб підготовлений звіт не записав HTML у кеш.
+    if (doc.documentElement.localName !== 'FlexQueryResponse' || doc.doctype) {
+      warn.push('IBKR: потрібен FlexQueryResponse без DTD — звіт пропущено.');
+      return;
+    }
+    for (const node of doc.querySelectorAll('[currency]')) {
+      const currency = node.getAttribute('currency');
+      if (currency && !/^[A-Z][A-Z0-9]{2,9}$/.test(currency)) {
+        warn.push('IBKR: некоректний код валюти — звіт пропущено.');
+        return;
+      }
+    }
     const statements = doc.getElementsByTagName("FlexStatement");
     if (!statements.length) {
       warn.push("IBKR: у файлі немає жодного FlexStatement — це точно Flex-звіт?");
