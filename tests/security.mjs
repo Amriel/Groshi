@@ -105,13 +105,33 @@ try {
   await privacyPage.evaluate(()=>{
     window.__DESK__.tauri=true;
     window.__privacyWrites=[];
-    window.__DESK__.stateSet=async(k,v)=>{if(k==='privacyServices'){window.__privacyWrites.push(v);await new Promise(r=>setTimeout(r,100));}};
-    document.querySelector('[data-privacy="news"]').click();
+    // Відповідь контролює тест: швидкість CI й годинник сторінки не мають
+    // визначати, чи встиг запис завершитися до перевірки результату.
+    const saved=new Promise(resolve=>{window.__releasePrivacySave=resolve;});
+    window.__DESK__.stateSet=async(k,v)=>{if(k==='privacyServices'){window.__privacyWrites.push(v);await saved;}};
+    const news=document.querySelector('[data-privacy="news"]');
+    const onClick=news.onclick;
+    news.onclick=function(event){
+      window.__privacyClickDone=onClick.call(this,event);
+      return window.__privacyClickDone;
+    };
+    news.click();
     document.querySelector('[data-privacy="logos"]').click();
   });
-  await privacyPage.waitForTimeout(250);
+  // Навіть після довгого очікування дозвіл не змінюється без підтвердження.
+  await privacyPage.clock.runFor(1000);
+  assert.equal(await privacyPage.locator('[data-privacy]:disabled').count(),5,'на час запису заблоковано всі перемикачі');
+  assert.equal(await privacyPage.locator('[data-privacy="news"]').getAttribute('aria-pressed'),'false','дозвіл не ввімкнено до підтвердження запису');
+  assert.deepEqual(await privacyPage.evaluate(()=>window.__privacyWrites),[{quotes:true,news:true}],'другий клік не починає конкуруючий запис');
+  await privacyPage.evaluate(async()=>{
+    window.__releasePrivacySave();
+    await window.__privacyClickDone;
+  });
   assert.equal(await privacyPage.locator('[data-privacy="quotes"]').getAttribute('aria-pressed'),'true');
   assert.equal(await privacyPage.locator('[data-privacy="news"]').getAttribute('aria-pressed'),'true','паралельний клік не скасовує попередній дозвіл');
+  assert.equal(await privacyPage.locator('[data-privacy="logos"]').getAttribute('aria-pressed'),'false','заблокований клік не змінює інший дозвіл');
+  assert.equal(await privacyPage.locator('[data-privacy]:disabled').count(),0,'після запису перемикачі знову доступні');
+  results.push('desktop: дозволи зберігаються, конкуруючий клік заблоковано до завершення запису');
   await privacyContext.close();
   console.log(results.join('\n'));
 } finally {await browser.close();}
