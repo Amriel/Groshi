@@ -75,9 +75,19 @@ try {
     await ctx.close();
   }
   const privacyContext=await browser.newContext();
+  await privacyContext.addInitScript(()=>{
+    // Цей сценарій перевіряє дозволи після знайомства з апкою. Зберігаємо
+    // інший стан, щоб reload усе ще перевіряв справжнє збереження дозволу.
+    const state=JSON.parse(localStorage.getItem('deskState')||'{}');
+    localStorage.setItem('deskState',JSON.stringify({...state,wizDone:true}));
+  });
   const privacyPage=await privacyContext.newPage();
+  await privacyPage.clock.install();
   await privacyPage.goto(pathToFileURL(path.join(root,'desktop/dist/index.html')).href);
   await privacyPage.waitForFunction(()=>typeof window.go==='function');
+  // Перевіряємо також повільний запуск: таймер знайомства вже мав спрацювати.
+  await privacyPage.clock.runFor(1600);
+  assert.equal(await privacyPage.locator('#modal.on').count(),0,'підготовлений сценарій приватності не має відкривати майстер знайомства');
   await privacyPage.evaluate(()=>go2set('src'));
   assert.equal(await privacyPage.locator('[data-privacy]').count(),5,'мають бути 5 явних дозволів');
   assert.equal(await privacyPage.locator('[data-privacy][aria-pressed="true"]').count(),0,'типово необов’язкові запити вимкнені');
