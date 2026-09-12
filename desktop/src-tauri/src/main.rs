@@ -11,6 +11,9 @@ mod safety;
 mod store;
 mod update;
 
+#[cfg(test)]
+mod native_csp;
+
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};

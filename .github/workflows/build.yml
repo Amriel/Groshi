@@ -78,6 +78,16 @@ jobs:
         with:
           python-version: '3.12'
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+
+      - name: Установити залежності перевірки нативних ресурсів
+        run: npm ci --ignore-scripts
+
+      - name: Установити Chromium
+        run: npx --no-install playwright install chromium
+
       - name: Зібрати браузерний шаблон
         run: python app/build_app.py
 
@@ -86,8 +96,17 @@ jobs:
         working-directory: desktop
 
       - name: Перевірити десктопний захист
-        run: cargo test --locked
+        shell: pwsh
+        run: |
+          $env:GROSHI_CSP_FIXTURE = Join-Path $env:GITHUB_WORKSPACE '.test-artifacts/native-csp.json'
+          cargo test --release --locked
         working-directory: desktop/src-tauri
+
+      - name: Перевірити інтерфейс із політикою вбудованих ресурсів Tauri
+        shell: pwsh
+        run: |
+          $env:GROSHI_CSP_FIXTURE = Join-Path $env:GITHUB_WORKSPACE '.test-artifacts/native-csp.json'
+          node tests/desktop-csp.mjs
 
   windows:
     needs: [checks, ui, native]

@@ -22,8 +22,11 @@ def protect_html(document, desktop=False):
         digest = base64.b64encode(hashlib.sha256(document[start:end].encode()).digest()).decode()
         scripts = f"'sha256-{digest}'"
         connect = "'none'"
+    # Tauri додає nonce до style-src: тоді unsafe-inline у ньому вже не
+    # дозволяє style="...". Окрема директива зберігає наявне оформлення.
     policy = (f"default-src 'none'; script-src {scripts}; connect-src {connect}; "
-              "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+              "style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; "
+              "img-src 'self' data: blob:; "
               "font-src 'self' data:; frame-src 'self'; manifest-src blob:; "
               "object-src 'none'; base-uri 'none'; form-action 'none'")
     meta = '<meta http-equiv="Content-Security-Policy" content="' + html.escape(policy, quote=True) + '">'
