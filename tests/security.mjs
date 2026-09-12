@@ -99,8 +99,14 @@ try {
   assert.deepEqual(after,before,'перемикач приватності не змінює розмір або положення');
   fs.mkdirSync(path.join(root,'.test-artifacts'),{recursive:true});
   await privacyPage.locator('#privacyCard').screenshot({path:path.join(root,'.test-artifacts/privacy.png')});
+  assert.equal(await privacyPage.evaluate(()=>JSON.parse(localStorage.getItem('deskState')).privacyServices?.quotes),true,
+    'дозвіл записано у сховище перед перезавантаженням');
   await privacyPage.reload();
   await privacyPage.waitForFunction(()=>typeof window.go==='function');
+  assert.equal(await privacyPage.evaluate(()=>JSON.parse(localStorage.getItem('deskState')).privacyServices?.quotes),true,
+    'перезавантаження зберегло запис у сховищі');
+  assert.equal(await privacyPage.evaluate(()=>window.__BOOT__.state.privacyServices?.quotes),true,
+    'десктопний міст завантажив збережений дозвіл');
   assert.equal(await privacyPage.locator('[data-privacy="quotes"]').getAttribute('aria-pressed'),'true','дозвіл збережено');
   await privacyPage.evaluate(()=>{
     window.__DESK__.tauri=true;
