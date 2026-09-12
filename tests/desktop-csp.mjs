@@ -38,6 +38,9 @@ try{
         if(['legacy_all','cryhist_all','nw_all','accounts_list'].includes(command))return [];
         if(['inv_raw','inv_cache','quotes_cached','fx'].includes(command))return null;
         if(command==='logos_cached')return {};
+        // На повільному CI встигає спрацювати штатний таймер автобекапу.
+        // Відповідь так само штучна, жодних файлів тест не створює.
+        if(command==='backup_run')return {files:0,path:'synthetic-backup'};
         if(['token_has','ibkr_has','binance_has','plugin:autostart|is_enabled'].includes(command))return false;
         if(['data_dir','data_default'].includes(command))return 'synthetic-data';
         if(command==='app_version')return 'test';

@@ -76,10 +76,12 @@ try {
   }
   const privacyContext=await browser.newContext();
   await privacyContext.addInitScript(()=>{
-    // Цей сценарій перевіряє дозволи після знайомства з апкою. Зберігаємо
-    // інший стан, щоб reload усе ще перевіряв справжнє збереження дозволу.
+    // Playwright запускає цей callback також у вкладеному iframe та при
+    // reload. Підготовка тесту має записати лише початковий стан головної
+    // сторінки й більше не втручатися у перевірку збереження дозволів.
+    if(window!==window.top)return;
     const state=JSON.parse(localStorage.getItem('deskState')||'{}');
-    localStorage.setItem('deskState',JSON.stringify({...state,wizDone:true}));
+    if(state.wizDone!==true)localStorage.setItem('deskState',JSON.stringify({...state,wizDone:true}));
   });
   const privacyPage=await privacyContext.newPage();
   await privacyPage.clock.install();
