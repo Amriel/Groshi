@@ -898,10 +898,11 @@ async function invReload(){
   const raw = await D.invRaw();
   const d = window.invNormalize({ ibkrXml: raw.ibkr ? [raw.ibkr.xml].concat(raw.ibkr.extra || []).filter(Boolean) : null,
                                   binanceRaw: raw.binance || null });
-  /* оновити кеш нормалізації — наступний старт не парситиме XML заново */
+  /* Версія має збігатися зі startup у desktop.js: після синку наступний
+     старт повторно використовує вже виправлений кеш нормалізації. */
   try{
     const sig = JSON.stringify([raw.ibkr && raw.ibkr.fetched || 0,
-      (raw.ibkr && raw.ibkr.extra || []).length, raw.binance && raw.binance.fetched || 0, 2]);
+      (raw.ibkr && raw.ibkr.extra || []).length, raw.binance && raw.binance.fetched || 0, 3]);
     d.fetched = { ibkr: raw.ibkr && raw.ibkr.fetched || 0, binance: raw.binance && raw.binance.fetched || 0 };
     D.invCacheSet({ sig, data: d }).catch(()=>{});
   }catch(e){}

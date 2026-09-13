@@ -1,6 +1,6 @@
 [package]
 name = "groshi"
-version = "1.32.1"
+version = "1.32.2"
 description = "Гроші — облік витрат на даних Monobank"
 authors = ["Oleksandr"]
 edition = "2021"

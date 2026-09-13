@@ -159,10 +159,12 @@
           /* Кеш нормалізації: з дворічною історією кожен старт парсив би
              кілька МБ XML. Підпис — часи синхронізацій і кількість
              склеєних файлів; збігся — беремо готове з диска. */
+          // Версія 3 повторно розбирає звіти, відхилені раніше через
+          // BASE_SUMMARY; інакше порожній старий кеш приховав би виправлення.
           const sig = JSON.stringify([
             invRaw.ibkr && invRaw.ibkr.fetched || 0,
             (invRaw.ibkr && invRaw.ibkr.extra || []).length,
-            invRaw.binance && invRaw.binance.fetched || 0, 2]);
+            invRaw.binance && invRaw.binance.fetched || 0, 3]);
           const cache = await D.invCache().catch(() => null);
           if (cache && cache.sig === sig && cache.data) invData = cache.data;
           else {

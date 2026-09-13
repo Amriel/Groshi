@@ -49,8 +49,12 @@
       warn.push('IBKR: потрібен FlexQueryResponse без DTD — звіт пропущено.');
       return;
     }
+    // BASE_SUMMARY — службовий підсумок, який нижче пропускаємо, щоб не
+    // подвоювати готівку. Це виняток для рядка CashReportCurrency, а не
+    // новий формат валют у позиціях, угодах чи базовій валюті рахунку.
     for (const node of doc.querySelectorAll('[currency]')) {
       const currency = node.getAttribute('currency');
+      if (currency === 'BASE_SUMMARY' && node.tagName === 'CashReportCurrency') continue;
       if (currency && !/^[A-Z][A-Z0-9]{2,9}$/.test(currency)) {
         warn.push('IBKR: некоректний код валюти — звіт пропущено.');
         return;
