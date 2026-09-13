@@ -75,6 +75,18 @@ try {
     await ctx.close();
   }
   const privacyContext=await browser.newContext();
+  // localStorage для file: не має визначеної поведінки між навігаціями.
+  // Для перевірки збереження потрібен сталий origin; ресурси віддає
+  // сам тест, без сервера, зовнішньої мережі чи послаблення CSP.
+  const privacyOrigin='http://127.0.0.1:31461';
+  await privacyContext.route('**/*',route=>{
+    const url=new URL(route.request().url());
+    if(url.origin!==privacyOrigin)return route.abort();
+    const name=url.pathname.slice(1);
+    if(!['index.html','desktop.js','app.js','mononorm.js','invnorm.js'].includes(name))return route.abort();
+    return route.fulfill({contentType:name.endsWith('.html')?'text/html':'application/javascript',
+      body:fs.readFileSync(path.join(root,'desktop/dist',name))});
+  });
   await privacyContext.addInitScript(()=>{
     // Playwright запускає цей callback також у вкладеному iframe та при
     // reload. Підготовка тесту має записати лише початковий стан головної
@@ -85,7 +97,7 @@ try {
   });
   const privacyPage=await privacyContext.newPage();
   await privacyPage.clock.install();
-  await privacyPage.goto(pathToFileURL(path.join(root,'desktop/dist/index.html')).href);
+  await privacyPage.goto(privacyOrigin+'/index.html');
   await privacyPage.waitForFunction(()=>typeof window.go==='function');
   // Перевіряємо також повільний запуск: таймер знайомства вже мав спрацювати.
   await privacyPage.clock.runFor(1600);
@@ -103,13 +115,15 @@ try {
   await privacyPage.locator('#privacyCard').screenshot({path:path.join(root,'.test-artifacts/privacy.png')});
   assert.equal(await privacyPage.evaluate(()=>JSON.parse(localStorage.getItem('deskState')).privacyServices?.quotes),true,
     'дозвіл записано у сховище перед перезавантаженням');
-  await privacyPage.reload();
-  await privacyPage.waitForFunction(()=>typeof window.go==='function');
-  assert.equal(await privacyPage.evaluate(()=>JSON.parse(localStorage.getItem('deskState')).privacyServices?.quotes),true,
-    'перезавантаження зберегло запис у сховищі');
-  assert.equal(await privacyPage.evaluate(()=>window.__BOOT__.state.privacyServices?.quotes),true,
-    'десктопний міст завантажив збережений дозвіл');
-  assert.equal(await privacyPage.locator('[data-privacy="quotes"]').getAttribute('aria-pressed'),'true','дозвіл збережено');
+  for(let reload=0;reload<3;reload++){
+    await privacyPage.reload();
+    await privacyPage.waitForFunction(()=>typeof window.go==='function');
+    assert.equal(await privacyPage.evaluate(()=>JSON.parse(localStorage.getItem('deskState')).privacyServices?.quotes),true,
+      'перезавантаження зберегло запис у сховищі');
+    assert.equal(await privacyPage.evaluate(()=>window.__BOOT__.state.privacyServices?.quotes),true,
+      'десктопний міст завантажив збережений дозвіл');
+    assert.equal(await privacyPage.locator('[data-privacy="quotes"]').getAttribute('aria-pressed'),'true','дозвіл збережено');
+  }
   await privacyPage.evaluate(()=>{
     window.__DESK__.tauri=true;
     window.__privacyWrites=[];
