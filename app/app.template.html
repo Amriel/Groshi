@@ -5452,7 +5452,7 @@ function pjAddProject(){
   const n = {id:'p'+Date.now(), client:(p&&p.client)||PJ_NOCLIENT, name:'Новий проєкт',
              status:'active', rate:(p&&p.rate)||300, tax:(p&&p.tax)||6, usd:(p&&p.usd)||45, rows:[]};
   PROJ.push(n); PJ_CUR = n.id; PJ_FOLD.delete(n.client); PJ_VIEW = 'one';
-  pjLog(n, 'Проєкт створено');
+  pjLog(n, 'Проєкт створено', true);
   store.set('projView', PJ_VIEW); pjSave(); renderProjects();
   setTimeout(()=>{ const f=el('pjName'); if(f){ f.focus(); f.select(); } }, 30);
 }
@@ -5551,7 +5551,7 @@ function renderPjList(){
     if(!v || v === (p.status||'active')) return;
     p.status = v;
     if(p.status === 'paid') p.paidAt = todayISO(); else delete p.paidAt;
-    pjLog(p, 'Стан: ' + pjSt(p).n);
+    pjLog(p, 'Стан: ' + pjSt(p).n, true);
     pjSave(); renderPjList(); pjTotals();
   });
   el('pjNew').onclick = pjAddProject;
@@ -5773,7 +5773,7 @@ function pjWireHead(){
   fld('pjName','name',false); fld('pjClient','client',false);
   fld('pjRate','rate',true);  fld('pjTax','tax',true); fld('pjUsd','usd',true);
   el('pjStatus').onchange = e=>{ const p = pjCur(); p.status = e.target.value;
-    pjLog(p, PJ_ST[p.status] ? 'Стан: ' + PJ_ST[p.status].n : 'Стан змінено');
+    pjLog(p, PJ_ST[p.status] ? 'Стан: ' + PJ_ST[p.status].n : 'Стан змінено', true);
     if(p.status === 'paid' && !p.paidAt) p.paidAt = todayISO();
     if(p.status !== 'paid') delete p.paidAt;
     pjSave(); renderProjects(); };
@@ -6171,7 +6171,7 @@ async function invoiceFlow(p){
   const html = invoiceHtml(p, { ...r, biz, lang, k, act: r.fmt.includes('акт') });
   download(`${r.no}.html`, html, 'text/html;charset=utf-8');
   const tot = invcRows(p, (a)=>a, k).reduce((s,x)=>s+x.amount,0);
-  pjLog(p, `Рахунок ${r.no} на ${fmt(Math.round(tot))} ${r.ccy}${k!==1?` (k=${k.toFixed(2)})`:''}`);
+  pjLog(p, `Рахунок ${r.no} на ${fmt(Math.round(tot))} ${r.ccy}${k!==1?` (k=${k.toFixed(2)})`:''}`, true);
   /* журнал виставлених: з нього апка сама бачитиме, чи прийшла оплата */
   INVCLOG = INVCLOG.filter(x=>x.no!==r.no);
   INVCLOG.unshift({ no:r.no, date:r.date, client:r.cname, total: Math.round(tot*100)/100,
@@ -6798,19 +6798,49 @@ addEventListener('focusin', e=>{
    проєкт на старті й куди поїхав. Тому окремої «статистики» рахувати не
    треба, вона вже є в журналі.
    ══════════════════════════════════════════════════════════════════ */
-function pjLog(p, txt){
+/* Рахуючи проєкт, людина за чверть години двадцять разів переставить
+   ставку, дні й типи рядків. Раніше злипались лише правки ОДНОГО поля
+   поспіль і лише за 90 секунд — тож один сеанс підрахунку лишав по собі
+   десяток рядків «Ставка: 300 → 450», «Дизайн · дні: 2 → 3» і так далі.
+   Історія ставала нечитабельною, а крива ціни — зубчатою, хоча по суті
+   це була одна робота з одним результатом.
+
+   Тепер дрібні правки зливаються в ОДИН запис, поки між ними менше за
+   PJ_LOG_BATCH. Час і ціна в ньому — останні (важливий результат, а не
+   проміжні спроби), у тексті — що саме чіпали й скільки разів. Події,
+   які щось означають самі по собі — створення, зміна стану, виставлений
+   рахунок, — пишуться окремо й закривають сеанс: наступна правка після
+   них почне новий запис, інакше «Стан: оплачено» злилося б із правками. */
+const PJ_LOG_BATCH = 10*60*1000;
+/* Про що була правка: «Ставка: 300 → 450» → «Ставка», «Дизайн · дні:
+   2 → 3» → «Дизайн», «Прибрано «Банер» (−$300)» → «Прибрано «Банер»». */
+const pjLogWhat = txt => String(txt).split(/\s·\s|\s\(|:/)[0].trim();
+const pjLogTxt = rec => rec.n <= 1 ? rec.first
+  : rec.parts.slice(0, 3).join(', ')
+    + (rec.parts.length > 3 ? ` і ще ${rec.parts.length - 3}` : '')
+    + ` · ${plural(rec.n, 'зміна', 'зміни', 'змін')}`;
+
+function pjLog(p, txt, event){
   if(!p.log) p.log = [];
   const price = Math.round(pjSum(p, pjTax));
+  const now = new Date();
   const last = p.log[p.log.length-1];
-  /* Правки в одному полі поспіль злипаються: інакше набір «300→30→3→450»
-     лишає в історії чотири рядки замість одного. */
-  if(last && last.txt.split(':')[0] === txt.split(':')[0] &&
-     Date.now() - new Date(last.t).getTime() < 90000){
-    last.txt = txt; last.price = price; last.t = new Date().toISOString();
-  } else {
-    p.log.push({t:new Date().toISOString(), txt, price});
-    if(p.log.length > 300) p.log = p.log.slice(-300);
+  /* last.batch — ознака запису, до якого ще можна долити. Старі журнали
+     її не мають, тому просто починають новий запис: переписувати чужу
+     історію заднім числом не можна. */
+  if(!event && last && last.batch && now - new Date(last.t).getTime() < PJ_LOG_BATCH){
+    const what = pjLogWhat(txt);
+    if(!last.parts.includes(what)) last.parts.push(what);
+    last.n = (last.n || 1) + 1;
+    last.t = now.toISOString();
+    last.price = price;
+    last.txt = pjLogTxt(last);
+    return;
   }
+  const rec = {t: now.toISOString(), txt, price};
+  if(!event){ rec.batch = true; rec.n = 1; rec.parts = [pjLogWhat(txt)]; rec.first = txt; }
+  p.log.push(rec);
+  if(p.log.length > 300) p.log = p.log.slice(-300);
 }
 const pjLogDate = iso => { const d = new Date(iso);
   return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} `
@@ -6893,7 +6923,7 @@ function pjFromTemplate(t){
              status:'active', rate:t.rate, tax:t.tax, usd:t.usd,
              rows:t.rows.map((r,i)=>({...r, id:'r'+Date.now()+i}))};
   PROJ.push(n); PJ_CUR = n.id; PJ_VIEW = 'one'; PJ_FOLD.delete(n.client);
-  pjLog(n, `Створено з шаблону «${t.name}»`);
+  pjLog(n, `Створено з шаблону «${t.name}»`, true);
   store.set('projView','one'); pjSave(); renderProjects();
 }
 function renderPjTpl(){
@@ -6957,13 +6987,17 @@ tfoot td{border-top:2px solid #16181a;padding-top:16px;font-size:17px;font-weigh
   <div class="v">${usd(pjSum(p,pjTax))}</div></div>
 <div class="ft">Суми вказані з урахуванням податку ${p.tax}%. Курс ${p.usd} ₴ за долар зафіксовано на дату кошторису.</div>
 </div></body></html>`;
-  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `Кошторис_${p.client}_${p.name}`.replace(/[^\p{L}\p{N}_-]+/gu,'_') + '.html';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
-  pjToast('Файл кошторису збережено — його можна надіслати клієнту');
+  /* Тільки через download(). Власний Blob + <a download> у WebView2
+     МОВЧКИ не спрацьовує — кнопка натискалась і не відбувалось нічого
+     (реальний випадок). Рівно та сама пастка вже була з рахунками й
+     експортами, і рівно для неї існує download(): у застосунку файл
+     пише Rust у «Завантаження», у браузері лишається класичний шлях. */
+  const name = `Кошторис_${p.client}_${p.name}`.replace(/[^\p{L}\p{N}_-]+/gu,'_') + '.html';
+  download(name, html, 'text/html;charset=utf-8');
+  /* У застосунку про шлях звітує сам download(); другий тост поверх
+     нього був би шумом, а в браузері — єдиним підтвердженням. */
+  if(!(window.__DESK__ && window.__DESK__.tauri))
+    pjToast('Файл кошторису збережено — його можна надіслати клієнту');
 }
 
 /* ═══════════════════════ MAIN RENDER ═══════════════════════ */
