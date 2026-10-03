@@ -1387,8 +1387,14 @@ mod migration_tests {
     struct Fixture { root: PathBuf, base: PathBuf, source: PathBuf, target: PathBuf }
     impl Fixture {
         fn new() -> Self {
-            let root = std::env::temp_dir().join(format!("groshi-migration-test-{}-{}", std::process::id(),
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+            /* Тести йдуть паралельно в одному процесі, а годинник Windows
+               тікає грубо: два фікстури з одним pid і тими самими наносекундами
+               отримували одну теку й падали на AlreadyExists (CI v1.32.3).
+               Лічильник робить ім'я унікальним незалежно від годинника. */
+            static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let root = std::env::temp_dir().join(format!("groshi-migration-test-{}-{}-{}", std::process::id(),
+                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(), seq));
             std::fs::create_dir(&root).unwrap();
             let root = std::fs::canonicalize(root).unwrap();
             let base = root.join("base"); let source = root.join("source"); let target = root.join("target");
