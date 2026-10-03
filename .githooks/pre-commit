@@ -1,6 +1,7 @@
 #!/bin/sh
 # Перевіряємо саме майбутній коміт; значення секретів не друкуються.
-if command -v python >/dev/null 2>&1; then
-    exec python scripts/privacy_check.py --staged
-fi
-exec python3 scripts/privacy_check.py --staged
+# Спершу — чи індекс не відстав від HEAD (див. scripts/stale_index_check.py).
+PY=python
+command -v python >/dev/null 2>&1 || PY=python3
+$PY scripts/stale_index_check.py || exit 1
+exec $PY scripts/privacy_check.py --staged

@@ -35,6 +35,8 @@ node mcp/selftest.js
 Мінімум перед видачею: `allcheck.mjs`, `modal.mjs`, `pjjump.mjs` плюс проба
 зміненої поведінки. Тимчасові результати — у `.test-artifacts/`.
 Хук `.githooks/pre-commit` має бути підключений: `git config core.hooksPath .githooks`.
+Він же зупиняє коміт, якщо індекс відстав від HEAD (`scripts/stale_index_check.py`):
+лікується `git reset` без шляхів, а не обходом.
 
 ## Архітектура
 
