@@ -3048,7 +3048,10 @@ function renderKpis(rows, prev){
         : `<span class="${delta>0?'up':'down'}">${delta>0?'▲':'▼'} ${Math.abs(delta).toFixed(0)}%</span> до попереднього періоду`},
     {l:'Надходження за період', v: inc ? money(inc) : '—', a: inc ? alt(inc) : '',
      s: inc ? `${nOps(rows.filter(isIncome).length)}`
-            : '<span style="color:var(--warn)">банк їх не передає в Notion</span>'},
+            /* Пояснення живе тут, а не окремим банером над сторінкою:
+               воно стосується лише цієї плитки. Notion уже не джерело —
+               порожнеча означає період без зарахувань. */
+            : '<span style="color:var(--warn)">зарахувань за період не було — спробуйте ширший період</span>'},
     {l:'Чистий потік', v: inc ? (inc-exp>=0?'+':'−')+money(Math.abs(inc-exp)) : '—',
      a: inc ? alt(Math.abs(inc-exp)) : '',
      s: inc ? (inc-exp>=0 ? 'заробили більше, ніж витратили' : 'витратили більше, ніж заробили')
