@@ -8867,13 +8867,19 @@ function download(name, text, type){
 /* Експорт — це дані, а не показ: сховані перекази в нього входять,
    інакше файл мовчки брехав би про період. */
 const exportRows = ()=>{ const [a,b]=periodRange(); return TX.filter(t=>t.date>=a && t.date<=b); };
+/* Категорія в експорті вже людська (catOf), а власні нотатки губились:
+   «за що це було, з ким ділили» лишалось тільки в апці. Окремі назви
+   bank_comment / my_note, бо в даних Mono вже є своє поле note — злиття
+   в одну колонку не дало б зрозуміти, хто що написав. */
 el('expCsv').onclick = ()=>{
   const rows = exportRows();
-  const head = 'date,merchant,category,subcategory,direction,amount,mcc\n';
-  const body = rows.map(t=>[t.date,t.merchant,catOf(t),subOf(t),t.dir,t.amount,t.mcc||''].map(csvCell).join(',')).join('\n');
+  const head = 'date,merchant,category,subcategory,direction,amount,mcc,bank_comment,my_note\n';
+  const body = rows.map(t=>[t.date,t.merchant,catOf(t),subOf(t),t.dir,t.amount,t.mcc||'',
+    t.comment||t.note||'', txNote(t.id)].map(csvCell).join(',')).join('\n');
   download('expenses.csv', '﻿'+head+body, 'text/csv;charset=utf-8');
 };
-el('expJson').onclick = ()=> download('expenses.json', JSON.stringify(exportRows(),null,1), 'application/json');
+el('expJson').onclick = ()=> download('expenses.json', JSON.stringify(
+  exportRows().map(t=> txNote(t.id) ? Object.assign({}, t, {myNote: txNote(t.id)}) : t), null, 1), 'application/json');
 
 /* ── автоперевірка оновлень: latest.json лежить у теці, але кнопку
    ніхто не тисне — раз на добу перевіряємо самі й кажемо тостом ── */

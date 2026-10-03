@@ -52,6 +52,17 @@ try {
       return result;
     });
     assert.ok(csv.includes('"\'=1+1"'),`${mode}: CSV не має виконувати текст як формулу`);
+    const noted=await page.evaluate(()=>{
+      let out={}; download=(name,text)=>{out[name]=text;};
+      TX.push({id:'note-probe',date:periodRange()[0],merchant:'Кафе',category:'Тест',subcategory:'Тест',dir:'out',amount:5,mcc:0,comment:'від банку'});
+      setTxNote('note-probe','ділили з Олею');
+      document.getElementById('expCsv').click();
+      document.getElementById('expJson').click();
+      return out;
+    });
+    assert.ok(noted['expenses.csv'].split('\n')[0].endsWith('bank_comment,my_note'),`${mode}: CSV без колонок приміток`);
+    assert.ok(noted['expenses.csv'].includes('"від банку","ділили з Олею"'),`${mode}: CSV загубив примітки`);
+    assert.equal(JSON.parse(noted['expenses.json']).find(t=>t.id==='note-probe').myNote,'ділили з Олею',`${mode}: JSON загубив власну примітку`);
     results.push(`${mode}: XML та кеш безпечні, звичайний звіт зберіг суми`);
     await ctx.close();
   }
