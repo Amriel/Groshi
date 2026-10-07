@@ -1,4 +1,6 @@
-import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const {chromium} = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const b=await chromium.launch({executablePath: process.env.CHROMIUM || undefined});
 const p=await b.newPage({viewport:{width:1400,height:1000}});
 const errs=[]; p.on('pageerror',e=>errs.push(e.message));
@@ -32,6 +34,10 @@ for(const t of ['overview','cats','tx','budget','inv','subs','settings']){
     return { карток:cards.length, злиплих:tight.length, деталі:tight.slice(0,4) };
   }, t);
   console.log(t.padEnd(10), JSON.stringify(r));
+  // Сторож: зазор між сусідніми картками ≥ 8 px (поріг у evaluate вище); картки мають існувати, інакше проба порожня й нічого не доводить.
+  assert.ok(r.карток > 0, `вкладка «${t}»: не знайдено жодної картки`);
+  assert.equal(r.злиплих, 0, `вкладка «${t}»: злиплі картки (зазор < 8 px): ${JSON.stringify(r.деталі)}`);
 }
 console.log(errs.length?'ПОМИЛКИ: '+errs.slice(0,4).join(' | '):'без помилок');
+assert.equal(errs.length, 0, `помилки сторінки: ${errs.slice(0,3).join(' | ')}`);
 await b.close();

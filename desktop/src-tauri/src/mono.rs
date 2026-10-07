@@ -249,9 +249,10 @@ pub fn windows(from: i64, to: i64) -> Vec<(i64, i64)> {
         out.push((a, b));
         a = b;
     }
-    if out.is_empty() {
-        out.push((from, to));
-    }
+    /* Порожній або зворотний проміжок — порожній список, а не вікно
+       (from, to) «як є»: таке вікно йшло в банк зайвим запитом при ліміті
+       1 запит/60 с, і банк його відхиляв. plan_windows дає from <= to,
+       тож порожній результат означає «нового нема». */
     out
 }
 
@@ -299,11 +300,11 @@ mod tests {
     }
 
     #[test]
-    fn empty_or_reversed_interval_yields_single_passthrough_window() {
-        // Поточна поведінка: порожній/зворотний проміжок не дає нуля вікон,
-        // а повертає (from, to) як є — банк сам відхилить зворотний.
-        assert_eq!(windows(500, 500), vec![(500, 500)]);
-        assert_eq!(windows(900, 100), vec![(900, 100)]);
+    fn empty_or_reversed_interval_yields_no_windows() {
+        // Симптом: вікно (from, to) із порожнього проміжку йшло в банк
+        // зайвим запитом, який той відхиляв.
+        assert!(windows(500, 500).is_empty());
+        assert!(windows(900, 100).is_empty());
     }
 
     #[test]
