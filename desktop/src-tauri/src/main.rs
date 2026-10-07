@@ -865,6 +865,12 @@ async fn sync_inner<E: Emitter<tauri::Wry>>(
     if !raw.is_object() {
         raw = json!({"accounts": [], "items": {}, "fetched": {}, "synced": 0});
     }
+    /* Файл із диска може бути старим або пошкодженим: об'єкт без "items"
+       або з "items" не-об'єктом. Раніше нижче стояв unwrap, і при
+       panic = "abort" апка мовчки зникала посеред синхронізації. */
+    if !raw["items"].is_object() {
+        raw["items"] = json!({});
+    }
     raw["accounts"] = serde_json::to_value(&accs).unwrap();
     if !owner.is_empty() { raw["owner"] = json!(owner); }
 
@@ -929,10 +935,15 @@ async fn sync_inner<E: Emitter<tauri::Wry>>(
 
         let arr = raw["items"]
             .as_object_mut()
-            .unwrap()
+            .ok_or("mono_raw.json: items не є об'єктом")?
             .entry(acc_id.clone())
             .or_insert_with(|| Value::Array(vec![]));
-        let list = arr.as_array_mut().unwrap();
+        // Рахунок із не-масивом у файлі: починаємо його історію заново,
+        // а не падаємо; інші рахунки при цьому не чіпаються.
+        if !arr.is_array() {
+            *arr = Value::Array(vec![]);
+        }
+        let list = arr.as_array_mut().ok_or("mono_raw.json: список операцій не є масивом")?;
         let mut have: std::collections::HashSet<String> = list
             .iter()
             .filter_map(|x| x.get("id").and_then(|v| v.as_str()).map(String::from))

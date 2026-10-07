@@ -95,3 +95,121 @@ fn write_json(p: &Path, v: &Value) -> Result<(), String> {
     }
     fs::rename(&tmp, p).map_err(|e| e.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn store() -> (tempfile::TempDir, Store) {
+        let d = tempfile::tempdir().unwrap();
+        let s = Store::new(d.path().to_path_buf());
+        (d, s)
+    }
+
+    #[test]
+    fn write_then_read_roundtrip() {
+        let (_d, s) = store();
+        let v = json!({"a": 1, "b": [1, 2, "x"], "ж": "їжак"});
+        s.write("x.json", &v).unwrap();
+        assert_eq!(s.read("x.json"), v);
+    }
+
+    #[test]
+    fn missing_file_reads_null() {
+        let (_d, s) = store();
+        assert_eq!(s.read("nope.json"), Value::Null);
+    }
+
+    #[test]
+    fn corrupt_json_reads_null_not_panic() {
+        // Обрізаний/зіпсований файл не має валити апку при старті.
+        let (_d, s) = store();
+        fs::write(s.path("bad.json"), b"{\"a\": [1, 2").unwrap();
+        assert_eq!(s.read("bad.json"), Value::Null);
+    }
+
+    #[test]
+    fn state_set_on_empty_store_creates_object() {
+        let (_d, s) = store();
+        s.state_set("k", json!(5)).unwrap();
+        assert_eq!(s.state(), json!({"k": 5}));
+    }
+
+    #[test]
+    fn state_set_keeps_other_keys() {
+        // Симптом, який ловимо: запис одного налаштування стирає решту стану.
+        let (_d, s) = store();
+        s.state_set("a", json!(1)).unwrap();
+        s.state_set("b", json!(2)).unwrap();
+        assert_eq!(s.state(), json!({"a": 1, "b": 2}));
+    }
+
+    #[test]
+    fn state_set_over_non_object_resets_to_object() {
+        // Якщо state.json містить не об'єкт (масив/сміття), set не падає, а починає з чистого.
+        let (_d, s) = store();
+        s.write("state.json", &json!([1, 2])).unwrap();
+        s.state_set("a", json!(1)).unwrap();
+        assert_eq!(s.state(), json!({"a": 1}));
+    }
+
+    #[test]
+    fn state_returns_empty_object_when_missing() {
+        let (_d, s) = store();
+        assert_eq!(s.state(), json!({}));
+    }
+
+    #[test]
+    fn state_del_removes_only_that_key() {
+        let (_d, s) = store();
+        s.state_set("a", json!(1)).unwrap();
+        s.state_set("b", json!(2)).unwrap();
+        s.state_del("a").unwrap();
+        assert_eq!(s.state(), json!({"b": 2}));
+    }
+
+    #[test]
+    fn state_del_without_file_is_ok_and_creates_nothing() {
+        let (_d, s) = store();
+        s.state_del("a").unwrap();
+        assert!(!s.path("state.json").exists());
+    }
+
+    #[test]
+    fn state_replace_overwrites_wholesale() {
+        let (_d, s) = store();
+        s.state_set("old", json!(1)).unwrap();
+        s.state_replace(json!({"new": 2})).unwrap();
+        assert_eq!(s.state(), json!({"new": 2}));
+    }
+
+    #[test]
+    fn write_leaves_no_tmp_file() {
+        let (d, s) = store();
+        s.write("x.json", &json!({"a": 1})).unwrap();
+        let tmps: Vec<_> = fs::read_dir(d.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map(|x| x == "tmp").unwrap_or(false))
+            .collect();
+        assert!(tmps.is_empty(), "лишився тимчасовий файл: {tmps:?}");
+    }
+
+    #[test]
+    fn stale_tmp_does_not_affect_read_and_is_overwritten_by_next_write() {
+        // Імітація обриву живлення посеред запису: tmp зі сміттям поруч із
+        // цілим файлом. Читання має віддати старий вміст, наступний запис — перетерти tmp.
+        let (_d, s) = store();
+        let old = json!({"v": "old"});
+        s.write("x.json", &old).unwrap();
+        let tmp = s.path("x.tmp");
+        fs::write(&tmp, b"{\"v\": \"half-wri").unwrap();
+
+        assert_eq!(s.read("x.json"), old);
+
+        let new = json!({"v": "new"});
+        s.write("x.json", &new).unwrap();
+        assert_eq!(s.read("x.json"), new);
+        assert!(!tmp.exists());
+    }
+}

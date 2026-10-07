@@ -3,6 +3,9 @@ const b=await chromium.launch({executablePath: process.env.CHROMIUM || undefined
 const p=await b.newPage({viewport:{width:1400,height:1000}});
 const errs=[]; p.on('pageerror',e=>errs.push(e.message));
 p.on('console',m=>{if(m.type()==='error')errs.push(m.text());});
+// Майстер першого запуску займає те саме модальне вікно, що й uiAsk: без
+// цього прапорця випадайка стану не відкриється, а проба впаде на chips[0].
+await p.addInitScript(() => { localStorage.setItem('wizDone','true'); });
 await p.goto(`file://${process.cwd()}/app/Groshi_app.html`); await p.waitForTimeout(2200);
 await p.evaluate(()=>{
   PROJ.length=0;
@@ -56,6 +59,6 @@ console.log('KPI після оплати:', await p.evaluate(async ()=>{
   return [...document.querySelectorAll('#pjTotals .kpi')].map(k=>
     k.querySelector('.lbl').textContent+': '+k.querySelector('.val').textContent);
 }));
-await p.screenshot({path:'/tmp/pjstat.png'});
+await p.screenshot({path:'.test-artifacts/pjstat.png'});
 console.log(errs.length?'ПОМИЛКИ: '+errs.slice(0,5).join(' | '):'без помилок');
 await b.close();

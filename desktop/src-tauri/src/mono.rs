@@ -256,3 +256,71 @@ pub fn windows(from: i64, to: i64) -> Vec<(i64, i64)> {
 }
 
 pub const REQ_GAP: u64 = GAP;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn short_interval_is_one_window_with_exact_bounds() {
+        assert_eq!(windows(1000, 1000 + WINDOW - 1), vec![(1000, 1000 + WINDOW - 1)]);
+        // рівно одне вікно — теж одне, без порожнього хвоста
+        assert_eq!(windows(1000, 1000 + WINDOW), vec![(1000, 1000 + WINDOW)]);
+    }
+
+    #[test]
+    fn exact_multiple_gives_exactly_n_windows() {
+        let w = windows(0, 3 * WINDOW);
+        assert_eq!(w, vec![(0, WINDOW), (WINDOW, 2 * WINDOW), (2 * WINDOW, 3 * WINDOW)]);
+    }
+
+    #[test]
+    fn remainder_goes_to_last_shorter_window() {
+        let w = windows(0, 2 * WINDOW + 5);
+        assert_eq!(w.len(), 3);
+        assert_eq!(w[2], (2 * WINDOW, 2 * WINDOW + 5));
+    }
+
+    #[test]
+    fn windows_are_contiguous_ordered_and_within_bank_limit() {
+        // Симптом: дірка між вікнами губить операції, перетин — дублює їх;
+        // вікно довше за ліміт банку дає відмову.
+        let (from, to) = (123, 123 + 7 * WINDOW + 999);
+        let w = windows(from, to);
+        assert_eq!(w.first().unwrap().0, from);
+        assert_eq!(w.last().unwrap().1, to);
+        for pair in w.windows(2) {
+            assert_eq!(pair[0].1, pair[1].0);
+        }
+        for (a, b) in &w {
+            assert!(a < b);
+            assert!(b - a <= 2_682_000, "вікно більше за ліміт банку");
+        }
+    }
+
+    #[test]
+    fn empty_or_reversed_interval_yields_single_passthrough_window() {
+        // Поточна поведінка: порожній/зворотний проміжок не дає нуля вікон,
+        // а повертає (from, to) як є — банк сам відхилить зворотний.
+        assert_eq!(windows(500, 500), vec![(500, 500)]);
+        assert_eq!(windows(900, 100), vec![(900, 100)]);
+    }
+
+    #[test]
+    fn ccy_name_known_and_unknown() {
+        assert_eq!(ccy_name(980), "₴");
+        assert_eq!(ccy_name(840), "$");
+        assert_eq!(ccy_name(978), "€");
+        assert_eq!(ccy_name(985), "zł");
+        assert_eq!(ccy_name(826), "£");
+        assert_eq!(ccy_name(999), "");
+    }
+
+    #[test]
+    fn ccy_code_known_and_unknown() {
+        assert_eq!(ccy_code(840), Some("USD"));
+        assert_eq!(ccy_code(978), Some("EUR"));
+        assert_eq!(ccy_code(980), None); // гривня — це база, не пара
+        assert_eq!(ccy_code(0), None);
+    }
+}

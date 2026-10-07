@@ -76,6 +76,47 @@ try {
     assert.equal(await page.locator('#modal').isVisible(), true, `${mode}: друге вікно не зникло`);
     await page.locator('#modalNo').click();
     await page.waitForFunction(() => window.__modalResult===null);
+    /* Сторож «жодного системного вигляду». Симптом: два атрибути `title`
+       (стовпчики року в «Огляді» і плашка бенчмарка в «Інвестиціях») прожили
+       кілька релізів, бо ця проба перевіряла лише власні діалоги, а решту UI
+       ніхто не обходив. Тому проходимо всі вкладки на даних, за яких ці
+       елементи справді малюються, і після кожної шукаємо [title] (крім
+       <iframe>), <input type="date"> та <input list>. */
+    await page.evaluate(() => {
+      const y = new Date().getFullYear();
+      TX.length = 0;
+      for (const m of ['01','02','03'])
+        TX.push({date:`${y}-${m}-10`, merchant:'Кафе', category:'Їжа', subcategory:'Кафе',
+          dir:'expense', amount:100*(+m), mcc:0});
+      INV = {pos:[{src:'ibkr', symbol:'AAPL', name:'Apple', kind:'stock', qty:10, price:100,
+          value:1000, ccy:'USD', avgCost:90}], ivt:[],
+        navh:[{date:`${y}-01-01`, value:1000, ccy:'USD'}, {date:`${y}-02-01`, value:1100, ccy:'USD'}],
+        fetched:{}};
+      QUOTES = {fetched:Date.now()/1000,
+        quotes:{SPY:{price:500, prev:499, dates:[`${y}-01-01`, `${y}-02-01`], closes:[450, 500]}}};
+    });
+    const nativeLooks = () => page.evaluate(() => [
+      ...[...document.querySelectorAll('[title]')].filter(n => n.tagName!=='IFRAME')
+        .map(n => `${n.tagName.toLowerCase()}[title="${n.getAttribute('title')}"]${n.id?'#'+n.id:''}${
+          typeof n.className==='string' && n.className ? '.'+n.className.trim().replace(/\s+/g,'.') : ''}`),
+      ...[...document.querySelectorAll('input[type="date"], input[list]')]
+        .map(n => `input${n.id?'#'+n.id:''}[${n.getAttribute('type')||'list'}]`)]);
+    // Приховані вкладки лишаються в DOM, тому той самий порушник видно на кожній: рахуємо його раз.
+    const violators = [];
+    for (const tab of ['overview','cats','tx','budget','inv','subs','settings']) {
+      await page.evaluate(value => { go(value); render(); }, tab);
+      await page.locator(`#tab-${tab}`).waitFor({state:'visible'});
+      for (const item of await nativeLooks())
+        if (!violators.some(v => v.endsWith(` ${item}`))) violators.push(`${tab}: ${item}`);
+    }
+    assert.deepEqual(violators, [], `${mode}: системний title/date/list у вкладках: ${violators.join('; ')}`);
+    // Охоронна перевірка самої проби: без цих елементів сторож нічого не бачив би.
+    await page.evaluate(() => go('overview'));
+    assert.ok(await page.locator('#yearSum div[style*="flex:1"]').count() > 0,
+      `${mode}: стовпчики року справді намальовані — сторож їх бачить`);
+    await page.evaluate(() => go('inv'));
+    assert.equal(await page.locator('[data-bench]').count(), 1,
+      `${mode}: плашка бенчмарка справді намальована — сторож її бачить`);
     assert.deepEqual(errors, [], `${mode}: помилки модального вікна`);
     assert.deepEqual(nativeDialogs, [], `${mode}: нативні діалоги не викликалися`);
     console.log(`${mode}: скасування, підтвердження, фокус і послідовні вікна — OK`);

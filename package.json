@@ -1,6 +1,6 @@
 {
   "name": "groshi-checks",
   "private": true,
-  "scripts": {"test": "node tests/ibkr-currency.mjs && node tests/security.mjs && node tests/allcheck.mjs && node tests/modal.mjs && node tests/pjjump.mjs && node tests/pjlog.mjs && node tests/period.mjs && node tests/desktop-csp.mjs"},
+  "scripts": {"test": "node tests/ibkr-currency.mjs && node tests/security.mjs && node tests/allcheck.mjs && node tests/empty.mjs && node tests/scrn.mjs && node tests/gaps.mjs && node tests/pjui.mjs && node tests/glass2.mjs && node tests/pjstat.mjs && node tests/v1311.mjs && node tests/modal.mjs && node tests/pjjump.mjs && node tests/pjlog.mjs && node tests/period.mjs && node tests/desktop-csp.mjs"},
   "devDependencies": {"playwright": "1.62.1"}
 }

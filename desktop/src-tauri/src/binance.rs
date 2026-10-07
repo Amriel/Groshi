@@ -390,3 +390,51 @@ pub async fn fetch(key: &str, secret: &str) -> Result<Value, String> {
         "fetched": now_ms() / 1000,
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /* Очікувані значення пораховано незалежно Python:
+       hmac.new(secret, msg, hashlib.sha256).hexdigest().
+       Перший — класичний вектор «key / The quick brown fox…», другий —
+       приклад підпису з документації Binance (REST, SIGNED). */
+    #[test]
+    fn sign_matches_known_vectors() {
+        assert_eq!(
+            sign("key", "The quick brown fox jumps over the lazy dog").unwrap(),
+            "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8"
+        );
+        assert_eq!(
+            sign(
+                "NhqPtmdSJYdKjVHjA7PZj4Mge3R5YNiP1e3UZjInClVN65XAbvqqM6A7H5fATj0j",
+                "symbol=LTCBTC&side=BUY&type=LIMIT&timeInForce=GTC&quantity=1&price=0.1&recvWindow=5000&timestamp=1499827319559"
+            )
+            .unwrap(),
+            "c8db56825ae71d6d79447849e617115f4a920fa2acdcab2b053c4b2838bd6b71"
+        );
+    }
+
+    #[test]
+    fn sign_empty_secret_is_not_an_error() {
+        // HMAC допускає порожній ключ: підпис рахується, а не падає з Err.
+        // Порожні ключ і повідомлення, hmac у Python.
+        assert_eq!(
+            sign("", "").unwrap(),
+            "b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad"
+        );
+    }
+
+    #[test]
+    fn num_parses_string_number_and_garbage() {
+        assert_eq!(num(Some(&json!("1.5"))), 1.5);
+        assert_eq!(num(Some(&json!(2))), 2.0);
+        assert_eq!(num(Some(&json!(0.25))), 0.25);
+        assert_eq!(num(None), 0.0);
+        // сміття не має перетворитися на «ненульовий» баланс
+        assert_eq!(num(Some(&json!("abc"))), 0.0);
+        assert_eq!(num(Some(&json!(null))), 0.0);
+        assert_eq!(num(Some(&json!([1]))), 0.0);
+        assert_eq!(num(Some(&json!(true))), 0.0);
+    }
+}

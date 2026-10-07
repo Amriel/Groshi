@@ -86,28 +86,31 @@ git diff --cached --stat
 
 ### Локальний pre-commit hook
 
-Команди нижче ставлять hook лише в цьому репозиторії, без глобальної
-конфігурації. Якщо hook уже є, додайте до нього виклик перевірки вручну,
-зберігши його наявні дії. Якщо `git config --get core.hooksPath` виводить
-шлях, використовуйте чинний механізм hooks замість цього рецепта.
-
-```powershell
-git config --get core.hooksPath
-$privacyHook = git rev-parse --git-path hooks/pre-commit
-if (Test-Path -LiteralPath $privacyHook) { throw 'Hook уже існує: доповніть його вручну.' }
-$privacyHookBody = "#!/bin/sh`nexec python scripts/privacy_check.py --staged`n"
-[System.IO.File]::WriteAllText([System.IO.Path]::GetFullPath($privacyHook), $privacyHookBody, [System.Text.UTF8Encoding]::new($false))
-python scripts/privacy_check.py --staged
-```
-
-Для Git Bash/Linux/macOS (також лише за відсутності чинного hook і
-`core.hooksPath`):
+Hook лежить у репозиторії, у теці `.githooks/`; його вмикає одна команда
+(лише для цього клону, без глобальної конфігурації):
 
 ```bash
-hook="$(git rev-parse --git-path hooks/pre-commit)"
-test ! -e "$hook" && printf '#!/bin/sh\nexec python3 scripts/privacy_check.py --staged\n' > "$hook" && chmod +x "$hook"
-python3 scripts/privacy_check.py --staged
+git config core.hooksPath .githooks
 ```
+
+Перед кожним комітом `.githooks/pre-commit` запускає дві перевірки:
+
+- `scripts/stale_index_check.py` — зупиняє коміт, якщо індекс відстав від
+  HEAD і коміт непомітно повернув би файл назад; лікується `git reset` без
+  шляхів, а не обходом;
+- `scripts/privacy_check.py --staged` — зупиняє коміт приватних файлів і
+  секретів, не друкуючи їхніх значень.
+
+Якщо `git config --get core.hooksPath` уже вказує кудись інде, не
+перезаписуйте його: додайте до наявного hook обидва виклики вручну,
+зберігши його дії:
+
+```sh
+python scripts/stale_index_check.py || exit 1
+python scripts/privacy_check.py --staged || exit 1
+```
+
+(на машинах без `python` — `python3`).
 
 Hook можна обійти, тому CI має окремо запускати `python scripts/privacy_check.py`
 та наведені вище проби. Перед публікацією перевіряйте також склад коміту.

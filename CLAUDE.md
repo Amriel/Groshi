@@ -71,7 +71,8 @@ node mcp/selftest.js
 
 **MCP** (`mcp/groshi-mcp.js`) — сервер лише для читання даних апки, без
 мережевого коду й без коду запису. `mcp/mononorm.js` — копія
-`desktop/dist/mononorm.js`; змінюючи одну, синхронізувати другу.
+`desktop/dist/mononorm.js` (джерело); змінюючи одну, синхронізувати другу —
+рівність сторожить `tests/test_mononorm_sync.py`.
 
 **Приватність.** `scripts/privacy_check.py` блокує коміт приватних файлів
 (`*.private.*`, `*_raw.json`, `state.json`, CSV/XML виписок тощо) і секретів;

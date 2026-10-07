@@ -3290,7 +3290,7 @@ function renderOvExtras(){
           ${dltY!=null ? `<span class="${dltY>0?'up':'down'}" style="font-size:13px">${dltY>0?'▲':'▼'} ${Math.abs(dltY).toFixed(0)}%</span>
             <span class="muted" style="font-size:12px;font-weight:400">до того ж вікна ${+Y-1}-го</span>` : ''}</div>
         <div style="display:flex;gap:3px;align-items:flex-end;height:36px;margin:8px 0 2px">${mk.map(m=>`
-          <div title="${monthLabel(m)}: ${money(months[m])}" style="flex:1;height:${Math.max(8, months[m]/mx*100).toFixed(0)}%;
+          <div data-tip="${esc(monthLabel(m)+': '+money(months[m]))}" style="flex:1;height:${Math.max(8, months[m]/mx*100).toFixed(0)}%;
             background:var(--${m===best?'warn':'s1'});opacity:${m===ym?.45:.9};border-radius:2px 2px 0 0"></div>`).join('')}</div>
         <p class="muted" style="margin:0 0 6px;font-size:11.5px">≈ ${money(avg)}/міс · найдорожчий — ${monthLabel(best)} (${money(months[best])})</p>
         ${topc.map(c=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0;font-size:12px">
@@ -7888,7 +7888,7 @@ function renderInv(){
         mdd, '−'+Math.abs(mdd*100).toFixed(1)+'%', 'danger') : ''}
       ${shrp!=null ? chipN('Sharpe (спрощений)', shrp, shrp.toFixed(2),
         shrp >= 1 ? 'good' : shrp < 0 ? 'danger' : '') : ''}
-      ${bmk!=null ? `<div class="d" data-bench style="cursor:pointer" title="Клік — інший бенчмарк">
+      ${bmk!=null ? `<div class="d" data-bench style="cursor:pointer" data-tip="Клік — інший бенчмарк">
           <div class="t">${esc(BENCH_LBL[INVBENCH]||INVBENCH)} за вікно ▾</div>
           <div class="v" style="color:var(--${bmk>=0?'good':'danger'})">${bmk>=0?'+':'−'}${Math.abs(bmk*100).toFixed(1)}%</div>
         </div>` : ''}
