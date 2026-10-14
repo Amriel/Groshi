@@ -24,8 +24,6 @@ sys.path.insert(0, str(SRC))
 from build_security import script_json, protect_html
 
 tpl = (SRC / 'app.template.html').read_text('utf-8')
-glass = (SRC / 'glassgl.js').read_text('utf-8')
-designer = (SRC / 'designer.js').read_text('utf-8')
 mcc = json.loads((SRC / 'mcc_names.json').read_text('utf-8'))
 
 def sub(s, a, b, what):
@@ -110,7 +108,7 @@ NOTICE = """/* У браузерній версії тут пояснювало�
       Підключіть Monobank у «Ще» — токен читає лише виписку, платежі ним неможливі.
       Перше завантаження бере рік історії; банк віддає один запит на 60 секунд,
       тож це триває приблизно чверть години. Апку можна згорнути в трей.
-      <button class="btn pri glass" id="goMono" style="margin-top:10px">Підключити банк</button>
+      <button class="btn pri" id="goMono" style="margin-top:10px">Підключити банк</button>
     </div>`;
   const gm = el('goMono'); if(gm) gm.onclick = ()=>go2set('src');"""
 tpl = tpl[:i] + NOTICE + tpl[j:]
@@ -214,17 +212,17 @@ MONO_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf grow"><span>Токен</span>
         <input id="monoTok" type="password" placeholder="вставте токен" autocomplete="off"></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn pri glass" id="monoSave">Підключити</button></label>
+        <button class="btn pri" id="monoSave">Підключити</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="monoGet">Де взяти токен</button></label>
+        <button class="btn" id="monoGet">Де взяти токен</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="monoForget">Забути токен</button></label>
+        <button class="btn" id="monoForget">Забути токен</button></label>
     </div>
     <div id="monoAccs" style="margin-top:14px"></div>
     <div class="fieldrow" style="margin-top:14px">
-      <button class="btn pri glass" id="monoSync">Оновити</button>
-      <button class="btn glass" id="monoFull">Завантажити історію</button>
-      <button class="btn glass" id="monoStop" hidden>Зупинити</button>
+      <button class="btn pri" id="monoSync">Оновити</button>
+      <button class="btn" id="monoFull">Завантажити історію</button>
+      <button class="btn" id="monoStop" hidden>Зупинити</button>
       <span class="muted" id="monoProg"></span>
     </div>
     <p class="muted" style="margin:10px 0 0;font-size:11.5px">Банк віддає один запит на 60 секунд,
@@ -241,9 +239,9 @@ MONO_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf grow"><span>Репозиторій, тека або адреса</span>
         <input id="updSrc" placeholder="github:Amriel/Groshi" autocomplete="off"></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="updPick">Обрати теку</button></label>
+        <button class="btn" id="updPick">Обрати теку</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn pri glass" id="updCheck">Перевірити</button></label>
+        <button class="btn pri" id="updCheck">Перевірити</button></label>
     </div>
     <div id="updBox" style="margin-top:14px"></div>
   </div>
@@ -271,9 +269,9 @@ MONO_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
         <span class="muted" style="line-height:var(--ctl);font-size:11.5px">уночі банк не смикаємо; однакові години — без паузи</span></label>
     </div>
     <div class="fieldrow" style="margin-top:12px">
-      <button class="btn glass" id="openDir">Показати теку з даними</button>
-      <button class="btn glass" id="dirPick">Змінити теку</button>
-      <button class="btn glass" id="dirReset">Стандартна</button>
+      <button class="btn" id="openDir">Показати теку з даними</button>
+      <button class="btn" id="dirPick">Змінити теку</button>
+      <button class="btn" id="dirReset">Стандартна</button>
     </div>
     <p class="muted" id="dirPath" style="margin:10px 0 0;font-size:12px"></p>
     <div id="dirFiles" style="margin-top:12px"></div>
@@ -319,15 +317,15 @@ INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf w130"><span>Query ID</span>
         <input id="ibkrQid" placeholder="напр. 123456" autocomplete="off" inputmode="numeric"></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn pri glass" id="ibkrSave">Підключити</button></label>
+        <button class="btn pri" id="ibkrSave">Підключити</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn pri glass" id="ibkrSync" hidden>Оновити зараз</button></label>
+        <button class="btn pri" id="ibkrSync" hidden>Оновити зараз</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="ibkrGet">Відкрити Client Portal</button></label>
+        <button class="btn" id="ibkrGet">Відкрити Client Portal</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="ibkrImport">Імпортувати XML</button></label>
+        <button class="btn" id="ibkrImport">Імпортувати XML</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="ibkrForget">Забути</button></label>
+        <button class="btn" id="ibkrForget">Забути</button></label>
     </div>
     <p class="muted" id="ibkrMsg" style="margin:10px 0 0;font-size:12px"></p>
     <p class="muted" style="margin:6px 0 0;font-size:11.5px">«Імпортувати XML» — два призначення.
@@ -337,7 +335,7 @@ INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       файли <b>склеюються</b>, дублікати відкидаються, і динаміка з угодами стає на всю глибину.
       <span id="ibkrExtraInfo"></span></p>
     <div class="fieldrow" id="ibkrExtraRow" hidden style="margin-top:8px">
-      <button class="btn glass" id="ibkrExtraClear">Прибрати імпортовані XML</button>
+      <button class="btn" id="ibkrExtraClear">Прибрати імпортовані XML</button>
     </div>
   </div>
 
@@ -361,13 +359,13 @@ INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf grow"><span>Secret</span>
         <input id="binSec" type="password" placeholder="вставте секрет" autocomplete="off"></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn pri glass" id="binSave">Підключити</button></label>
+        <button class="btn pri" id="binSave">Підключити</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn pri glass" id="binSync" hidden>Оновити зараз</button></label>
+        <button class="btn pri" id="binSync" hidden>Оновити зараз</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="binGet">Відкрити API Management</button></label>
+        <button class="btn" id="binGet">Відкрити API Management</button></label>
       <label class="mf"><span>&nbsp;</span>
-        <button class="btn glass" id="binForget">Забути</button></label>
+        <button class="btn" id="binForget">Забути</button></label>
     </div>
     <p class="muted" id="binMsg" style="margin:10px 0 0;font-size:12px"></p>
   </div>
@@ -555,7 +553,7 @@ async function updRun(){
     box.innerHTML = `<div class="mfound" style="margin:0">
       <div class="mfhead"><b>Є оновлення ${esc(r.version)}</b>
         <span class="muted">зараз ${esc(r.current)} · ${esc(r.file)}</span>
-        <button class="btn pri glass" id="updGo">Встановити</button></div>
+        <button class="btn pri" id="updGo">Встановити</button></div>
       ${r.notes ? `<p class="muted" style="margin:4px 0 0;font-size:12.5px">${esc(r.notes)}</p>` : ''}
       <p class="muted" style="margin:8px 0 0;font-size:11.5px">
         Апка закриється, запуститься інсталятор. Дані, підписки й токен лишаться на місці —
@@ -1037,7 +1035,6 @@ brokerWire();
 tpl = sub(tpl, '\nrender();\n', MONO_JS + '\nrender();\n', 'tail')
 
 # ── 6. головний скрипт не виконується сам ─────────────────────────────
-tpl = tpl.replace('__GLASSGL__', glass).replace('__DESIGNER__', designer)
 tpl = tpl.replace('__MCCNAME__', script_json(mcc))
 
 BOOT = """<script src="mononorm.js"></script>

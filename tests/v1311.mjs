@@ -1,3 +1,7 @@
+// Сторож 1.31.1. Блок A (фон під час переїзду скляного шару) прибрано разом
+// зі склом у 1.33; проба тепер сторожить лише маскування кошторису в режимі
+// скріншоту (B) і випадайку стану проєкту (C). Літери блоків лишено, щоб
+// посилання в історії РОЗРОБКА.md не розійшлись.
 import { chromium } from 'playwright';
 const b=await chromium.launch({executablePath: process.env.CHROMIUM || undefined});
 const p=await b.newPage({viewport:{width:1400,height:950}});
@@ -7,19 +11,6 @@ p.on('console',m=>{if(m.type()==='error')errs.push(m.text());});
 // цього прапорця випадайка стану не відкриється, а проба впаде на chips[0].
 await p.addInitScript(() => { localStorage.setItem('wizDone','true'); });
 await p.goto(`file://${process.cwd()}/app/Groshi_app.html`); await p.waitForTimeout(2200);
-
-/* A. фон під час переїзду шару */
-console.log('фон при скролі:', await p.evaluate(async ()=>{
-  go('tx'); el('qAll').checked=true; S.limit=400; renderTx();
-  await new Promise(r=>setTimeout(r,700));
-  const cs=getComputedStyle(document.body);
-  const gg=document.querySelector('glass-gl');
-  let hiddenFrames=0, checks=0;
-  for(let i=0;i<14;i++){ scrollBy(0,900); await new Promise(r=>setTimeout(r,16));
-    checks++; if(gg.canvas.style.visibility==='hidden') hiddenFrames++; }
-  return { css_підкладка: /linear-gradient/.test(cs.backgroundImage),
-    прикріплена: cs.backgroundAttachment, кадрів_без_полотна: hiddenFrames+'/'+checks };
-}));
 
 /* B. кошторис у режимі скріншоту */
 console.log('кошторис масковано:', await p.evaluate(async ()=>{

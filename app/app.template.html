@@ -48,12 +48,6 @@
   /* серії графіків: перевіряються в Задачі 13 */
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
   --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
-  /* тимчасово: ще читає скляний CSS; зникне в Задачі 2 */
-  --glass-bg:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.028));
-  --glass-bg-h:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05));
-  --glass-br:rgba(255,255,255,.13);
-  --glass-in:inset 0 1px 0 rgba(255,255,255,.15);
-  --glass-blur:blur(14px) saturate(150%);
 }
 :root[data-theme="light"]{
   color-scheme:light;
@@ -68,62 +62,7 @@
   --bar-exp:#3B6FD4; --bar-inc:#6F9412;
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
   --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
-  --glass-bg:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.55));
-  --glass-bg-h:linear-gradient(180deg,#fff,rgba(255,255,255,.75));
-  --glass-br:rgba(11,11,12,.10);
-  --glass-in:inset 0 1px 0 rgba(255,255,255,.9);
 }
-
-/* Реєструємо змінні світіння з inherits:false — інакше координати,
-   виставлені на картці, каскадом потрапляють на кожну кнопку всередині
-   і пляма спалахує одразу скрізь. */
-
-
-/* ВАЖЛИВО: токени шлейфу оголошені на самих поверхнях, а не на :root.
-   Значення власної властивості обчислюється там, де її ОГОЛОШЕНО, тож на :root
-   var(--mx) застигав би на нулі й пляма не рухалась узагалі. */
-
-/* Відблиск на склі — окремий, різкіший і яскравіший за м'який слід на фоні.
-   Саме ця різниця й читається як «світло лягло на скло», а не на стіну. */
-@property --gx { syntax:'<length>'; inherits:true; initial-value:-999px }
-@property --gy { syntax:'<length>'; inherits:true; initial-value:-999px }
-@property --gs { syntax:'<number>'; inherits:true; initial-value:0 }
-/* Спадкування увімкнено, щоб пляму бачив ::before із заливкою. Щоб вона не
-   протікала з картки на вкладені кнопки, кожна поверхня гасить її в себе;
-   інлайновий стиль від скрипта цей скид перебиває тільки на наведеній. */
-.glass, .card, .det, nav.tabs, input, select, textarea{
-  --gx:-999px; --gy:-999px; --gs:0;
-  --spec:radial-gradient(circle 74px at var(--gx) var(--gy),
-    rgba(255,255,255,calc(.085 * var(--gs))) 0%,
-    rgba(255,255,255,calc(.045 * var(--gs))) 32%,
-    rgba(255,255,255,calc(.014 * var(--gs))) 62%,
-    transparent 100%);
-  transition:--gs .55s ease;
-}
-:root[data-theme="light"] :is(.glass, .card, .det, nav.tabs, input, select){
-  --spec:radial-gradient(circle 74px at var(--gx) var(--gy),
-    rgba(255,255,255,calc(.55 * var(--gs))) 0%,
-    rgba(255,255,255,calc(.30 * var(--gs))) 32%,
-    rgba(255,255,255,calc(.10 * var(--gs))) 62%,
-    transparent 100%);
-}
-
-/* Дизеринг. 8-бітний градієнт на майже чорному тлі неминуче розпадається
-   на смуги: між сусідніми рівнями яскравості 1/255, а перехід розтягнутий
-   на пів екрана. Лікується шумом амплітудою в один-два рівні — око зшиває
-   смуги в градієнт.
-   ВАЖЛИВО: mix-blend-mode:overlay для цього не годиться. Для темної основи
-   overlay = 2*base*blend, тобто при base 0.03 результат теж ≈0.03 — шум
-   зникає рівно там, де смуги видно найкраще. Тому змішування звичайне. */
-body::after{
-  content:''; position:fixed; inset:0; z-index:1; pointer-events:none;
-  opacity:.055;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size:180px 180px;
-}
-:root[data-theme="light"] body::after{opacity:.04}
-
-
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html.phone-inner, html.phone-inner body, html.phone-inner .tablewrap{scrollbar-width:none;-ms-overflow-style:none}
@@ -138,54 +77,9 @@ html.phone-inner body{overflow-x:hidden}
 html,body{margin:0;padding:0}
 /* Місце під смугу прокрутки резервується завжди: інакше поява списку,
    довшого за екран, звужує сторінку на ширину смуги й уся розкладка
-   стрибає — а разом із нею перераховується й скло. */
+   стрибає. */
 html{scrollbar-gutter:stable}
-/* Розсіяне світло позаду всього. Без нього backdrop-filter нічого не заломлює
-   і скло виглядає як звичайний напівпрозорий прямокутник. */
-body::before{
-  content:''; position:fixed; inset:0; z-index:-2; pointer-events:none;
-  background:
-    radial-gradient(58vw 52vh at 10% -6%,  color-mix(in srgb, var(--accent) 46%, transparent), transparent 62%),
-    radial-gradient(64vw 56vh at 92% 6%,   color-mix(in srgb, var(--s1) 52%, transparent), transparent 60%),
-    radial-gradient(70vw 60vh at 70% 96%,  color-mix(in srgb, var(--s7) 44%, transparent), transparent 64%),
-    radial-gradient(52vw 42vh at 24% 74%,  color-mix(in srgb, var(--s3) 34%, transparent), transparent 66%),
-    radial-gradient(46vw 40vh at 50% 40%,  color-mix(in srgb, var(--s5) 22%, transparent), transparent 70%),
-    /* Смуги світла. Без структури позаду скло нічим себе не виказує:
-       розмивати й заломлювати рівний градієнт — те саме, що не робити
-       нічого, і панель читається як плаский прямокутник. Смуги широкі
-       й слабкі, але саме на них видно, що фон під панеллю зсунутий. */
-    repeating-linear-gradient(107deg,
-      rgba(255,255,255,.050) 0px, rgba(255,255,255,.050) 34px,
-      rgba(255,255,255,0)    34px, rgba(255,255,255,0)   150px),
-    repeating-linear-gradient(107deg,
-      rgba(255,255,255,.028) 0px, rgba(255,255,255,.028) 11px,
-      rgba(255,255,255,0)    11px, rgba(255,255,255,0)    73px);
-  filter:blur(30px) saturate(140%);
-  opacity:.46;
-}
-:root[data-theme="light"] body::before{opacity:.60;filter:blur(34px) saturate(170%)}
-/* Слід курсора малює canvas — один згладжений штрих із розмиттям.
-   Набір окремих кіл давав видимі кільця й темні проміжки між ними. */
-#glowcv{
-  position:fixed; inset:0; width:100%; height:100%;
-  z-index:-1; pointer-events:none;
-  contain:strict; will-change:opacity;
-  opacity:0; transition:opacity .9s ease;
-}
-#glowcv.on{opacity:1}
-:root[data-theme="light"] #glowcv{opacity:0}
-:root[data-theme="light"] #glowcv.on{opacity:.62}
 body{
-  /* ПІДКЛАДКА ПІД СКЛЯНИЙ ШАР. Той шар — одне полотно, прибите до
-     документа; коли вікно виїжджає за намальовану ділянку, полотно
-     переїжджає й на мить ховається (інакше на екрані лишались би плити
-     з попереднього положення). Разом із ним зникав і намальований ним
-     фон — саме це читалось як «на секунду пропадає бекграунд».
-     Тому той самий градієнт продубльовано тут, засобами CSS: він не
-     коштує нічого, ніколи не блимає, і в паузі між кадрами видно його,
-     а не порожнечу. Кольори — ті самі, що в paintScene. */
-  background:var(--bg)
-    linear-gradient(90deg, #3e4349 0%, #2b3036 38%, #1b1e22 74%, #121517 100%) fixed;
   color:var(--text);
   font:15px/1.5 var(--font-ui);
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
@@ -197,156 +91,13 @@ body{
 h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:700;letter-spacing:-.01em}
 .num,.tw,.dl dd,td.num{font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-textarea{font:inherit;color:var(--text);border:0;border-radius:12px;padding:10px 13px;
-  background:linear-gradient(rgba(255,255,255,.055), rgba(255,255,255,.055));
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.075), inset 0 2px 6px rgba(0,0,0,.14);
-  -webkit-backdrop-filter:blur(20px) saturate(160%); backdrop-filter:blur(20px) saturate(160%);
-  transition:background .2s ease, box-shadow .2s ease; line-height:1.5;
-  /* Системний хват для розтягування — той самий чужий віджет, що й
-     спінери в number: малює його ОС, і в темній темі він світлий.
-     Висоту поле бере від вмісту, тягати руками нема потреби. */
-  resize:none; min-height:96px}
-textarea::placeholder{color:var(--text-mute)}
-textarea:focus{outline:none;
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent), 0 0 0 3px var(--accent-soft)}
-:root[data-theme="light"] textarea{background:rgba(255,255,255,.6);
-  box-shadow:inset 0 0 0 1px rgba(11,11,12,.09), inset 0 1px 3px rgba(11,11,12,.05)}
-input,select{font:inherit;color:var(--text);border:0;border-radius:12px;height:var(--ctl);padding:0 13px;
-  background:
-    linear-gradient(rgba(255,255,255,.055), rgba(255,255,255,.055));
-  transition:background .2s ease, box-shadow .2s ease;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.075), inset 0 2px 6px rgba(0,0,0,.14);
-  -webkit-backdrop-filter:blur(20px) saturate(160%); backdrop-filter:blur(20px) saturate(160%)}
-/* Світла тема має свою сцену — підкладка мусить збігатися й тут. */
-:root[data-theme="light"] body{
-  background:var(--bg)
-    linear-gradient(135deg, #fbfcfc 0%, #f0f2f3 50%, #b8bdc2 100%) fixed}
-:root[data-theme="light"] input, :root[data-theme="light"] select{
-  background:rgba(255,255,255,.6);
-  box-shadow:inset 0 0 0 1px rgba(11,11,12,.09), inset 0 1px 3px rgba(11,11,12,.05)}
-input::placeholder{color:var(--text-mute)}
-input:focus,select:focus{outline:none;
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent), 0 0 0 3px var(--accent-soft)}
 nav.tabs:active{transform:none}
 code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
   border:1px solid var(--border-soft);border-radius:5px;padding:1px 5px}
 
-/* ── скло ───────────────────────────────────────────────────
-   Три шари, як у Apple: сильне розмиття з підняттям насиченості
-   й яскравості, власна заливка-градієнт, волосяна рамка-градієнт
-   (яскрава згори, згасає донизу) і подвійний внутрішній відблиск.
-   ──────────────────────────────────────────────────────────── */
-.glass{
-  position:relative;
-  border:0;
-  /* Слід — окремі шари ФОНУ самого елемента (не псевдоелемент), тому він
-     видно і на тонованих станах. Малюється лише на наведеній поверхні. */
-  background:
-    var(--spec),
-    linear-gradient(rgba(255,255,255,.085), rgba(255,255,255,.085));
-  /* Рівний тонкий обідок по всьому контуру — без світлової смуги згори. */
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.075),
-    0 1px 2px rgba(0,0,0,.3),
-    0 8px 24px -8px rgba(0,0,0,.45);
-  -webkit-backdrop-filter:blur(40px) saturate(180%) brightness(1.22);
-  backdrop-filter:blur(40px) saturate(180%) brightness(1.22);
-  
-}
-.glass:hover{
-  background:
-    var(--spec),
-    linear-gradient(rgba(255,255,255,.125), rgba(255,255,255,.125));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.11),
-    0 1px 2px rgba(0,0,0,.3),
-    0 10px 28px -8px rgba(0,0,0,.5);
-}
-button.glass:active{
-  transform:scale(.99);
-  transition-duration:.12s;
-  background:linear-gradient(rgba(255,255,255,.06), rgba(255,255,255,.06));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.06),
-    inset 0 2px 10px rgba(0,0,0,.2),
-    0 1px 1px rgba(0,0,0,.35);
-}
-
-:root[data-theme="light"] .glass{
-  background:
-    var(--spec),
-    linear-gradient(rgba(255,255,255,.42), rgba(255,255,255,.42));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.8),
-    0 1px 2px rgba(11,11,12,.06),
-    0 8px 22px -8px rgba(11,11,12,.14);
-  -webkit-backdrop-filter:blur(40px) saturate(180%) brightness(1.05);
-  backdrop-filter:blur(40px) saturate(180%) brightness(1.05);
-}
-:root[data-theme="light"] .glass:hover{
-  background:
-    var(--spec),
-    linear-gradient(rgba(255,255,255,.6), rgba(255,255,255,.6));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.95),
-    0 1px 2px rgba(11,11,12,.06),
-    0 10px 26px -8px rgba(11,11,12,.16);
-}
-
-/* ── АКЦЕНТ = ТОНОВАНЕ СКЛО, а не залита фарба ──────────────
-   Лайм лишається напівпрозорим і далі розмиває те, що під ним;
-   обідок трохи світліший за заливку, пляма під курсором працює. */
-.glass.on, .btn.pri, .tab-ind, .chip-ind{
-  color:var(--accent-contrast);
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--accent) 97%, transparent),
-      color-mix(in srgb, var(--accent) 92%, transparent));
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, rgba(255,255,255,.7)),
-    0 1px 2px rgba(0,0,0,.26),
-    0 8px 22px -10px color-mix(in srgb, var(--accent) 32%, transparent);
-  -webkit-backdrop-filter:blur(40px) saturate(180%) brightness(1.15);
-  backdrop-filter:blur(40px) saturate(180%) brightness(1.15);
-}
-.glass.on:hover, .btn.pri:hover{
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--accent) 100%, #fff 8%),
-      color-mix(in srgb, var(--accent) 98%, transparent));
-  filter:none;
-}
-:root[data-theme="light"] .glass.on,
-:root[data-theme="light"] .btn.pri,
-:root[data-theme="light"] .tab-ind,
-:root[data-theme="light"] .chip-ind{
-  color:var(--accent-contrast);
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--accent) 98%, transparent),
-      color-mix(in srgb, var(--accent) 94%, transparent));
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, rgba(255,255,255,.5)),
-    0 1px 2px rgba(11,11,12,.12),
-    0 8px 20px -10px color-mix(in srgb, var(--accent) 40%, transparent);
-}
-
-/* панелі, під якими скролиться контент — щільніші, з відблиском зверху */
-nav.tabs.glass{
-  background:
-    linear-gradient(rgba(255,255,255,.085), rgba(255,255,255,.085)),
-    linear-gradient(color-mix(in srgb, var(--surface) 74%, transparent),
-                    color-mix(in srgb, var(--surface) 74%, transparent));
-  -webkit-backdrop-filter:blur(46px) saturate(180%) brightness(1.18);
-  backdrop-filter:blur(46px) saturate(180%) brightness(1.18);
-}
-
-:root[data-theme="light"] nav.tabs.glass{
-  background:
-    linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.5)),
-    linear-gradient(color-mix(in srgb, #fff 62%, transparent), color-mix(in srgb, #fff 62%, transparent));
-}
-nav.tabs.glass > button{position:relative;z-index:1}
+/* Кнопки вкладок — над рухомим індикатором #tabInd, що стоїть у
+   розмітці перед ними: інакше він накрив би підпис активної вкладки. */
+nav.tabs > button{position:relative;z-index:1}
 
 /* ── плаваючий індикатор активної вкладки ── */
 .tab-ind{
@@ -436,8 +187,7 @@ nav.tabs.glass > button{position:relative;z-index:1}
 .sdb i{margin-left:auto;font-style:normal;font-size:11px;color:var(--text-mute)}
 #sdp{position:fixed;z-index:410;padding:12px;border-radius:20px;
   background:rgba(26,30,33,.97);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 2px 6px rgba(0,0,0,.4),0 22px 50px -16px rgba(0,0,0,.7);
-  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 2px 6px rgba(0,0,0,.4),0 22px 50px -16px rgba(0,0,0,.7)}
 #sdp[hidden]{display:none}
 :root[data-theme="light"] #sdp{background:rgba(247,248,249,.98);
   box-shadow:inset 0 0 0 1px rgba(20,23,25,.10),0 2px 6px rgba(20,23,25,.10),0 22px 50px -16px rgba(20,23,25,.30)}
@@ -448,19 +198,16 @@ nav.tabs.glass > button{position:relative;z-index:1}
    prompt() і confirm() малює браузер: сірий системний прямокутник під
    адресним рядком, який не піддається жодному стилю й не має нічого
    спільного з апкою. Тут своя картка з тим самим матеріалом, що й
-   підказки: власне тло, а не WebGL-плита — вікно живе поверх усього і
-   плиті нема на чому лежати. */
+   підказки. */
 .modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:20px}
 .modal[hidden]{display:none}
 .modalbd{position:absolute;inset:0;background:rgba(6,7,8,.55);
-  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
   opacity:0;transition:opacity .18s ease}
 .modal.on .modalbd{opacity:1}
 .modalw{position:relative;width:min(420px,100%);padding:22px 22px 18px;border-radius:26px;
   background:rgba(26,30,33,.96);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),
              0 2px 8px rgba(0,0,0,.4), 0 30px 70px -20px rgba(0,0,0,.75);
-  -webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);
   opacity:0;transform:translateY(10px) scale(.97);
   transition:opacity .18s ease, transform .26s cubic-bezier(.32,.72,0,1)}
 .modal.on .modalw{opacity:1;transform:none}
@@ -553,11 +300,10 @@ nav.tabs.glass > button{position:relative;z-index:1}
 .mrerr[hidden]{display:none}
 .modalacts{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
 .modalacts .btn{min-width:104px;justify-content:center}
-/* :root:root — щоб перебити загальний скид матеріалу нижче по файлу:
-   там у .glass та сама вага, і без цього кнопка лишалась би темною. */
+/* :root:root — щоб перебити .btn.pri і .btn.pri:hover плоскої бази нижче
+   по файлу: без цього кнопка небезпечної дії лишалась би лаймовою. */
 :root:root .modalw .btn.danger{background:linear-gradient(340deg,#FF7A7A,#E05252);
-  color:#2A0A0A;box-shadow:0 10px 24px -14px rgba(255,107,107,.55);
-  -webkit-backdrop-filter:none;backdrop-filter:none}
+  color:#2A0A0A;box-shadow:0 10px 24px -14px rgba(255,107,107,.55)}
 :root:root .modalw .btn.danger:hover{background:linear-gradient(340deg,#FF9090,#EC6666)}
 :root[data-theme="light"] .modalbd{background:rgba(20,23,25,.30)}
 :root[data-theme="light"] .modalw{background:rgba(250,251,251,.98);
@@ -575,8 +321,6 @@ nav.tabs.glass > button{position:relative;z-index:1}
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.11),
     inset 0 12px 20px -18px rgba(255,255,255,.7),
     0 2px 6px rgba(0,0,0,.4), 0 12px 30px -8px rgba(0,0,0,.5);
-  -webkit-backdrop-filter:blur(34px) saturate(180%) brightness(1.2);
-  backdrop-filter:blur(34px) saturate(180%) brightness(1.2);
   opacity:0; transform:translate3d(0,0,0) scale(.94);
   transition:transform .34s cubic-bezier(.32,.72,0,1), opacity .16s ease;
 }
@@ -588,45 +332,9 @@ nav.tabs.glass > button{position:relative;z-index:1}
   color:var(--text-dim); background:rgba(255,255,255,.10);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(0,0,0,.25);
 }
-:root[data-theme="light"] #kbtip{
-  background:rgba(255,255,255,.75);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.9), 0 2px 6px rgba(11,11,12,.09), 0 12px 28px -8px rgba(11,11,12,.16);
-}
 :root[data-theme="light"] #kbtip kbd{background:rgba(11,11,12,.07); color:var(--text-dim);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(11,11,12,.08)}
 
-/* акцентна скляна кнопка: той самий рельєф, але лаймова.
-   Іде після світлих перевизначень, щоб виграти каскад в обох темах. */
-.glass.on, .chip[aria-pressed="true"], .btn.pri,
-:root[data-theme="light"] .glass.on,
-:root[data-theme="light"] .chip[aria-pressed="true"],
-:root[data-theme="light"] .btn.pri{
-  background:linear-gradient(180deg,
-    color-mix(in srgb, var(--accent) 100%, #fff 20%) 0%,
-    var(--accent) 54%,
-    color-mix(in srgb, var(--accent) 90%, #000) 100%);
-  color:var(--accent-contrast);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.5),
-    inset 0 -1px 0 rgba(0,0,0,.18),
-    0 1px 2px rgba(0,0,0,.28),
-    0 6px 18px color-mix(in srgb, var(--accent) 20%, transparent);
-}
-.glass.on::before, .chip[aria-pressed="true"]::before, .btn.pri::before,
-:root[data-theme="light"] .glass.on::before,
-:root[data-theme="light"] .chip[aria-pressed="true"]::before,
-:root[data-theme="light"] .btn.pri::before{
-  background:linear-gradient(180deg, rgba(255,255,255,.65), rgba(0,0,0,.16));
-}
-.glass.on:hover, .chip[aria-pressed="true"]:hover, .btn.pri:hover,
-:root[data-theme="light"] .chip[aria-pressed="true"]:hover,
-:root[data-theme="light"] .btn.pri:hover{
-  background:linear-gradient(180deg,
-    color-mix(in srgb, var(--accent) 100%, #fff 30%) 0%,
-    color-mix(in srgb, var(--accent) 100%, #fff 8%) 54%,
-    var(--accent) 100%);
-  filter:none;
-}
 
 
 /* ── шапка ──────────────────────────────────────────────── */
@@ -663,37 +371,13 @@ header.top{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bott
 .chip{display:inline-flex;align-items:center;height:var(--ctl);white-space:nowrap;padding:0 16px;
   border-radius:var(--radius-pill);font-size:12.5px;font-weight:600;color:var(--text-dim);flex:none}
 .chip:hover{color:var(--text)}
-.chip[aria-pressed="true"]{color:var(--accent-contrast);background:none;box-shadow:none;
-  -webkit-backdrop-filter:none;backdrop-filter:none}
-:root[data-theme="light"] .chip[aria-pressed="true"]{color:var(--accent-contrast)}
+/* Тло активного періоду малює рухомий індикатор #periodInd. Власна
+   заливка чіпа зʼявлялась би миттєво, ще до того, як індикатор доїхав. */
+.periodbar .chip[aria-pressed="true"]{background:none}
 
 
 /* ── картки ─────────────────────────────────────────────── */
-.card{
-  position:relative; isolation:isolate; border:0; border-radius:28px; padding:21px;
-  background:
-    var(--spec),
-    linear-gradient(color-mix(in srgb, var(--surface) 62%, transparent),
-                    color-mix(in srgb, var(--surface) 62%, transparent));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.055),
-    0 1px 2px rgba(0,0,0,.3),
-    0 14px 40px -12px rgba(0,0,0,.5);
-  transition:background .25s ease;
-  -webkit-backdrop-filter:blur(46px) saturate(165%) brightness(1.12);
-  backdrop-filter:blur(46px) saturate(165%) brightness(1.12);
-}
-
-:root[data-theme="light"] .card{
-  background:
-    var(--spec),
-    linear-gradient(color-mix(in srgb, #fff 55%, transparent),
-                    color-mix(in srgb, #fff 55%, transparent));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.85),
-    0 1px 2px rgba(11,11,12,.06),
-    0 16px 40px -14px rgba(11,11,12,.16);
-}
+.card{position:relative;isolation:isolate}
 
 .grid{display:grid;gap:12px}
 .kpis{grid-template-columns:repeat(auto-fit,minmax(165px,1fr));margin-bottom:12px}
@@ -858,7 +542,7 @@ span.ivlogo.mono{display:inline-block;overflow:hidden;text-align:center;font-siz
 nav.tabs{position:fixed;left:12px;right:12px;z-index:40;
   bottom:calc(env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 14px);
   border-radius:20px;display:grid;grid-template-columns:repeat(7,1fr);padding:7px 6px;
-  box-shadow:var(--glass-in), var(--shadow)}
+  box-shadow:var(--shadow)}
 nav.tabs button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
   min-height:48px;font-size:10px;font-weight:600;color:var(--text-mute);padding:4px 2px;border-radius:13px;
   transition:transform .28s cubic-bezier(.34,1.12,.42,1), color .2s ease}
@@ -879,11 +563,7 @@ section[hidden]{display:none}
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),
     inset 0 14px 22px -20px rgba(255,255,255,.7),
     0 2px 6px rgba(0,0,0,.4), 0 14px 36px -10px rgba(0,0,0,.55);
-  -webkit-backdrop-filter:blur(34px) saturate(180%) brightness(1.2);
-  backdrop-filter:blur(34px) saturate(180%) brightness(1.2);
   opacity:0;visibility:hidden;transition:opacity .1s, visibility .1s;max-width:250px}
-:root[data-theme="light"] #tip{background:rgba(255,255,255,.72);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.9), 0 2px 6px rgba(11,11,12,.08), 0 14px 32px -10px rgba(11,11,12,.16)}
 #tip b{display:block;font-family:var(--font-display);font-size:12.5px;margin-bottom:3px}
 #tip .v{font-variant-numeric:tabular-nums;color:var(--text-dim)}
 
@@ -895,7 +575,7 @@ section[hidden]{display:none}
 .sortbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11.5px;
   padding-bottom:11px;margin-bottom:2px;border-bottom:1px solid var(--border)}
 .sortbar button{padding:5px 12px;border-radius:var(--radius-pill);font-size:11.5px;
-  font-weight:600;color:var(--text-dim)}
+  font-weight:600;color:var(--text-dim);height:auto}
 .sortbar button[data-on]{color:var(--accent-contrast)}
 .txrow{display:grid;gap:3px 12px;align-items:center;padding:12px 4px;
   border-bottom:1px solid var(--border-soft);cursor:pointer;border-radius:var(--radius-sm);
@@ -985,22 +665,7 @@ section[hidden]{display:none}
 }
 
 /* ── картка операції ────────────────────────────────────── */
-.det{
-  position:relative; isolation:isolate; border:0; border-radius:22px; padding:19px;
-  background:
-    linear-gradient(rgba(255,255,255,.055), rgba(255,255,255,.055));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.07),
-    0 1px 2px rgba(0,0,0,.28), 0 10px 26px -10px rgba(0,0,0,.4);
-  transition:background .25s ease;
-  -webkit-backdrop-filter:blur(30px) saturate(160%) brightness(1.1);
-  backdrop-filter:blur(30px) saturate(160%) brightness(1.1);
-}
-:root[data-theme="light"] .det{
-  background:linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.5));
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.85),
-    0 1px 2px rgba(11,11,12,.05), 0 10px 24px -10px rgba(11,11,12,.12);
-}
+.det{position:relative;isolation:isolate}
 .det h4{margin:0 0 2px;font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--text-dim)}
 .det .sum{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.03em;
   margin:4px 0 18px;font-variant-numeric:tabular-nums;line-height:1}
@@ -1030,8 +695,7 @@ section[hidden]{display:none}
 #phoneOverlay[hidden]{display:none}
 .ph-bar{width:100%;display:flex;gap:12px;align-items:center;flex-wrap:wrap;
   padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.07);
-  background:rgba(255,255,255,.05);
-  -webkit-backdrop-filter:blur(34px) saturate(170%); backdrop-filter:blur(34px) saturate(170%)}
+  background:rgba(255,255,255,.05)}
 .ph-stage{flex:1;width:100%;display:grid;place-items:center;overflow:auto;padding:22px}
 .ph-frame{position:relative;background:#000;border-radius:44px;padding:12px;
   box-shadow:0 0 0 2px #2e2e2e, 0 24px 60px rgba(0,0,0,.6);transform-origin:center center;flex:none}
@@ -1065,7 +729,12 @@ section[hidden]{display:none}
 
 @media(min-width:760px){
   .wrap{padding:24px}
-  nav.tabs{position:static;grid-template-columns:repeat(7,max-content);gap:3px;
+  /* relative, а не static: nav — точка відліку для рухомого #tabInd.
+     Раніше її мимохідь давало розмиття фону під панеллю (воно теж створює
+     блок відліку для absolute); без нього індикатор відраховувався від сторінки
+     й висів пігулкою в лівому верхньому куті. inset:auto — зсуви
+     left/right/bottom нижньої панелі телефона з relative зсували б nav. */
+  nav.tabs{position:relative;inset:auto;grid-template-columns:repeat(7,max-content);gap:3px;
     width:max-content;border-radius:var(--radius-pill);padding:4px;margin-bottom:18px}
   .tab-ind{top:4px;bottom:4px;border-radius:var(--radius-pill)}
   nav.tabs button{flex-direction:row;gap:7px;font-size:13px;height:var(--ctl);padding:0 14px;min-height:0;
@@ -1076,15 +745,8 @@ section[hidden]{display:none}
   body{padding-bottom:0}
 }
 
-/* ── Єдиний перехід для всіх поверхонь зі слідом.
-      Оголошено в кінці, щоб виграти каскад у власних transition елементів:
-      без цього власні transition елементів затирали спільні. ── */
-.glass, .card, .det, nav.tabs, input, select, #tip, #kbtip, .tab-ind, .chip-ind{
-  transition-property: background, box-shadow, transform;
-  transition-duration: .22s, .22s, .28s;
-  transition-timing-function: ease, ease, cubic-bezier(.34,1.12,.42,1);
-}
-button.glass:active{ transition-duration: .12s, .12s, .12s; }
+/* Індикатори вкладок і періодів їздять за активною кнопкою. Перехід
+   оголошено тут, нижче їхніх власних правил, щоб він виграв каскад. */
 .tab-ind, .chip-ind{
   transition-property: transform, width, opacity;
   transition-duration: .46s, .46s, .22s;
@@ -1132,199 +794,9 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 }
 
 
-/* ══════════════════ ДИЗАЙН: LIQUID GLASS (WebGL) ══════════════════
-   Скло більше не малюється засобами CSS. Його малює <glass-gl> —
-   WebGL-шар, який лежить під усім вмістом, сам малює сцену (тло) і
-   заломлює її під кожним елементом із data-glass, рахуючи товщину плити,
-   фаску, каустику й тінь на фон. DOM-елемент задає тільки прямокутник
-   і скруглення; власного фону, рамки й тіні він не має — інакше вони
-   перекрили б те, що порахував шейдер.
 
-   Через це в кожної скляної поверхні тут:
-     · background / box-shadow / backdrop-filter зняті;
-     · overflow:hidden і clip-path:inset(0 round R) — щоб вміст і
-       підсвітка не вилазили за скруглення;
-     · data-glass="1" ставить скрипт за списком селекторів.
-   ══════════════════════════════════════════════════════════════════ */
-/* Тло сторінки повторює ту саму горизонтальну розкладку світла, що й
-   сцена під склом. Поки шар WebGL наздоганяє швидку прокрутку, під ним
-   видно не пласку пляму, а майже ту саму картинку — і «фон не встигає»
-   перестає бути помітним. `fixed` — щоб градієнт не їхав із текстом. */
-:root:root body{background:linear-gradient(90deg,#3e4349 0%,#2b3036 38%,#1b1e22 74%,#121517 100%);
-  background-attachment:fixed;font-family:var(--font-ui);-webkit-font-smoothing:antialiased}
-:root:root[data-theme="light"] body{
-  background:linear-gradient(160deg,#fbfcfc 0%,#f0f2f3 50%,#b8bdc2 100%);
-  background-attachment:fixed}
-/* Тло тепер малює шейдер — власні шари фону зайві. */
-:root:root body::before{display:none}
-:root:root #glowcv{display:none}
-:root:root body::after{opacity:.03}
-
-/* точка відліку для WebGL-шару */
-:root:root .wrap{position:relative;z-index:1;max-width:940px;padding:28px 20px 96px;
-  display:flex;flex-direction:column;gap:18px}
-glass-gl{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none}
-
-
-/* ── світла тема: сцену малює той самий шейдер, тут лише чорнило ── */
-:root:root[data-theme="light"] .glass:hover:not(.on):not([aria-pressed="true"]),
-:root:root[data-theme="light"] .chip:hover:not([aria-pressed="true"]){background:rgba(255,255,255,.42)}
-:root:root[data-theme="light"] input,:root:root[data-theme="light"] select{
-  background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px rgba(20,23,25,.10)}
-:root:root[data-theme="light"] code{background:rgba(20,23,25,.07);color:#141719;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
-:root:root[data-theme="light"] nav.tabs button{color:rgba(20,23,25,.6)}
-:root:root[data-theme="light"] nav.tabs button:hover{color:#141719}
-:root:root[data-theme="light"] .iconbtn{color:rgba(20,23,25,.62)}
-:root:root[data-theme="light"] .bar-exp{filter:drop-shadow(0 0 7px rgba(59,111,212,.3))}
-:root:root[data-theme="light"] .bar-inc{filter:drop-shadow(0 0 7px rgba(111,148,18,.35))}
-
-/* ── поверхні ── */
-/* Поки шейдер не намалював плиту, панель не має ЖОДНОГО власного вигляду —
-   і на кадр-два після зміни вкладки на екрані порожнє місце. Тому тут
-   проста скляна підкладка за замовчуванням; вона зникає в ту саму мить,
-   коли зʼявляється data-glass, тобто коли плита вже намальована. */
-:root:root .glass,
-:root:root .card,
-:root:root .det,
-:root:root nav.tabs.glass{
-  /* Заливка майже прозора НАВМИСНЕ. Це вигляд панелі в ті кілька кадрів,
-     поки скляна плита ще не намальована. З помітною заливкою (було .05,
-     тобто +9 до яскравості) кожне перемикання вкладки читалось як спалах:
-     спершу світле вікно, потім нормальне. Панель усе одно окреслена
-     рамкою й тінню — і це ж лишається запасним виглядом там, де WebGL
-     недоступний. */
-  background:rgba(255,255,255,.014);background-image:none;border:0;
-  transition:background .16s ease;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07), 0 10px 28px -14px rgba(0,0,0,.5);
-  -webkit-backdrop-filter:none;backdrop-filter:none;
-  overflow:hidden;
-}
-:root:root[data-theme="light"] .glass,
-:root:root[data-theme="light"] .card,
-:root:root[data-theme="light"] .det,
-:root:root[data-theme="light"] nav.tabs.glass{
-  background:rgba(255,255,255,.14);
-  transition:background .16s ease;
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.08), 0 10px 28px -14px rgba(20,23,25,.22);
-}
-/* Скид мусить перебивати і світлу тему: там селектор із [data-theme]
-   важчий, і підкладка лишалася б під намальованою плитою. */
-:root:root [data-glass],
-:root:root[data-theme="light"] [data-glass]{ background:none;box-shadow:none }
-/* Активний чіп і активна вкладка не мають ані плити, ані підкладки —
-   лайм під ними малює рухомий індикатор. */
-:root:root .periodbar .chip[aria-pressed="true"],
-:root:root nav.tabs button[aria-current="true"],
-:root:root[data-theme="light"] .periodbar .chip[aria-pressed="true"],
-:root:root[data-theme="light"] nav.tabs button[aria-current="true"]{
-  background:none;box-shadow:none}
-:root:root .glass::before,  :root:root .glass::after,
-:root:root .card::before,   :root:root .card::after,
-:root:root .det::before,    :root:root .det::after,
-:root:root nav.tabs.glass::before, :root:root nav.tabs.glass::after,
-:root:root #tip::before,    :root:root #tip::after,
-:root:root #kbtip::before,  :root:root #kbtip::after{ content:none;display:none }
-
-/* Підказки їдуть за курсором щокадру, тож WebGL-плити їм не дістається:
-   вона малюється за прямокутником минулого кадру й відставала б окремим
-   світлим прямокутником поруч. Тут звичайна поверхня. */
-:root:root #tip, :root:root #kbtip{
-  background:rgba(26,30,33,.94);border:0;border-radius:16px;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10), 0 12px 30px -10px rgba(0,0,0,.6);
-  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-:root:root[data-theme="light"] #tip, :root:root[data-theme="light"] #kbtip{
-  background:rgba(246,247,248,.95);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.10), 0 12px 30px -10px rgba(20,23,25,.28)}
-
-/* Панель, якій плита не дісталася (вкладена у більшу або поза полотном):
-   лишається м'яка підкладка, щоб вона не зникла зовсім. */
-:root:root .lg-flat{
-  background:rgba(255,255,255,.045);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
-:root:root[data-theme="light"] .lg-flat{
-  background:rgba(255,255,255,.45);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.08)}
-
-:root:root .card{border-radius:28px;padding:20px 22px}
-:root:root .det{border-radius:24px;padding:20px 22px}
-:root:root .glass{border-radius:var(--radius)}
-:root:root .chip{border-radius:var(--radius-pill);height:38px;padding:0 20px;font-size:14px;font-weight:500;color:var(--text-dim)}
-:root:root .chip:hover{color:var(--text)}
-:root:root .iconbtn{width:46px;height:46px;border-radius:18px;color:var(--text-dim)}
-:root:root nav.tabs.glass{border-radius:21px;padding:7px;gap:4px}
-:root:root nav.tabs button{border-radius:21px;font-size:15px;font-weight:500;color:var(--text-dim);gap:8px}
-:root:root nav.tabs button:hover{color:var(--text)}
-:root:root nav.tabs button[aria-current="true"]{color:var(--accent-contrast);font-weight:600}
-:root:root .brand .logo{width:44px;height:44px;border-radius:18px;font-size:21px;
-  background:linear-gradient(160deg,#798A48,#a8dd2e);color:#1A230C;
-  box-shadow:0 8px 24px -6px rgba(198,242,78,.7), inset 0 1px 0 rgba(255,255,255,.8)}
-:root:root .brand{font-size:27px;font-weight:600;letter-spacing:-.02em;font-family:var(--font-ui)}
-
-/* ── акцент: лаймове скло поверх скляної плити ── */
-:root:root .glass.on,
-:root:root .chip[aria-pressed="true"],
-:root:root .btn.pri,
-:root:root nav.tabs button[aria-current="true"],
-:root:root .tab-ind,
-:root:root .chip-ind{
-  background:linear-gradient(340deg,#C5FF23B8,#A6D13E99);
-  color:var(--accent-contrast);
-  box-shadow:0 10px 24px -14px rgba(198,242,78,.38);
-  -webkit-backdrop-filter:none;backdrop-filter:none;
-}
-:root:root .glass.on:hover, :root:root .btn.pri:hover,
-:root:root .chip[aria-pressed="true"]:hover{
-  background:linear-gradient(340deg,#D2FF4Ecc,#B4E04Daa);
-}
-:root:root .glass:hover:not(.on):not([aria-pressed="true"]){background:rgba(255,255,255,.10)}
-:root:root .chip:hover:not([aria-pressed="true"]){background:rgba(255,255,255,.10)}
-
-/* ── типографіка чисел ── */
-:root:root .kpi .val, :root:root .row .amt, :root:root .subrow .amt,
-:root:root .det .sum, :root:root .amt{
-  font-family:var(--font-display);font-weight:300;letter-spacing:-.02em}
-:root:root .kpi .val{font-size:27px}
-:root:root .kpi .lbl{font-size:11px;letter-spacing:.12em;color:var(--text-mute)}
-:root:root .kpi .sub{font-size:12.5px;color:var(--text-mute)}
-:root:root .cardhead h2{font-size:19px;font-weight:600;letter-spacing:-.01em}
-:root:root .hint,:root:root .muted{color:var(--text-mute)}
-:root:root code{border-radius:11px;background:rgba(255,255,255,.10);border:0;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);color:var(--text);padding:3px 8px}
-
-/* ── поля вводу: заглиблення, не плита ── */
-:root:root input, :root:root select{
-  background:rgba(255,255,255,.06);border:0;border-radius:14px;height:var(--ctl);
-  color:var(--text);box-shadow:inset 0 0 0 1px var(--border-soft)}
-:root:root input:focus,:root:root select:focus{
-  box-shadow:inset 0 0 0 1px rgba(197,255,35,.55), 0 0 0 3px rgba(197,255,35,.13)}
-
-/* ── стовпчики графіка: лайм зі світінням, як у макеті ── */
-:root:root .bar-exp{filter:drop-shadow(0 0 9px rgba(122,162,255,.45))}
-:root:root .bar-inc{filter:drop-shadow(0 0 9px rgba(169,222,44,.5))}
-:root:root .meter i{background:linear-gradient(160deg,#7B923B,#A9DE2C);
-  box-shadow:0 0 14px rgba(169,222,44,.4)}
-
-
-
-/* ── телефон ─────────────────────────────────────────────────────
-   Нижнє меню на телефоні — це накладка над списком, що скролиться.
-   Скло малює шейдер на полотні ПІД вмістом, тож сама лише плита не
-   сховає рядки, які проїжджають під меню. Тому меню отримує власний
-   щільний тон поверх скла: плита лишається для кромки й заломлення. */
-@media(max-width:759px){
-  :root:root .wrap{padding:18px 14px 118px;gap:14px}
-  :root:root nav.tabs.glass{background:rgba(20,23,25,.94);border-radius:24px}
-  :root:root[data-theme="light"] nav.tabs.glass{background:rgba(236,238,240,.95)}
-  :root:root nav.tabs button{font-size:9.5px;font-weight:600;padding:5px 2px;gap:4px;border-radius:16px}
-  :root:root .kpi .val{font-size:22px}
-  :root:root .card{border-radius:24px;padding:16px 16px 18px}
-  :root:root .det{border-radius:20px;padding:16px}
-}
-:root:root .kpi .val{white-space:nowrap}
-
-/* Підказка існує завжди, ховається лише прозорістю — на скляному тлі це
-   лишало сірий прямокутник у кутку. Ховаємо по-справжньому. */
+/* Підказка існує завжди, ховається лише прозорістю — це лишало сірий
+   прямокутник у кутку. Ховаємо по-справжньому. */
 :root:root #tip{visibility:hidden}
 :root:root #tip[style*="visible"]{visibility:visible}
 
@@ -1332,16 +804,14 @@ glass-gl{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-
 .dpwrap{position:relative}
 #dpOpen{gap:8px;font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 #dpLabel{white-space:nowrap}
-/* Календар накриває контент, а WebGL-скло вміє заломлювати лише сцену,
-   не сторінку — крізь скляну панель просвічували б рядки під нею. Тому
-   тут звичайна щільна поверхня, як у підказок. */
+/* Календар накриває контент — крізь напівпрозору панель просвічували б
+   рядки під нею. Тому тут щільна поверхня, як у підказок. */
 .dp{position:absolute;z-index:60;top:calc(100% + 10px);left:0;
   padding:16px;border-radius:24px;display:flex;gap:20px;flex-wrap:wrap;
   isolation:isolate;min-width:270px;
   background:rgba(26,30,33,.97);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),
-    0 2px 6px rgba(0,0,0,.4), 0 22px 54px -16px rgba(0,0,0,.7);
-  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+    0 2px 6px rgba(0,0,0,.4), 0 22px 54px -16px rgba(0,0,0,.7)}
 :root[data-theme="light"] .dp{background:rgba(247,248,249,.98);
   box-shadow:inset 0 0 0 1px rgba(20,23,25,.10),
     0 2px 6px rgba(20,23,25,.10), 0 22px 54px -16px rgba(20,23,25,.30)}
@@ -1621,8 +1091,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .cselm{position:fixed;z-index:400;min-width:168px;
   max-height:min(300px, 60vh);overflow:auto;padding:6px;border-radius:16px;
   background:rgba(26,30,33,.97);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 2px 6px rgba(0,0,0,.4),0 18px 44px -14px rgba(0,0,0,.7);
-  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 2px 6px rgba(0,0,0,.4),0 18px 44px -14px rgba(0,0,0,.7)}
 .cselo{display:block;width:100%;padding:8px 11px;border:0;border-radius:10px;cursor:pointer;
   background:none;color:var(--text-dim);text-align:left;font:inherit;font-size:12.5px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1687,6 +1156,49 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .cmbi.open{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent),
   0 0 0 3px var(--accent-soft)}
 .cmbm{padding:6px}
+
+/* ══════════════════ ДИЗАЙН-СИСТЕМА: плоска база ══════════════════
+   Поверхня = різниця тону + тонка межа. Тіней, розмиття й заломлення
+   немає: вони давали вигляд, який не відтворювався однаково між
+   WebGL і CSS-запасним варіантом, і коштували кадрів під час скролу. */
+body{background:var(--bg);color:var(--text);font:var(--fs-md)/1.5 var(--font-ui);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.card,.det{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+.det{border-radius:var(--radius-lg)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:var(--ctl);padding:0 16px;border-radius:var(--radius-sm);
+  background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text);font-size:var(--fs-sm);font-weight:600;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.btn:hover{background:var(--surface-3)}
+.btn:active{transform:scale(.98)}
+.btn.pri,button.on{background:var(--accent);border-color:transparent;color:var(--accent-contrast)}
+.btn.pri:hover,button.on:hover{background:var(--accent-hover)}
+.iconbtn{width:var(--ctl);height:var(--ctl);border-radius:var(--radius-sm);display:grid;place-items:center;
+  color:var(--text-dim);background:transparent}
+.iconbtn:hover{color:var(--text);background:var(--surface-2)}
+.chip{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:var(--radius-pill);
+  font-size:var(--fs-sm);font-weight:500;color:var(--text-dim);background:transparent}
+.chip:hover{color:var(--text)}
+.chip[aria-pressed="true"]{color:var(--text);font-weight:600;background:var(--surface-3)}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface-2);
+  border:1px solid var(--border);border-radius:var(--radius-sm);height:var(--ctl);padding:0 13px;
+  transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+/* resize:none — системний хват для розтягування малює ОС, і в темній темі
+   він світлий; висоту поле бере від вмісту, тягати руками нема потреби. */
+textarea{height:auto;min-height:96px;padding:10px 13px;line-height:1.5;resize:none}
+input::placeholder,textarea::placeholder{color:var(--text-mute)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-line);
+  box-shadow:0 0 0 3px var(--accent-soft)}
+code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
+  border:1px solid var(--border-soft);border-radius:6px;padding:1px 6px}
+.tab-ind,.chip-ind{background:var(--surface-3);border-radius:var(--radius-pill)}
+nav.tabs{background:var(--surface);border:1px solid var(--border)}
+nav.tabs button[aria-current="true"]{color:var(--text)}
+#tip,#kbtip{background:var(--surface-3);color:var(--text);border:1px solid var(--border);
+  border-radius:var(--radius-sm);box-shadow:var(--shadow-pop)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important}}
 </style>
 </head>
 <body>
@@ -1699,7 +1211,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="muted" id="lockMsg" style="font-size:13px">Введіть код</div>
   <input id="lockPin" type="password" inputmode="numeric" maxlength="12" autocomplete="off"
     style="width:150px;text-align:center;font-size:20px;letter-spacing:6px;padding:8px 10px">
-  <button class="btn pri glass" id="lockGo">Відкрити</button>
+  <button class="btn pri" id="lockGo">Відкрити</button>
 </div>
 <div class="wrap">
 
@@ -1707,13 +1219,13 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="brand"><span class="logo">₴</span><span>Гроші</span></div>
   <div class="spacer"></div>
   <div class="hactions">
-  <button class="iconbtn glass" id="phoneBtn" data-tip="Перегляд на телефоні" data-key="P" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></button>
-  <button class="iconbtn glass" id="scrnBtn" data-tip="Режим скріншоту: сховати всі суми (S)" data-key="S">👁</button>
-  <button class="iconbtn glass" id="themeBtn" data-tip="Світла / темна тема" data-key="T">◐</button>
+  <button class="iconbtn" id="phoneBtn" data-tip="Перегляд на телефоні" data-key="P" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></button>
+  <button class="iconbtn" id="scrnBtn" data-tip="Режим скріншоту: сховати всі суми (S)" data-key="S">👁</button>
+  <button class="iconbtn" id="themeBtn" data-tip="Світла / темна тема" data-key="T">◐</button>
   </div>
 </header>
 
-<nav class="tabs glass" id="tabs">
+<nav class="tabs" id="tabs">
   <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
   <button data-tab="overview" aria-current="true"><em>▦</em>Огляд</button>
   <button data-tab="cats"><em>◑</em>Категорії</button>
@@ -1728,15 +1240,15 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 <div class="periodbar" id="periods"><span class="chip-ind" id="periodInd" aria-hidden="true"></span></div>
 <div id="customRange" hidden>
   <div class="fieldrow dpwrap" style="margin:0 0 10px">
-    <button class="btn glass" id="dpOpen" aria-haspopup="dialog">
+    <button class="btn" id="dpOpen" aria-haspopup="dialog">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/>
         <path d="M3 10h18M8 3v4M16 3v4"/></svg>
       <span id="dpLabel">Оберіть дати</span>
     </button>
-    <button class="btn glass" data-quick="ytd">З початку року</button>
-    <button class="btn glass" data-quick="prevmonth">Минулий місяць</button>
-    <button class="btn glass" data-quick="all">Уся історія</button>
+    <button class="btn" data-quick="ytd">З початку року</button>
+    <button class="btn" data-quick="prevmonth">Минулий місяць</button>
+    <button class="btn" data-quick="all">Уся історія</button>
     <span class="muted" id="rangeInfo"></span>
     <div class="dp" id="dp" role="dialog" aria-label="Вибір періоду" hidden></div>
   </div>
@@ -1759,7 +1271,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(310px,1fr));margin-bottom:12px">
     <div class="card" id="nwCard" hidden>
       <div class="cardhead"><h2>Капітал</h2><span class="hint" id="nwHint"></span>
-        <button class="btn glass" id="nwCfgBtn" style="margin-left:auto;padding:2px 10px;height:auto;font-size:11px">Інше майно</button></div>
+        <button class="btn" id="nwCfgBtn" style="margin-left:auto;padding:2px 10px;height:auto;font-size:11px">Інше майно</button></div>
       <div id="nwBody"></div>
     </div>
     <div id="ovBalSlot"></div>
@@ -1785,9 +1297,9 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(310px,1fr));margin-bottom:12px">
     <div class="card" id="fopCard" hidden>
       <div class="cardhead"><h2>Податки ФОП</h2><span class="hint" id="fopHint"></span>
-        <button class="btn glass" id="fopBookBtn" style="margin-left:auto;padding:2px 10px;height:auto;font-size:11px"
+        <button class="btn" id="fopBookBtn" style="margin-left:auto;padding:2px 10px;height:auto;font-size:11px"
           data-tip="Книга обліку доходів за рік — CSV для бухгалтера">Книга доходів</button>
-        <button class="btn glass" id="fopCfgBtn" style="padding:2px 10px;height:auto;font-size:11px">Налаштувати</button></div>
+        <button class="btn" id="fopCfgBtn" style="padding:2px 10px;height:auto;font-size:11px">Налаштувати</button></div>
       <div id="fopBody"></div>
     </div>
   </div>
@@ -1838,7 +1350,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 <section id="tab-tx" hidden>
   <div class="card">
     <div class="cardhead txhead"><h2>Операції</h2>
-      <button class="btn pri glass" id="txAdd" style="padding:5px 13px;height:auto;font-size:12px">+ Додати операцію</button>
+      <button class="btn pri" id="txAdd" style="padding:5px 13px;height:auto;font-size:12px">+ Додати операцію</button>
       <span class="hint" id="txCount" style="margin-left:auto"></span></div>
     <div class="txfilters">
       <input id="q" placeholder="Пошук: магазин, ім'я, картка, коментар, MCC, &gt;500">
@@ -1860,25 +1372,25 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
     </p>
     <div class="sortbar" id="sortbar">
       <span class="muted">Сортувати:</span>
-      <button class="glass" data-sort="date">Дата</button>
-      <button class="glass" data-sort="amount">Сума</button>
-      <button class="glass" data-sort="merchant">Мерчант</button>
-      <button class="glass" data-sort="cat">Категорія</button>
+      <button class="btn" data-sort="date">Дата</button>
+      <button class="btn" data-sort="amount">Сума</button>
+      <button class="btn" data-sort="merchant">Мерчант</button>
+      <button class="btn" data-sort="cat">Категорія</button>
       <span style="flex:1"></span>
-      <button class="glass" id="selToggle">Вибрати кілька</button>
+      <button class="btn" id="selToggle">Вибрати кілька</button>
     </div>
     <div class="selbar" id="selbar" hidden>
       <span class="selcount" id="selCount">Обрано 0</span>
       <span class="selsum" id="selSum"></span>
       <span class="grow"></span>
-      <button class="glass" id="selAll">Обрати всі знайдені</button>
-      <button class="glass" id="selNone">Зняти</button>
-      <button class="btn pri glass" id="selCat">Змінити категорію</button>
-      <button class="glass" id="selReset">Скинути свої</button>
-      <button class="glass" id="selOff">Вийти</button>
+      <button class="btn" id="selAll">Обрати всі знайдені</button>
+      <button class="btn" id="selNone">Зняти</button>
+      <button class="btn pri" id="selCat">Змінити категорію</button>
+      <button class="btn" id="selReset">Скинути свої</button>
+      <button class="btn" id="selOff">Вийти</button>
     </div>
     <div id="txList"></div>
-    <div style="text-align:center;margin-top:14px"><button class="btn glass" id="more">Показати ще</button></div>
+    <div style="text-align:center;margin-top:14px"><button class="btn" id="more">Показати ще</button></div>
   </div>
 </section>
 
@@ -1890,7 +1402,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
         <div class="grid kpis" id="pjTotals"></div>
         <div class="card pjcard">
           <div class="cardhead"><h2>Проєкти</h2>
-            <button class="btn pri glass" id="pjNew">+ Проєкт</button></div>
+            <button class="btn pri" id="pjNew">+ Проєкт</button></div>
           <div id="pjList"></div>
           <div class="pjtplbar">
             <span class="lbl">Із шаблону</span>
@@ -1906,14 +1418,14 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
             <div id="bizProfList" style="flex:1;min-width:0"></div>
           </div>
           <div class="fieldrow" style="margin:8px 0 0">
-            <button class="btn glass" id="bizAdd">+ Додати реквізити</button>
+            <button class="btn" id="bizAdd">+ Додати реквізити</button>
           </div>
           <div class="pjtplbar">
             <span class="lbl">Підпис</span>
             <div class="pjtplrow" style="align-items:center;gap:10px">
               <img id="bizSignPrev" alt="" style="height:30px;max-width:130px;object-fit:contain;
                 background:rgba(255,255,255,.85);border-radius:6px;padding:2px 6px" hidden>
-              <button class="btn glass" id="bizSignBtn">Додати підпис</button>
+              <button class="btn" id="bizSignBtn">Додати підпис</button>
               <input type="file" id="bizSignFile" accept="image/png,image/jpeg,image/webp" hidden>
               <span class="muted" id="bizMsg" style="font-size:11.5px"></span>
             </div>
@@ -1935,7 +1447,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 
       <div class="pjmain" id="pjOneView" hidden>
         <div class="pjtop">
-          <button class="btn glass" id="pjBack">← Усі проєкти</button>
+          <button class="btn" id="pjBack">← Усі проєкти</button>
           <span class="pjcrumb" id="pjCrumb"></span>
         </div>
         <div class="card pjcard">
@@ -1946,7 +1458,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
           <div class="pjfields" id="pjHead"></div>
           <div id="pjTable"></div>
           <div class="pjfoot">
-            <button class="btn glass" id="pjAdd">+ Рядок</button>
+            <button class="btn" id="pjAdd">+ Рядок</button>
             <span class="muted" id="pjMsg" hidden></span>
             <span class="muted pjformula">USD = ставка × (дні + ОТ, або одиниці — «дн/од» у клітинці обсягу) + окремі · з податком = USD × (1 + податок) · ₴ = з податком × курс</span>
           </div>
@@ -1959,7 +1471,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
           <div class="cardhead"><h2>Історія змін</h2><span id="pjLogHead"></span></div>
           <div id="pjDyn"></div>
           <div id="pjLog" class="pjlog"></div>
-          <button class="btn glass pjlogmore" id="pjLogMore" hidden></button>
+          <button class="btn pjlogmore" id="pjLogMore" hidden></button>
         </div>
       </div>
     </div>
@@ -2041,7 +1553,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
       <div class="cardhead"><h2>Watchlist</h2><span class="hint" id="invWatchHint"></span></div>
       <div id="invWatchList"></div>
       <div class="fieldrow" style="margin-top:10px">
-        <button class="btn glass" id="invWatchAdd">+ Додати тікер</button>
+        <button class="btn" id="invWatchAdd">+ Додати тікер</button>
       </div>
     </div>
   </div>
@@ -2112,8 +1624,8 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
         <div class="mfound" id="mFound" hidden></div>
 
         <div class="macts">
-          <button class="btn glass" id="mClear">Очистити</button>
-          <button class="btn pri glass" id="mAdd">Додати</button>
+          <button class="btn" id="mClear">Очистити</button>
+          <button class="btn pri" id="mAdd">Додати</button>
         </div>
       </div>
       <datalist id="merchlist"></datalist>
@@ -2133,14 +1645,14 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
       <label style="min-width:auto">Попереджати за</label>
       <input id="subLead" type="number" min="0" max="30" step="1" style="width:80px" inputmode="numeric">
       <span class="muted">дн. до списання</span>
-      <button class="btn glass" id="subNotify">Увімкнути сповіщення</button>
+      <button class="btn" id="subNotify">Увімкнути сповіщення</button>
       <span class="muted" id="subNotifyState"></span>
     </div>
     <p class="muted" style="margin:0 0 12px">Сторінка може сповістити лише поки вона відкрита — це обмеження
       браузера, а не налаштування. Щоб нагадування приходили й тоді, коли апку закрито,
       експортуйте підписки в календар: у файлі є правило повтору й будильник за вказану кількість днів.</p>
     <div class="fieldrow">
-      <button class="btn pri glass" id="subIcs">Експорт у календар (.ics)</button>
+      <button class="btn pri" id="subIcs">Експорт у календар (.ics)</button>
       <span class="muted" id="subMsg" hidden></span>
     </div>
   </div>
@@ -2184,7 +1696,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
       <datalist id="racclist"></datalist>
       <datalist id="catlist"></datalist>
       <datalist id="rsublist"></datalist>
-      <button class="btn pri glass" id="rAdd">Додати</button>
+      <button class="btn pri" id="rAdd">Додати</button>
     </div>
     <span class="mfhint" id="rHint" style="display:block;margin:8px 0 2px"></span>
     <div id="rules"></div>
@@ -2244,8 +1756,8 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
       стануть поруч із Monobank, правила категорій діятимуть і на них.
       Повторний імпорт того ж періоду безпечний: однакові операції не дублюються.</p>
     <div class="fieldrow">
-      <button class="btn glass" id="pvImport">Імпортувати виписку (CSV)</button>
-      <button class="btn glass" id="pvClear" hidden>Прибрати імпортоване</button>
+      <button class="btn" id="pvImport">Імпортувати виписку (CSV)</button>
+      <button class="btn" id="pvClear" hidden>Прибрати імпортоване</button>
       <input type="file" id="pvFile" accept=".csv" hidden>
     </div>
     <p class="muted" id="pvMsg" style="margin-top:10px"></p>
@@ -2258,7 +1770,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
       Це <b>не шифрування</b>: файли з даними лишаються на диску як були, і той, хто знає, де вони,
       прочитає їх повз апку. Забутий код скидається видаленням <code>pinHash</code> у файлі стану.</p>
     <div class="fieldrow">
-      <button class="btn glass" id="pinBtn">Увімкнути код</button>
+      <button class="btn" id="pinBtn">Увімкнути код</button>
       <label class="muted" style="display:flex;gap:7px;align-items:center">
         Блокувати після <input id="pinIdle" type="number" min="0" max="240" step="5" style="width:64px">
         хв. без дій <span style="font-size:11px">(0 — тільки при запуску)</span></label>
@@ -2305,8 +1817,8 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
       Бекап — копія цих файлів у вибрану теку; найкраще обрати теку на іншому диску або в
       хмарній папці. Тримається 8 останніх копій, старші прибираються самі.</p>
     <div class="fieldrow">
-      <button class="btn pri glass" id="bkNow">Зробити бекап зараз</button>
-      <button class="btn glass" id="bkDir">Обрати теку</button>
+      <button class="btn pri" id="bkNow">Зробити бекап зараз</button>
+      <button class="btn" id="bkDir">Обрати теку</button>
       <label class="muted" style="display:flex;gap:7px;align-items:center;cursor:pointer">
         <input type="checkbox" id="bkAuto"> Щотижня автоматично</label>
     </div>
@@ -2316,9 +1828,9 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="card" data-sec="app" style="margin-bottom:12px">
     <div class="cardhead"><h2>Дані</h2></div>
     <div class="fieldrow">
-      <button class="btn glass" id="expCsv">Експорт CSV</button>
-      <button class="btn glass" id="expJson">Експорт JSON</button>
-      <button class="btn glass" id="reset">Скинути налаштування</button>
+      <button class="btn" id="expCsv">Експорт CSV</button>
+      <button class="btn" id="expJson">Експорт JSON</button>
+      <button class="btn" id="reset">Скинути налаштування</button>
     </div>
     <p class="muted" id="dataInfo" style="margin-top:10px"></p>
   </div>
@@ -2329,7 +1841,6 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 </section>
 
 </div>
-<canvas id="glowcv" aria-hidden="true"></canvas>
 <div id="sdp" hidden></div>
 <div id="modal" class="modal" hidden>
   <div class="modalbd" id="modalBd"></div>
@@ -2346,8 +1857,8 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
     <label class="modalchk" id="modalChkW" hidden>
       <input type="checkbox" id="modalChk"><span id="modalChkL"></span></label>
     <div class="modalacts">
-      <button class="btn glass" id="modalNo">Скасувати</button>
-      <button class="btn pri glass" id="modalYes">Гаразд</button>
+      <button class="btn" id="modalNo">Скасувати</button>
+      <button class="btn pri" id="modalYes">Гаразд</button>
     </div>
   </div>
 </div>
@@ -2358,14 +1869,14 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="ph-bar">
     <strong>Перегляд на телефоні</strong>
     <select id="phDevice"></select>
-    <button class="btn glass" id="phRotate">⟳ Повернути</button>
+    <button class="btn" id="phRotate">⟳ Повернути</button>
     <label class="muted" style="display:flex;gap:6px;align-items:center;cursor:pointer">
       <input type="checkbox" id="phFit" checked>
       Вмістити у вікно
     </label>
     <span class="muted" id="phSize"></span>
     <span style="flex:1"></span>
-    <button class="btn glass" id="phClose">Закрити ✕</button>
+    <button class="btn" id="phClose">Закрити ✕</button>
   </div>
   <div class="ph-stage">
     <div class="ph-frame" id="phFrame">
@@ -3097,7 +2608,7 @@ function renderKpis(rows, prev){
       Щоб надходження зʼявились, підключіть банк напряму: «Ще → Підключення».
       Там кожна операція приходить зі знаком, тож дохід і витрата розділяються точно.
       <span class="phonly"></span>
-      ${incAll ? `<button class="btn glass" id="whyIncome" style="margin-top:10px">Показати ці ${nOps(incAll)}</button>` : ''}
+      ${incAll ? `<button class="btn" id="whyIncome" style="margin-top:10px">Показати ці ${nOps(incAll)}</button>` : ''}
     </div>`;
   const wi = el('whyIncome');
   if(wi) wi.onclick = ()=>{ openTx({}); el('fDir').value='income'; el('qAll').checked=true; renderTx(); };
@@ -3440,8 +2951,8 @@ function renderInvcDue(){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="flex:1;min-width:0">${esc(x.no)} · ${esc(x.client)} — ${fmt2(x.total)} ${esc(x.ccy)}
           <span class="muted">${plural(x.days,'день','дні','днів')} без оплати</span></span>
-        <button class="btn glass" data-icrem="${i}" style="padding:3px 11px;height:auto;font-size:12px">Текст нагадування</button>
-        <button class="btn glass" data-icpaid="${i}" style="padding:3px 11px;height:auto;font-size:12px">Оплачено</button>
+        <button class="btn" data-icrem="${i}" style="padding:3px 11px;height:auto;font-size:12px">Текст нагадування</button>
+        <button class="btn" data-icpaid="${i}" style="padding:3px 11px;height:auto;font-size:12px">Оплачено</button>
       </div>`).join('')}</div></div>`;
   host.querySelectorAll('[data-icrem]').forEach(b=>b.onclick=async ()=>{
     const x = list[+b.dataset.icrem];
@@ -3548,7 +3059,7 @@ function renderTrip(){
       </div>
       <div class="muted" style="font-size:11.5px;margin-top:1px">
         ${money(g.perDay)}/день${g.top.length ? ' · ' + g.top.map(x=>`${esc(x.k || 'інше')} ${Math.round(x.v/g.sum*100)}%`).join(', ') : ''}
-        · <button class="btn glass" data-tripgo="${i}" style="padding:1px 8px;height:auto;font-size:11px">операції</button>
+        · <button class="btn" data-tripgo="${i}" style="padding:1px 8px;height:auto;font-size:11px">операції</button>
       </div></div>`;
   }).join('');
   el('tripBody').querySelectorAll('[data-tripgo]').forEach(b=>b.onclick=()=>{
@@ -3887,7 +3398,6 @@ function renderCatTable(host, rows){
   });
 
   host.innerHTML = out.join('') || '<p class="muted">Немає даних</p>';
-  if(window.__glassNow) window.__glassNow();
 
   host.querySelectorAll('[data-k]').forEach(n=>n.onclick=e=>{
     if(e.target.dataset.go) return;
@@ -4019,7 +3529,6 @@ function renderTx(){
      нічого не робило. Делегування покриває будь-де, де картка зʼявиться. */
   el('more').style.display = rows.length>S.limit ? '' : 'none';
   renderSelbar(rows);
-  if(window.__glassNow) window.__glassNow();
 }
 
 /* ── вибір кількох операцій ───────────────────────────────────────
@@ -4487,16 +3996,16 @@ function detailCard(t){
       <textarea data-note="${esc(t.id)}" placeholder="за що це було, з ким ділили, чи повертати">${esc(txNote(t.id))}</textarea>
       <span class="hint">Зберігається у браузері разом із рештою налаштувань — банк про неї не знає.</span></label>
     <div class="acts">
-      <button class="btn glass" data-same="${esc(t.merchant)}">Усі ${nOps(same.length)} «${esc(t.merchant)}» · ${money(spent)}</button>
+      <button class="btn" data-same="${esc(t.merchant)}">Усі ${nOps(same.length)} «${esc(t.merchant)}» · ${money(spent)}</button>
       ${ofSub
-        ? `<button class="btn glass" data-subgo="${esc(ofSub.key)}">Показати ряд підписки</button>
-           <button class="btn glass" data-unlink="${esc(t.id)}">Відвʼязати від «${esc(ofSub.merchant)}»</button>`
-        : `<button class="btn glass" data-link="${esc(t.id)}">Привʼязати до підписки</button>`}
+        ? `<button class="btn" data-subgo="${esc(ofSub.key)}">Показати ряд підписки</button>
+           <button class="btn" data-unlink="${esc(t.id)}">Відвʼязати від «${esc(ofSub.merchant)}»</button>`
+        : `<button class="btn" data-link="${esc(t.id)}">Привʼязати до підписки</button>`}
       ${t.dir==='income'
-        ? (rfn(t) ? `<button class="btn glass" data-notback="${esc(t.id)}">Це не повернення</button>`
-                  : `<button class="btn glass" data-isback="${esc(t.id)}">Це повернення</button>`)
+        ? (rfn(t) ? `<button class="btn" data-notback="${esc(t.id)}">Це не повернення</button>`
+                  : `<button class="btn" data-isback="${esc(t.id)}">Це повернення</button>`)
         : ''}
-      ${t.manual ? `<button class="btn glass danger" data-delman="${esc(t.id)}">Видалити</button>` : ''}
+      ${t.manual ? `<button class="btn danger" data-delman="${esc(t.id)}">Видалити</button>` : ''}
     </div>
     ${full ? '' : `<div class="gap"><b>Чого тут немає:</b> точний час, рахунок або банка, валюта операції,
       кешбек, коментар і контрагент, номер чека. Банк це передає — сторонні імпорти зазвичай ні.
@@ -4524,7 +4033,7 @@ function renderRules(){
     `<div class="row"><span class="nm">${cond(r)} → <b>${esc(r.cat)}</b>${
         r.sub && r.sub !== r.cat ? ` <span class="muted">→ ${esc(r.sub)}</span>` : ''}
       <span class="cnt" style="margin-left:8px">${hitsOf(r).length}×</span></span>
-      <button class="btn glass" data-del="${i}" style="padding:4px 10px">✕</button></div>`).join('')
+      <button class="btn" data-del="${i}" style="padding:4px 10px">✕</button></div>`).join('')
     : '<p class="muted">Правил ще немає.</p>';
   el('rules').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
     RULES.splice(+b.dataset.del,1); store.set('rules',RULES); invalidate(); invalidateSubs(); render(); });
@@ -4536,7 +4045,7 @@ function renderRules(){
     `<div class="row" style="margin-top:8px"><span class="nm muted">
        Окремих операцій із власною категорією: <b>${n}</b>
        <span class="muted">· у картці операції «Категорія → змінити»</span></span>
-     <button class="btn glass" id="txcatClear" style="padding:4px 10px">Скинути всі</button></div>`);
+     <button class="btn" id="txcatClear" style="padding:4px 10px">Скинути всі</button></div>`);
   const cl = el('txcatClear');
   if(cl) cl.onclick = async ()=>{
     const ok = await uiConfirm({title:'Скинути власні категорії?',
@@ -4557,7 +4066,7 @@ function renderExcl(){
     return `<div class="row"><span class="muted" style="min-width:96px">${LBL[type]||type}</span>
       <span class="nm">${esc(rest.replace('|',' → '))}</span>
       <span class="amt" style="opacity:.6">${money(sum)}</span>
-      <button class="btn glass" data-unex="${esc(k)}" style="padding:5px 11px;height:auto;font-size:12px">Повернути</button></div>`;
+      <button class="btn" data-unex="${esc(k)}" style="padding:5px 11px;height:auto;font-size:12px">Повернути</button></div>`;
   }).join('') : '<p class="muted">Поки нічого не виключено.</p>';
   el('excl').querySelectorAll('[data-unex]').forEach(b=>b.onclick=()=>{
     EXCL.delete(b.dataset.unex); saveExcl(); dpInvalidate(); render(); });
@@ -4595,7 +4104,7 @@ function renderQuality(){
           Перевірте їх. Якщо це справді дохід ззовні — змініть категорію, і сума почне рахуватись.
           Якщо це переказ між своїми рахунками, а пари немає — позначте всі свої рахунки
           в «Ще → Monobank» і оновіть.
-          <button class="btn glass" id="showLone" style="margin-top:10px">Показати ці ${lone.length}</button>
+          <button class="btn" id="showLone" style="margin-top:10px">Показати ці ${lone.length}</button>
         </div>` : ''));
     const sl = el('showLone');
     if(sl) sl.onclick = ()=> openTx({ids: lone.map(t=>t.id), label:'Зарахування без пари'});
@@ -4618,7 +4127,7 @@ function renderQuality(){
       + (lost ? `<div class="row"><span class="nm muted">із них покупка поза періодом</span>
          <span class="amt">${lost}</span><span class="cnt">категорію взято з назви</span></div>` : ''));
     const rb = document.createElement('div');
-    rb.innerHTML = `<button class="btn glass" id="showRefs" style="margin-top:8px">Показати повернення</button>`;
+    rb.innerHTML = `<button class="btn" id="showRefs" style="margin-top:8px">Показати повернення</button>`;
     el('quality').appendChild(rb);
     el('showRefs').onclick = ()=> openTx({ids: refs.map(t=>t.id), label:'Повернення коштів'});
   }
@@ -5048,12 +4557,12 @@ function subRow(s, kind){
     <span class="cnt">${money(perMonth(s))}/міс</span>
     <span class="subacts">
       ${kind==='mine'
-        ? `<button class="btn glass" data-subopen="${esc(s.key)}">Операції${ids.length?` · ${ids.length}`:''}</button>
-           <button class="btn glass" data-subedit="${esc(s.key)}" data-tip="Змінити суму, період, дату">✎</button>
-           <button class="btn glass" data-subdel="${esc(s.key)}" data-tip="Прибрати зі списку">✕</button>`
+        ? `<button class="btn" data-subopen="${esc(s.key)}">Операції${ids.length?` · ${ids.length}`:''}</button>
+           <button class="btn" data-subedit="${esc(s.key)}" data-tip="Змінити суму, період, дату">✎</button>
+           <button class="btn" data-subdel="${esc(s.key)}" data-tip="Прибрати зі списку">✕</button>`
         : `<span class="tag">${esc(s.conf)}</span>
-           <button class="btn pri glass" data-subyes="${esc(s.key)}">Це підписка</button>
-           <button class="btn glass" data-subno="${esc(s.key)}">Ні</button>`}
+           <button class="btn pri" data-subyes="${esc(s.key)}">Це підписка</button>
+           <button class="btn" data-subno="${esc(s.key)}">Ні</button>`}
     </span>
   </div>`;
 }
@@ -5098,13 +4607,13 @@ function renderSubs(){
             `<div style="display:flex;align-items:center;gap:10px">
                <span style="flex:1;min-width:0">${esc(s.merchant)} — ${money(s.amount)}
                  <span class="muted">${dueLabel(daysTo(s.next))}</span></span>
-               <button class="btn glass" data-suback="${esc(s.key)}" data-subnext="${esc(s.next)}"
+               <button class="btn" data-suback="${esc(s.key)}" data-subnext="${esc(s.next)}"
                  style="padding:3px 11px;height:auto;font-size:12px"
                  aria-label="Я знаю — не нагадувати до наступного разу">✓ знаю</button>
              </div>`).join('')}</div></div>` : '';
     banner.querySelectorAll('[data-suback]').forEach(b=>b.onclick=()=>{
       subAck(b.dataset.suback, b.dataset.subnext);
-      renderSubs(); if(window.__glassNow) __glassNow();
+      renderSubs();
     });
   }
 
@@ -5228,7 +4737,7 @@ function dpRender(){
   host.innerHTML = dpMonth(DP.view) + (wide ? dpMonth(ymAdd(DP.view,1)) : '')
     + `<div class="dpfoot">
          <span class="muted">${DP.pick ? 'Оберіть другу дату' : dpFmt(dpSelection()[0])+' — '+dpFmt(dpSelection()[1])}</span>
-         <button class="btn glass" data-dpall>Уся історія</button>
+         <button class="btn" data-dpall>Уся історія</button>
        </div>`;
   // ліва стрілка веде назад, права — вперед; у широкому режимі друга пара зайва
   host.querySelectorAll('.dpm').forEach((m,i)=>{
@@ -5311,8 +4820,8 @@ function sdRender(){
   if(!SD.on) return;
   const sel = sdGet(SD.node);
   host.innerHTML = sdMonth(SD.view, sel)
-    + `<div class="dpfoot"><button class="btn glass" data-sdt>Сьогодні</button>
-         <button class="btn glass" data-sdx>Закрити</button></div>`;
+    + `<div class="dpfoot"><button class="btn" data-sdt>Сьогодні</button>
+         <button class="btn" data-sdx>Закрити</button></div>`;
   host.querySelectorAll('[data-mv]').forEach(b=>b.onclick = e=>{
     e.stopPropagation(); SD.view = ymAdd(SD.view, +b.dataset.mv); sdRender(); });
   const own = iso => { SD.node.dataset.user = '1'; sdSet(SD.node, iso); sdClose(); };
@@ -5573,9 +5082,6 @@ function renderPjList(){
     pjSave(); renderPjList(); pjTotals();
   });
   el('pjNew').onclick = pjAddProject;
-  /* Згортання клієнта міняє висоту списку — плити над ним мусять
-     перемалюватись у тому ж кадрі, інакше видно, як вони блимають. */
-  if(window.__glassNow) window.__glassNow();
 }
 
 /* ─── Кошторис малюється ОДИН раз, далі оновлюються лише значення ─────
@@ -5584,8 +5090,7 @@ function renderPjList(){
    із затримкою — тож кадр-другий було видно системний select іншої
    ширини. Через це «Курс ₴», «Стан», «Поділитись» і вся колонка «Тип»
    смикались при кожному перемиканні. Тепер каркас створюється один раз,
-   а далі міняється тільки текст і value: жоден прямокутник не рухається,
-   і скляному шару нема чого перемальовувати. */
+   а далі міняється тільки текст і value: жоден прямокутник не рухається. */
 
 const PJ_HEAD_HTML = `
     <label class="pjf grow"><span>Проєкт</span>
@@ -5605,11 +5110,11 @@ const PJ_HEAD_HTML = `
         <option value="paid">Оплачено</option>
       </select></label>
     <div class="pjf pjend"><span>&nbsp;</span><div class="pjacts">
-      <button class="btn pri glass" id="pjShare">Поділитись</button>
-      <button class="btn glass" id="pjInvoice" data-tip="Рахунок клієнту з цього прорахунку">Рахунок</button>
-      <button class="btn glass" id="pjTplSave" data-tip="Зберегти як шаблон">Шаблон</button>
-      <button class="btn glass" id="pjCopy">Копіювати</button>
-      <button class="btn glass" id="pjDel" data-tip="Видалити проєкт">✕</button>
+      <button class="btn pri" id="pjShare">Поділитись</button>
+      <button class="btn" id="pjInvoice" data-tip="Рахунок клієнту з цього прорахунку">Рахунок</button>
+      <button class="btn" id="pjTplSave" data-tip="Зберегти як шаблон">Шаблон</button>
+      <button class="btn" id="pjCopy">Копіювати</button>
+      <button class="btn" id="pjDel" data-tip="Видалити проєкт">✕</button>
     </div></div>
     <datalist id="pjClients"></datalist>`;
 
@@ -6015,8 +5520,8 @@ function bizUi(){
     <div style="display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
         <b>${esc(b.label)}</b> <span class="muted" style="font-size:11.5px">· ${esc(b.name)} · …${esc((b.iban||'').slice(-6))}</span></span>
-      <button class="btn glass" data-bedit="${i}" style="padding:2px 10px;height:auto;font-size:11px">Змінити</button>
-      <button class="btn glass" data-bdel="${i}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
+      <button class="btn" data-bedit="${i}" style="padding:2px 10px;height:auto;font-size:11px">Змінити</button>
+      <button class="btn" data-bdel="${i}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
     </div>`).join('')
     : '<span class="muted" style="font-size:12px">Ще нема — додайте: назва з банку, РНОКПП, IBAN, SWIFT. Профілів може бути кілька (валютний і гривневий рахунки).</span>';
   host.querySelectorAll('[data-bedit]').forEach(x=>x.onclick=()=>bizAsk(+x.dataset.bedit));
@@ -6035,8 +5540,8 @@ function bizUi(){
     <div style="display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
         <b>${esc(k)}</b> <span class="muted" style="font-size:11.5px">· ${esc(CLIENTS[k].name||'')}${CLIENTS[k].reg?` · ${esc(CLIENTS[k].reg)}`:''} · ${esc(CLIENTS[k].ccy||'USD')}</span></span>
-      <button class="btn glass" data-cedit="${esc(k)}" style="padding:2px 10px;height:auto;font-size:11px">Змінити</button>
-      <button class="btn glass" data-cdel="${esc(k)}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
+      <button class="btn" data-cedit="${esc(k)}" style="padding:2px 10px;height:auto;font-size:11px">Змінити</button>
+      <button class="btn" data-cdel="${esc(k)}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
     </div>`).join('')
     : '<span class="muted" style="font-size:12px">Поки порожньо — клієнт запишеться сам після першого рахунку.</span>';
   cl.querySelectorAll('[data-cedit]').forEach(x=>x.onclick=()=>clientAsk(x.dataset.cedit));
@@ -6234,10 +5739,10 @@ function renderInvcLog(){
       <span style="margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap">${fmt2(x.total)} ${esc(x.ccy)}</span>
       ${x.paid
         ? `<span style="color:var(--good);font-size:12px;white-space:nowrap">✓ ${x.paid.date}${x.paid.auto?'':' (руками)'}</span>
-           <button class="btn glass" data-iunpay="${i}" style="padding:2px 8px;height:auto;font-size:11px" data-tip="Зняти позначку">↺</button>`
+           <button class="btn" data-iunpay="${i}" style="padding:2px 8px;height:auto;font-size:11px" data-tip="Зняти позначку">↺</button>`
         : `<span class="muted" style="font-size:12px;white-space:nowrap">очікує ${plural(Math.max(0,dnum(x.date)),'день','дні','днів')}</span>
-           <button class="btn glass" data-ipay="${i}" style="padding:2px 8px;height:auto;font-size:11px">Оплачено</button>`}
-      <button class="btn glass" data-idel="${i}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
+           <button class="btn" data-ipay="${i}" style="padding:2px 8px;height:auto;font-size:11px">Оплачено</button>`}
+      <button class="btn" data-idel="${i}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
     </div>`).join('');
   el('invcLogList').querySelectorAll('[data-ipay]').forEach(b=>b.onclick=()=>{
     INVCLOG[+b.dataset.ipay].paid = { date: todayISO(), auto:false };
@@ -7193,7 +6698,7 @@ function renderInv(){
       !desk ? 'Підключення брокерів живе в десктопній версії — там є сховище ключів Windows і прямий доступ до API. Браузерна версія показує лише витрати.'
       : hasKeys ? 'Ключі збережено — натисніть «Оновити», і апка стягне перший знімок портфеля.'
       : 'Підключіть Interactive Brokers або Binance у «Ще». Обидва підключення тільки читають: торгувати чи вивести гроші ними неможливо.'}</p>`
-      + (desk && !hasKeys ? `<button class="btn pri glass" data-invgo>Відкрити налаштування</button>` : '');
+      + (desk && !hasKeys ? `<button class="btn pri" data-invgo>Відкрити налаштування</button>` : '');
     el('invPos').innerHTML = msg; el('invPosC').innerHTML = msg;
     document.querySelectorAll('[data-invgo]').forEach(g=>g.onclick=()=>go2set('src'));
     invActions(desk);
@@ -7425,11 +6930,11 @@ function renderInv(){
     host.querySelectorAll('[data-invk]').forEach(n=>n.onclick=()=>{
       const k = n.dataset.invk;
       INVFOLD.has(k) ? INVFOLD.delete(k) : INVFOLD.add(k);
-      renderInv(); if(window.__glassNow) __glassNow();
+      renderInv();
     });
     host.querySelectorAll('[data-invsym]').forEach(n=>n.onclick=()=>{
       INVOPEN = INVOPEN===n.dataset.invsym ? null : n.dataset.invsym;
-      renderInv(); if(window.__glassNow) __glassNow();
+      renderInv();
     });
     /* картка акції: періоди, новини, курсор */
     host.querySelectorAll('[data-qrange]').forEach(b=>b.onclick=async e=>{
@@ -7445,7 +6950,7 @@ function renderInv(){
           QD[sym][range] = await D.quoteDetail(ys, range);
         }catch(err){ QD[sym][range] = { err: 'Yahoo не віддав період: '+String(err) }; }
       }
-      renderInv(); if(window.__glassNow) __glassNow();
+      renderInv();
     });
     /* Теза: нащо куплено і за якої умови продавати. Записана колись,
        вона рятує від рішень «бо впало» — але тільки якщо лежить прямо
@@ -7544,7 +7049,7 @@ function renderInv(){
        плюс зрізи, яких у списку позицій не видно: країни і валюти */
     el('invAllocSeg').querySelectorAll('[data-ialloc]').forEach(b=>{
       b.classList.toggle('on', b.dataset.ialloc===INVALLOC);
-      b.onclick = ()=>{ INVALLOC = b.dataset.ialloc; renderInv(); if(window.__glassNow) __glassNow(); };
+      b.onclick = ()=>{ INVALLOC = b.dataset.ialloc; renderInv(); };
     });
     const CTRY = {US:'США', KR:'Пд. Корея', NL:'Нідерланди', DK:'Данія', DE:'Німеччина',
                   GB:'Британія', FR:'Франція', CH:'Швейцарія', JP:'Японія', TW:'Тайвань',
@@ -7588,7 +7093,7 @@ function renderInv(){
         const t = parseFloat(String(r.t).replace(',','.'));
         if(!t || t<=0) delete INVTGT[sym]; else INVTGT[sym] = Math.min(100, t);
         store.set('invTargets', INVTGT);
-        renderInv(); if(window.__glassNow) __glassNow();
+        renderInv();
       });
     }
     else if(INVALLOC==='sect'){
@@ -7691,11 +7196,11 @@ function renderInv(){
     /* перемикачі вікна і режиму */
     el('invPerSeg').querySelectorAll('[data-iper]').forEach(b=>{
       b.classList.toggle('on', b.dataset.iper===String(INVPER));
-      b.onclick = ()=>{ INVPER = b.dataset.iper; store.set('invPer', INVPER); renderInv(); if(window.__glassNow) __glassNow(); };
+      b.onclick = ()=>{ INVPER = b.dataset.iper; store.set('invPer', INVPER); renderInv(); };
     });
     el('invModeSeg').querySelectorAll('[data-imode]').forEach(b=>{
       b.classList.toggle('on', b.dataset.imode===INVMODE);
-      b.onclick = ()=>{ INVMODE = b.dataset.imode; store.set('invMode', INVMODE); renderInv(); if(window.__glassNow) __glassNow(); };
+      b.onclick = ()=>{ INVMODE = b.dataset.imode; store.set('invMode', INVMODE); renderInv(); };
     });
 
     /* «Сьогодні» — окремий світ: NAV з IBKR денний, тож внутрішньоденна
@@ -7874,7 +7379,7 @@ function renderInv(){
       if(!r || !r.b) return;
       INVBENCH = String(r.b).trim().toUpperCase(); store.set('invBench', INVBENCH);
       window.__qBusy = false; if(QUOTES) QUOTES.fetched = 0;   // дотягнути новий тікер
-      renderInv(); if(window.__glassNow) __glassNow();
+      renderInv();
     };
     let note =
       `Поповнень за вікно: ${money(Math.max(0,netF))}${netF<0?` (зняття ${money(-netF)})`:''} — у «Чистому доході» і TWR вони не рахуються як зростання. Валютні перекази — за сьогоднішнім курсом.`;
@@ -8014,11 +7519,11 @@ function renderInv(){
     const host = el('invDiv');
     el('invDivSeg').querySelectorAll('[data-idiv]').forEach(b=>{
       b.classList.toggle('on', b.dataset.idiv===INVDIVV);
-      b.onclick = ()=>{ INVDIVV = b.dataset.idiv; renderInv(); if(window.__glassNow) __glassNow(); };
+      b.onclick = ()=>{ INVDIVV = b.dataset.idiv; renderInv(); };
     });
     el('invDivPer').querySelectorAll('[data-idper]').forEach(b=>{
       b.classList.toggle('on', b.dataset.idper===INVDIVP);
-      b.onclick = ()=>{ INVDIVP = b.dataset.idper; renderInv(); if(window.__glassNow) __glassNow(); };
+      b.onclick = ()=>{ INVDIVP = b.dataset.idper; renderInv(); };
     });
     const now = new Date();
     /* «Все» — від найпершої виплати у звіті; глибина обмежена тим, що
@@ -8174,13 +7679,13 @@ function renderInv(){
         <span class="qp">${q && q.w52Low!=null ? `52т: ${fmt2(q.w52Low)}–${fmt2(q.w52High)}` : ''}</span>
         <span class="pl">${tgtTxt}</span>
         <span class="val">${price ? fmt2(price)+' '+sgn(q.ccy||'USD') : '<span class="muted">ще без ціни</span>'}
-          <button class="btn glass" data-wdel="${esc(w.sym)}" style="padding:1px 8px;height:auto;font-size:11px;margin-left:8px">✕</button></span>
+          <button class="btn" data-wdel="${esc(w.sym)}" style="padding:1px 8px;height:auto;font-size:11px;margin-left:8px">✕</button></span>
       </div>`;
     }).join('') : '<p class="muted" style="margin:2px 0 0">Додайте тікери, за якими стежите до купівлі: жива ціна, денна зміна і сигнал, коли ринок дійде до вашої цільової ціни.</p>';
     host.querySelectorAll('[data-wdel]').forEach(b=>b.onclick=()=>{
       INVWATCH = INVWATCH.filter(w=>w.sym!==b.dataset.wdel);
       store.set('invWatch', INVWATCH);
-      renderInv(); if(window.__glassNow) __glassNow();
+      renderInv();
     });
     el('invWatchAdd').onclick = async ()=>{
       const r = await uiAsk({ title:'Додати у watchlist', ok:'Додати',
@@ -8195,7 +7700,7 @@ function renderInv(){
       store.set('invWatch', INVWATCH);
       window.__qBusy = false;  // дозволити свіже оновлення з новим тікером
       if(QUOTES) QUOTES.fetched = 0;
-      renderInv(); if(window.__glassNow) __glassNow();
+      renderInv();
     };
   }
 
@@ -8216,7 +7721,7 @@ function renderInv(){
     seg.innerHTML = years.slice(0,5).map(y=>
       `<button data-taxy="${y}" class="${y===INVTAXY?'on':''}">${y}</button>`).join('');
     seg.querySelectorAll('[data-taxy]').forEach(b=>b.onclick=()=>{
-      INVTAXY = b.dataset.taxy; renderInv(); if(window.__glassNow) __glassNow(); });
+      INVTAXY = b.dataset.taxy; renderInv(); });
     const Y = INVTAXY, inY = t => t.date.slice(0,4)===Y;
     let missing = 0;
     const rateOf = t => {
@@ -8284,7 +7789,7 @@ function renderInv(){
             (${wins} з ${tot2} продажів у плюс). У грн за курсами НБУ на дати продажів.</p>
         </div>`;
       })()}
-      <div class="fieldrow" style="margin-top:8px"><button class="btn glass" data-taxcopy>Скопіювати звіт</button></div>`;
+      <div class="fieldrow" style="margin-top:8px"><button class="btn" data-taxcopy>Скопіювати звіт</button></div>`;
     host.querySelector('[data-taxcopy]').onclick = ()=>{
       const txt = `Гроші — податковий розрахунок за ${Y} (довідково)\n`
         + `Дивіденди нараховано: ${money(Math.max(0,divUah))} (${divs.length} виплат, курс НБУ на дати)\n`
@@ -8322,13 +7827,13 @@ function renderInv(){
                        infl: parseFloat(String(r.i).replace(',','.'))||0,
                        years: Math.max(1, Math.min(50, parseInt(r.h)||20)) };
       if(INVGOAL) store.set('invGoal', INVGOAL);
-      renderInv(); if(window.__glassNow) __glassNow();
+      renderInv();
     };
     if(!INVGOAL || !INVGOAL.target){
       hint.textContent = '';
       host.innerHTML = `<p class="muted" style="margin:2px 0 12px">Поставте ціль — суму, до якої ростить портфель.
         Апка покаже прогрес і чесно порахує, коли ви там будете за ваших внесків і дохідності.</p>
-        <button class="btn pri glass" data-goalset>Поставити ціль</button>`;
+        <button class="btn pri" data-goalset>Поставити ціль</button>`;
       host.querySelector('[data-goalset]').onclick = ask;
       return;
     }
@@ -8358,7 +7863,7 @@ function renderInv(){
         Це план-сценарій за вашими припущеннями, а не гарантія.</p>
       ${horizonBlock(secVal, g, m)}
       <div class="fieldrow" style="margin-top:10px">
-        <button class="btn glass" data-goaledit>Змінити</button>
+        <button class="btn" data-goaledit>Змінити</button>
       </div>`;
     host.querySelector('[data-goaledit]').onclick = ask;
   }
@@ -8555,10 +8060,10 @@ function invActions(desk){
   const hasI = window.__BOOT__ && __BOOT__.hasIbkr, hasB = window.__BOOT__ && __BOOT__.hasBin;
   const hasSecs = ((INV && INV.pos)||[]).some(p=>p.src==='ibkr' && p.kind!=='cash') || INVWATCH.length > 0;
   host.innerHTML =
-    (hasI ? `<button class="btn glass" data-invsync="ibkr">Оновити IBKR</button>` : '')
-    + (hasB ? `<button class="btn glass" data-invsync="binance">Оновити Binance</button>` : '')
-    + (hasSecs ? `<button class="btn glass" data-invquotes>Оновити ціни</button>` : '')
-    + ((hasI||hasB) ? '' : `<button class="btn glass" data-invgo2>Підключити в «Ще»</button>`)
+    (hasI ? `<button class="btn" data-invsync="ibkr">Оновити IBKR</button>` : '')
+    + (hasB ? `<button class="btn" data-invsync="binance">Оновити Binance</button>` : '')
+    + (hasSecs ? `<button class="btn" data-invquotes>Оновити ціни</button>` : '')
+    + ((hasI||hasB) ? '' : `<button class="btn" data-invgo2>Підключити в «Ще»</button>`)
     + `<span class="muted" id="invSyncMsg" style="font-size:12px"></span>`;
   const qb = host.querySelector('[data-invquotes]');
   if(qb) qb.onclick = async ()=>{
@@ -8596,7 +8101,7 @@ function render(){
   if(!pb.dataset.built){
     pb.dataset.built = '1';
     pb.insertAdjacentHTML('beforeend', PERIODS.map(p=>
-      `<button class="chip glass" data-p="${p.k}">${p.n}</button>`).join(''));
+      `<button class="chip" data-p="${p.k}">${p.n}</button>`).join(''));
     pb.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{
       S.period=b.dataset.p; S.limit=60;
       if(S.period==='custom' && !S.from){ S.from = monthStart(LASTYM,2); S.to = DMAX; }
@@ -8660,11 +8165,6 @@ function render(){
     el('moveMode').value = MOVE_MODE; if(window.cselSync) cselSync(el('moveMode')); moveHint();
     rulesSubs(); rulesHint(); }
   requestAnimationFrame(moveTabIndicator);
-  /* Скло перемальовуємо ОДРАЗУ, а не за таймером спостерігача: інакше
-     видно, як вміст уже на місці, а плити зʼявляються під ним трохи
-     згодом — і на кожному перемиканні вкладки, і коли кошторис
-     згортає проєкт. */
-  if(window.__glassNow) window.__glassNow();
 }
 function openTx({cat='', q='', ids=null, label=''}={}){
   S.tab='tx'; S.limit=60; S.openRow=null;
@@ -8757,9 +8257,9 @@ function renderQf(){
   const host = el('qSaved'); if(!host) return;
   const list = QF();
   host.innerHTML = list.map((f,i)=>
-    `<button class="btn glass" data-qf="${i}" style="padding:2px 10px;height:auto;font-size:11.5px">${esc(f.name)}
+    `<button class="btn" data-qf="${i}" style="padding:2px 10px;height:auto;font-size:11.5px">${esc(f.name)}
       <span data-qfdel="${i}" style="opacity:.5;margin-left:5px" data-tip="Прибрати">✕</span></button>`).join('')
-    + `<button class="btn glass" id="qfAdd" style="padding:2px 10px;height:auto;font-size:11.5px;opacity:.75">+ зберегти фільтр</button>`;
+    + `<button class="btn" id="qfAdd" style="padding:2px 10px;height:auto;font-size:11.5px;opacity:.75">+ зберегти фільтр</button>`;
   host.querySelectorAll('[data-qf]').forEach(b=>b.onclick=e=>{
     if(e.target.dataset.qfdel !== undefined){
       const l = QF(); l.splice(+e.target.dataset.qfdel, 1); store.set('qFilters', l); renderQf(); return;
@@ -8946,7 +8446,7 @@ function setSecApply(){
   seg.querySelectorAll('[data-sec]').forEach(b=>{
     b.classList.toggle('on', b.dataset.sec===SETSEC);
     b.onclick = ()=>{ SETSEC = b.dataset.sec; store.set('setSec', SETSEC);
-      render(); if(window.__glassNow) __glassNow(); };
+      render(); };
   });
   document.querySelectorAll('#tab-settings .card[data-sec]').forEach(c=>{
     c.hidden = c.dataset.sec !== SETSEC;
@@ -9059,7 +8559,6 @@ function scrnToggle(on){
      (реальний випадок). */
   if(window.balRender) try{ balRender(); }catch(e){}
   if(window.monoRenderAccs) try{ monoRenderAccs(); }catch(e){}
-  if(window.__glassNow) __glassNow();
 }
 el('scrnBtn').onclick = ()=>scrnToggle();
 
@@ -9157,7 +8656,7 @@ const PRIVACY_OPTIONS = [
 el('privacyOptions').innerHTML = PRIVACY_OPTIONS.map(([key,name,detail])=>
   `<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-soft)">
     <div style="flex:1;min-width:0"><b>${name}</b><div class="muted" style="font-size:12px">${detail}</div></div>
-    <button class="btn glass" data-privacy="${key}" aria-pressed="false" style="flex:0 0 125px;width:125px">Увімкнути</button></div>`).join('');
+    <button class="btn" data-privacy="${key}" aria-pressed="false" style="flex:0 0 125px;width:125px">Увімкнути</button></div>`).join('');
 function privacyUi(){
   document.querySelectorAll('[data-privacy]').forEach(button=>{
     const on = privacyAllowed(button.dataset.privacy);
@@ -9350,155 +8849,6 @@ el('pvClear').onclick = async ()=>{
 };
 pvUpdateUi();
 
-/* ═══════════════════════ СЛІД КУРСОРА ═══════════════════════
-   Буфер накопичення замість перемальовування шляху.
-
-   Попередній варіант щокадру будував увесь шлях і тричі обводив його з
-   ctx.filter = blur(...). Гаусове розмиття цілого штриха — найдорожча
-   операція canvas, тому на довгому сліді кадри просідали і рух виглядав
-   ривками, «наче балончиком».
-
-   Тут інакше:
-     · м'який спрайт-кисть рендериться ОДИН раз у офскрін;
-     · щокадру полотно трохи прозорішає (destination-out) — це і є згасання;
-     · між попередньою і поточною позицією кисть штампується з малим
-       кроком, тому штрих суцільний навіть при ривку миші.
-   Вартість кадру: один fillRect і кілька drawImage. Ніяких фільтрів.     */
-(function cursorGlow(){
-  if(!matchMedia('(hover:hover) and (pointer:fine)').matches) return;
-  const cv = el('glowcv'), ctx = cv.getContext('2d', {alpha:true});
-  const SCALE = 0.22;               // рендер у зменшеній роздільності
-  const R     = 164 * SCALE;        // радіус кисті
-  const STEP  = R * 0.34;           // крок штампування — щільно, без намиста
-  const LIFE  = 1000;               // скільки живе слід, мс
-  const EASE  = 0.17;               // в'язкість
-  const PEAK  = 0.026;              // яскравість у центрі кисті
-  const MIN_DT = 30;                // ~33 кадри/с
-  const MAX_STAMPS = 90;            // стеля роботи на кадр
-
-  // ── кисть: м'який радіальний спад, порахований один раз ──
-  const sprite = (rad, peak, pow_) => {
-    const n = Math.ceil(rad*2), c = document.createElement('canvas');
-    c.width = c.height = n;
-    const b = c.getContext('2d');
-    const g = b.createRadialGradient(rad, rad, 0, rad, rad, rad);
-    for(let i=0;i<=18;i++){
-      const t = i/18;
-      g.addColorStop(t, `rgba(255,255,255,${(peak * Math.pow(1-t, pow_)).toFixed(4)})`);
-    }
-    b.fillStyle = g; b.fillRect(0,0,n,n);
-    return c;
-  };
-  const brush = sprite(R, PEAK, 2.1);
-  /* Голова сліду — окремий спрайт. Слід складається з десятків штампів,
-     що накладаються, тож поки миша їде, під курсором яскраво само собою.
-     Щойно вона спиняється, штампи перестають додаватись і пляма зникала б
-     разом із хвостом. Тому голова малюється щокадру незалежно від руху:
-     хвіст згасає, світло під курсором лишається. */
-  const RH = R * 1.18;
-  const head = sprite(RH, PEAK * 3.2, 2.4);
-
-  let W=0, H=0, sx=0, sy=0, tx=0, ty=0, pts=[], started=false, raf=null, prev=0;
-
-  function resize(){
-    W = Math.round(innerWidth*SCALE); H = Math.round(innerHeight*SCALE);
-    cv.width = W; cv.height = H;
-  }
-  resize(); addEventListener('resize', resize);
-
-  // Відблиск на склі: одна пляма, живе окремо від сліду на фоні.
-  const SPEC = '.glass, .card, .det, nav.tabs, input, select';
-  let spec = null, specT = null;
-  let specX=0, specY=0, specDirty=false;
-  function moveSpec(e){
-    const n = e.target.closest(SPEC);
-    if(n !== spec){
-      if(spec){ const old = spec; old.style.setProperty('--gs','0');
-        clearTimeout(specT); specT = setTimeout(()=>{
-          old.style.removeProperty('--gs'); old.style.removeProperty('--gx'); old.style.removeProperty('--gy');
-        }, 700); }
-      spec = n;
-      if(spec) spec.style.setProperty('--gs','1');
-    }
-    if(!spec) return;
-    specX = e.clientX; specY = e.clientY; specDirty = true;   // застосуємо в кадрі
-  }
-  function flushSpec(){
-    if(!specDirty || !spec) return;
-    specDirty = false;
-    const r = spec.getBoundingClientRect();
-    spec.style.setProperty('--gx', (specX - r.left).toFixed(0)+'px');
-    spec.style.setProperty('--gy', (specY - r.top ).toFixed(0)+'px');
-  }
-
-  let lastMove = 0, awake = false;
-  function wake(){ awake = true; if(!raf) raf = requestAnimationFrame(frame); }
-  function sleep(){
-    awake = false;
-    if(raf){ cancelAnimationFrame(raf); raf = null; }
-    ctx.clearRect(0,0,W,H); pts.length = 0;
-  }
-  addEventListener('pointermove', e=>{
-    tx = e.clientX*SCALE; ty = e.clientY*SCALE;
-    lastMove = performance.now();
-    if(!started){ started=true; sx=tx; sy=ty; cv.classList.add('on'); }
-    moveSpec(e);
-    wake();
-  }, {passive:true});
-  // Полотно 0.22 масштабу (близько 320x190 px) на 33 кадрах — це кілька
-  // drawImage на кадр. Дешевше, ніж будити цикл на кожен рух миші.
-  addEventListener('blur', sleep);
-  document.addEventListener('visibilitychange', ()=>{ document.hidden ? sleep() : (started && wake()); });
-  document.addEventListener('pointerleave', sleep);
-
-  /* Полотно щокадру ОЧИЩУЄТЬСЯ і малюється наново з буфера точок.
-     Так саме тому, що згасання через destination-out множить прозорість,
-     і на малих значеннях крок округлюється до нуля — залишок у пару
-     відсотків залипає назавжди. Тут залишку не буває за побудовою.
-     Полотно у 0.22 масштабу (близько 320x190 px), тож повне очищення
-     коштує менше, ніж облік брудних прямокутників. */
-  function frame(ts){
-    raf = requestAnimationFrame(frame);
-    if(ts - prev < MIN_DT) return;
-    prev = ts;
-
-    flushSpec();
-    sx += (tx-sx)*EASE; sy += (ty-sy)*EASE;
-
-    const moving = performance.now() - lastMove < 220;
-    if(moving){
-      const ox = Math.sin(ts*0.0013)*1.6*SCALE, oy = Math.cos(ts*0.0011)*1.6*SCALE;
-      pts.push({x:sx+ox, y:sy+oy, t:ts});
-    }
-    while(pts.length && ts - pts[0].t > LIFE) pts.shift();
-
-    ctx.clearRect(0,0,W,H);
-
-    // хвіст
-    let budget = MAX_STAMPS;
-    for(let i=1;i<pts.length && budget>0;i++){
-      const p0 = pts[i-1], p1 = pts[i];
-      const k = 1 - (ts - p1.t) / LIFE;          // вік -> прозорість
-      if(k <= 0.001) continue;
-      ctx.globalAlpha = k * k;                   // квадратично — м'якший хвіст
-      const dx = p1.x-p0.x, dy = p1.y-p0.y;
-      const n = Math.max(1, Math.min(budget, Math.ceil(Math.hypot(dx,dy)/STEP)));
-      for(let j=1;j<=n;j++) ctx.drawImage(brush, p0.x + dx*j/n - R, p0.y + dy*j/n - R);
-      budget -= n;
-    }
-
-    /* Голова — завжди, і завжди з дрейфом. Дрейф і є те «переливання»:
-       пляма повільно ходить у межах пари пікселів, а скло над нею гне
-       світло по-різному. Якби цикл засинав у спокої, переливання зникало
-       б рівно тоді, коли його найкраще видно. */
-    const hx = Math.sin(ts*0.00071)*2.6*SCALE + Math.sin(ts*0.00023)*1.5*SCALE;
-    const hy = Math.cos(ts*0.00059)*2.4*SCALE + Math.cos(ts*0.00019)*1.6*SCALE;
-    ctx.globalAlpha = 0.90 + 0.10*Math.sin(ts*0.00047);
-    ctx.drawImage(head, sx + hx - RH, sy + hy - RH);
-    ctx.globalAlpha = 1;
-  }
-})();
-
 /* ═══════════════════════ ІНДИКАТОР ВКЛАДОК ═══════════════════════ */
 function slideInd(host, ind, act, pad){
   if(!act) return;
@@ -9628,7 +8978,7 @@ function mRenderFound(){
     <div class="mfhead">
       <b>Знайдено в операціях</b>
       <span class="muted">${why}${a.other ? ` · ще ${a.other} з іншою сумою` : ''}</span>
-      <button class="btn glass" id="mAll">${MPICK.size===all ? 'Зняти всі' : 'Позначити всі'}</button>
+      <button class="btn" id="mAll">${MPICK.size===all ? 'Зняти всі' : 'Позначити всі'}</button>
     </div>
     <div class="mflist">${a.list.slice().reverse().map(t=>
       `<div class="mtx${MPICK.has(t.id)?' on':' off'}" data-mt="${esc(t.id)}">
@@ -9849,9 +9199,6 @@ if(!INNER && innerWidth >= 860){
   addEventListener('resize', ()=>{ if(!el('phoneOverlay').hidden) phRender(); });
   addEventListener('keydown', e=>{ if(e.key==='Escape' && !el('phoneOverlay').hidden) phClose(); });
 }
-
-__GLASSGL__
-__DESIGNER__
 
 /* PWA: manifest + offline (active only when served over http/https) */
 if(location.protocol.startsWith('http')){

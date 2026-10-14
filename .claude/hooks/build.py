@@ -12,8 +12,6 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SOURCES = {
     REPO / "app" / "app.template.html",
-    REPO / "app" / "glassgl.js",
-    REPO / "app" / "designer.js",
     REPO / "app" / "build_security.py",
     REPO / "app" / "build_app.py",
     REPO / "desktop" / "build_desktop.py",
