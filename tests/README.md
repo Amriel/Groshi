@@ -43,6 +43,13 @@ node tests/allcheck.mjs
 | `pjstat.mjs` | стани проєкту: випадайка з чипа, дата оплати, KPI до й після оплати, селект у картці | `npm test` |
 | `v1311.mjs` | сторож 1.31.1: фон під час скролу, маскування кошторису в режимі скріншоту, випадайка стану (частково дублює `glass2`, `scrn`, `pjstat`) | `npm test` |
 
+**Знімки, не проби.** `node tests/helpers/synthetic.mjs` пише штучний набір,
+`python app/build_app.py --data .test-artifacts/synthetic.json --out
+.test-artifacts/synthetic_app.html` збирає з ним окремий HTML, а
+`node tests/snap.mjs <мітка>` робить 42 знімки (7 вкладок × 2 теми × 3 ширини)
+у `.test-artifacts/snap-<мітка>/`. Це інструмент для порівняння вигляду до й
+після змін, він нічого не стверджує й у `npm test` не входить.
+
 ## Python-тести (`test_*.py`)
 
 Запускаються в CI кроком `unittest` перед `npm test`.
