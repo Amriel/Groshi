@@ -10,6 +10,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const label = process.argv[2];
 if (!label) { console.error('usage: node tests/snap.mjs <мітка>'); process.exit(2); }
 const file = process.env.SNAP_FILE || path.join(root, '.test-artifacts', 'synthetic_app.html');
+if (!fs.existsSync(file)) {
+  console.error(`немає ${file} — спершу зібрати: python app/build_app.py --data .test-artifacts/synthetic.json --out .test-artifacts/synthetic_app.html`);
+  process.exit(2);
+}
 const outDir = path.join(root, '.test-artifacts', `snap-${label}`);
 fs.mkdirSync(outDir, {recursive: true});
 const WIDTHS = [[1400, 900], [900, 800], [390, 844]];

@@ -17,9 +17,17 @@ args = ap.parse_args()
 tpl   = (H/'app.template.html').read_text('utf-8')
 glass = (H/'glassgl.js').read_text('utf-8')
 designer = (H/'designer.js').read_text('utf-8')
-data_path = pathlib.Path(args.data) if args.data else (H/'dataset.private.json')
-if not data_path.exists():
-    data_path = H/'dataset.json'
+# Явно заданий --data без файлу — помилка, а не тихий запасний варіант:
+# інакше друк у --data або загублений synthetic.json мовчки збирав порожній
+# публічний набір, і всі знімки потім виходили з порожнім екраном.
+if args.data:
+    data_path = pathlib.Path(args.data)
+    if not data_path.exists():
+        ap.error(f'--data: файл не знайдено: {data_path}')
+else:
+    data_path = H/'dataset.private.json'
+    if not data_path.exists():
+        data_path = H/'dataset.json'
 data  = json.loads(data_path.read_text('utf-8'))
 mcc   = json.loads((H/'mcc_names.json').read_text('utf-8'))
 meta_path = H/'meta.private.json'
