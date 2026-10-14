@@ -91,23 +91,8 @@ body{
 h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:700;letter-spacing:-.01em}
 .num,.tw,.dl dd,td.num{font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-nav.tabs:active{transform:none}
 code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
   border:1px solid var(--border-soft);border-radius:5px;padding:1px 5px}
-
-/* Кнопки вкладок — над рухомим індикатором #tabInd, що стоїть у
-   розмітці перед ними: інакше він накрив би підпис активної вкладки. */
-nav.tabs > button{position:relative;z-index:1}
-
-/* ── плаваючий індикатор активної вкладки ── */
-.tab-ind{
-  position:absolute; z-index:0; top:7px; bottom:7px; left:0; width:0;
-  border-radius:13px; opacity:0; pointer-events:none;
-  transition:transform .44s cubic-bezier(.32,.72,0,1),
-             width .44s cubic-bezier(.32,.72,0,1),
-             opacity .2s ease;
-}
-.tab-ind.ready{opacity:1}
 
 /* ── підказка з клавішею, що ковзає між кнопками ── */
 /* ── ручне додавання підписки: поля, підказки, знайдені операції ── */
@@ -337,14 +322,6 @@ nav.tabs > button{position:relative;z-index:1}
 
 
 
-/* ── шапка ──────────────────────────────────────────────── */
-header.top{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bottom:16px;min-height:38px}
-.hactions{display:flex;align-items:center;gap:8px;flex:none}
-.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);
-  font-size:18px;font-weight:700;letter-spacing:.01em}
-.brand .logo{width:34px;height:34px;border-radius:11px;background:var(--accent);
-  display:grid;place-items:center;color:var(--accent-contrast);font-size:17px;font-weight:700;
-  box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent), 0 6px 20px rgba(201,242,75,.22)}
 .spacer{flex:1}
 .iconbtn{width:var(--ctl);height:var(--ctl);border-radius:13px;display:grid;place-items:center;flex:none;
   color:var(--text-dim)}
@@ -358,14 +335,8 @@ header.top{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bott
    прив'язане до документа, тож на кожному перемиканні панелі спершу
    зникали, потім проявлялись на новому місці. Ціна «плавності» —
    екран, який щоразу перезбирається на очах. Перемикання миттєве. */
-.chip-ind{
-  position:absolute; z-index:0; top:2px; left:0; width:0; height:var(--ctl);
-  border-radius:var(--radius-pill); opacity:0; pointer-events:none;
-  transition:transform .46s cubic-bezier(.32,.72,0,1),
-             width .46s cubic-bezier(.32,.72,0,1),
-             opacity .22s ease;
-}
-.chip-ind.ready{opacity:1}
+/* Позиція, розмір, фон і рух — у спільному правилі .tab-ind,.chip-ind
+   (блок «КАРКАС» унизу); тут лишається тільки те, що специфічне для чипів. */
 .periodbar .chip{position:relative;z-index:1}
 .periodbar::-webkit-scrollbar{display:none}
 .chip{display:inline-flex;align-items:center;height:var(--ctl);white-space:nowrap;padding:0 16px;
@@ -538,19 +509,6 @@ span.ivlogo.mono{display:inline-block;overflow:hidden;text-align:center;font-siz
   border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* ── нижня навігація ────────────────────────────────────── */
-nav.tabs{position:fixed;left:12px;right:12px;z-index:40;
-  bottom:calc(env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 14px);
-  border-radius:20px;display:grid;grid-template-columns:repeat(7,1fr);padding:7px 6px;
-  box-shadow:var(--shadow)}
-nav.tabs button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-  min-height:48px;font-size:10px;font-weight:600;color:var(--text-mute);padding:4px 2px;border-radius:13px;
-  transition:transform .28s cubic-bezier(.34,1.12,.42,1), color .2s ease}
-nav.tabs button:active{transform:scale(.94)}
-
-nav.tabs button em{font-style:normal;font-size:18px;line-height:1}
-nav.tabs button[aria-current="true"]{color:var(--accent-contrast)}
-nav.tabs button[aria-current="true"] em{transform:translateY(-1px)}
 section[hidden]{display:none}
 /* [hidden] — це лише правило браузера без класу, тож будь-який display у
    власному класі його перебиває. Через це прихований екран проєкту
@@ -729,28 +687,7 @@ section[hidden]{display:none}
 
 @media(min-width:760px){
   .wrap{padding:24px}
-  /* relative, а не static: nav — точка відліку для рухомого #tabInd.
-     Раніше її мимохідь давало розмиття фону під панеллю (воно теж створює
-     блок відліку для absolute); без нього індикатор відраховувався від сторінки
-     й висів пігулкою в лівому верхньому куті. inset:auto — зсуви
-     left/right/bottom нижньої панелі телефона з relative зсували б nav. */
-  nav.tabs{position:relative;inset:auto;grid-template-columns:repeat(7,max-content);gap:3px;
-    width:max-content;border-radius:var(--radius-pill);padding:4px;margin-bottom:18px}
-  .tab-ind{top:4px;bottom:4px;border-radius:var(--radius-pill)}
-  nav.tabs button{flex-direction:row;gap:7px;font-size:13px;height:var(--ctl);padding:0 14px;min-height:0;
-    border:1px solid transparent;border-radius:var(--radius-pill)}
-  nav.tabs button:hover{color:var(--text)}
-  nav.tabs button[aria-current="true"]{font-weight:700;color:var(--accent-contrast);background:none}
-  nav.tabs button[aria-current="true"] em{color:inherit}
   body{padding-bottom:0}
-}
-
-/* Індикатори вкладок і періодів їздять за активною кнопкою. Перехід
-   оголошено тут, нижче їхніх власних правил, щоб він виграв каскад. */
-.tab-ind, .chip-ind{
-  transition-property: transform, width, opacity;
-  transition-duration: .46s, .46s, .22s;
-  transition-timing-function: cubic-bezier(.32,.72,0,1), cubic-bezier(.32,.72,0,1), ease;
 }
 
 
@@ -776,10 +713,6 @@ section[hidden]{display:none}
 .subadd summary::before{content:'+';font-size:15px;line-height:1}
 .subadd[open] summary::before{content:'−'}
 .subadd summary:hover{color:var(--text)}
-nav.tabs button[data-badge]:not([data-badge=""])::after{
-  content:attr(data-badge);position:absolute;top:2px;right:6px;
-  min-width:15px;height:15px;padding:0 4px;border-radius:8px;
-  background:var(--warn);color:#151515;font-size:9.5px;font-weight:800;line-height:15px;text-align:center}
 @media(max-width:759px){
   /* На вузькому екрані рядок розкладається у три поверхи: назва й сума,
      під ними опис і дата, знизу дії. Flex тут перекидав суму вліво під
@@ -790,7 +723,6 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .subwhen{grid-column:2;grid-row:2;min-width:0}
   .subacts{grid-column:1/-1;grid-row:3;justify-content:flex-end;margin-top:8px}
   .subrow .cnt{display:none}
-  nav.tabs button{font-size:9px;padding:4px 1px}
 }
 
 
@@ -1193,15 +1125,72 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-l
   box-shadow:0 0 0 3px var(--accent-soft)}
 code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
   border:1px solid var(--border-soft);border-radius:6px;padding:1px 6px}
-.tab-ind,.chip-ind{background:var(--surface-3);border-radius:var(--radius-pill)}
-nav.tabs{background:var(--surface);border:1px solid var(--border)}
-nav.tabs button[aria-current="true"]{color:var(--text)}
 #tip,#kbtip{background:var(--surface-3);color:var(--text);border:1px solid var(--border);
   border-radius:var(--radius-sm);box-shadow:var(--shadow-pop)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important}}
+/* ══════════════════ КАРКАС: бічна панель ══════════════════
+   Панель окремою колонкою замість верхньої пігулки: сім розділів у ряд
+   не вміщались у вузьке вікно й стрибали при зміні ширини. */
+.shell{display:grid;grid-template-columns:var(--nav-w) minmax(0,1fr);min-height:100vh;
+  transition:grid-template-columns var(--dur) var(--ease)}
+.shell.collapsed{grid-template-columns:var(--nav-w-collapsed) minmax(0,1fr)}
+.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:20px;
+  padding:18px 12px;background:var(--surface);border-right:1px solid var(--border);overflow:hidden}
+.brand{display:flex;align-items:center;gap:10px;padding:0 6px;min-height:40px;
+  font-weight:600;font-size:var(--fs-lg);letter-spacing:-.01em;white-space:nowrap}
+.brand .logo{width:36px;height:36px;flex:none;border-radius:12px;background:var(--accent);
+  color:var(--accent-contrast);display:grid;place-items:center;font-weight:700}
+nav.tabs{position:relative;display:flex;flex-direction:column;gap:2px;flex:1;min-height:0}
+nav.tabs button{position:relative;z-index:1;display:flex;align-items:center;gap:12px;
+  height:var(--ctl);padding:0 12px;border-radius:var(--radius-sm);color:var(--text-dim);
+  font-size:var(--fs-md);font-weight:500;text-align:left;white-space:nowrap;
+  transition:color var(--dur) var(--ease),background var(--dur) var(--ease)}
+nav.tabs button:hover{color:var(--text);background:var(--surface-2)}
+nav.tabs button[aria-current="true"]{color:var(--text);font-weight:600;background:none}
+nav.tabs button[aria-current="true"] .ic{color:var(--accent-ink)}
+nav.tabs button[data-tab="settings"]{margin-top:auto}
+/* Розмір задано CSS, а не атрибутами width/height: глобальне svg{width:100%}
+   (для графіків) інакше розтягувало іконку на всю кнопку й виштовхувало підпис. */
+.ic{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.side-foot .ic{width:18px;height:18px}
+.tab-ind,.chip-ind{position:absolute;z-index:0;left:0;top:0;width:0;height:0;opacity:0;pointer-events:none;
+  background:var(--surface-3);border-radius:var(--radius-sm);
+  transition:transform var(--dur) var(--ease),width var(--dur) var(--ease),height var(--dur) var(--ease),opacity var(--dur)}
+.tab-ind.ready,.chip-ind.ready{opacity:1}
+nav.tabs button[data-badge]:not([data-badge=""])::after{
+  content:attr(data-badge);position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#151515;
+  font-size:var(--fs-xs);font-weight:700;line-height:18px;text-align:center}
+.side-foot{display:flex;flex-wrap:wrap;gap:4px;padding:0 2px}
+#navToggle .ic{transition:transform var(--dur) var(--ease)}
+.shell.collapsed #navToggle .ic{transform:rotate(180deg)}
+.shell.collapsed .side{padding-inline:10px}
+.shell.collapsed .nl{display:none}
+.shell.collapsed nav.tabs button{justify-content:center;padding:0}
+.shell.collapsed nav.tabs button[data-badge]:not([data-badge=""])::after{
+  right:6px;top:4px;transform:none;min-width:14px;height:14px;line-height:14px;padding:0 3px;font-size:10px}
+.shell.collapsed .side-foot{flex-direction:column;align-items:center}
+.shell.collapsed .brand{justify-content:center;padding:0}
+/* У рядка періодів є padding-top 2px: без цього зсуву підсвітка чипа вища за нього на 2 px. */
+.periodbar .chip-ind{top:2px}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-cats" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></symbol>
+    <symbol id="i-tx" viewBox="0 0 24 24"><path d="M8 6.5h12M8 12h12M8 17.5h12"/><circle cx="4" cy="6.5" r=".8"/><circle cx="4" cy="12" r=".8"/><circle cx="4" cy="17.5" r=".8"/></symbol>
+    <symbol id="i-budget" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4"/></symbol>
+    <symbol id="i-inv" viewBox="0 0 24 24"><path d="M3.5 17l5.5-5.5 4 4 7.5-8"/><path d="M15 7.5h5.5V13"/></symbol>
+    <symbol id="i-subs" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+    <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10.5 18.5h3"/></symbol>
+  </defs>
+</svg>
 <div id="scrnBadge" hidden style="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;
   padding:5px 13px;border-radius:999px;font-size:11.5px;font-weight:600;pointer-events:none;
   background:var(--warn);color:#101114;box-shadow:0 4px 18px rgba(0,0,0,.35)">режим скріншоту — суми сховані</div>
@@ -1213,28 +1202,27 @@ nav.tabs button[aria-current="true"]{color:var(--text)}
     style="width:150px;text-align:center;font-size:20px;letter-spacing:6px;padding:8px 10px">
   <button class="btn pri" id="lockGo">Відкрити</button>
 </div>
-<div class="wrap">
-
-<header class="top">
-  <div class="brand"><span class="logo">₴</span><span>Гроші</span></div>
-  <div class="spacer"></div>
-  <div class="hactions">
-  <button class="iconbtn" id="phoneBtn" data-tip="Перегляд на телефоні" data-key="P" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></button>
-  <button class="iconbtn" id="scrnBtn" data-tip="Режим скріншоту: сховати всі суми (S)" data-key="S">👁</button>
-  <button class="iconbtn" id="themeBtn" data-tip="Світла / темна тема" data-key="T">◐</button>
+<div class="shell" id="shell">
+<aside class="side" id="side">
+  <div class="brand"><span class="logo">₴</span><span class="brand-t nl">Гроші</span></div>
+  <nav class="tabs" id="tabs" aria-label="Розділи">
+    <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
+    <button data-tab="overview" aria-current="true" data-tip="Огляд" data-key="1"><svg class="ic" width="20" height="20"><use href="#i-overview"/></svg><span class="nl">Огляд</span></button>
+    <button data-tab="cats" data-tip="Категорії" data-key="2"><svg class="ic" width="20" height="20"><use href="#i-cats"/></svg><span class="nl">Категорії</span></button>
+    <button data-tab="tx" data-tip="Операції" data-key="3"><svg class="ic" width="20" height="20"><use href="#i-tx"/></svg><span class="nl">Операції</span></button>
+    <button data-tab="budget" data-tip="Кошториси" data-key="4"><svg class="ic" width="20" height="20"><use href="#i-budget"/></svg><span class="nl">Кошториси</span></button>
+    <button data-tab="inv" data-tip="Інвестиції" data-key="5"><svg class="ic" width="20" height="20"><use href="#i-inv"/></svg><span class="nl">Інвестиції</span></button>
+    <button data-tab="subs" data-tip="Підписки" data-key="6"><svg class="ic" width="20" height="20"><use href="#i-subs"/></svg><span class="nl">Підписки</span></button>
+    <button data-tab="settings" data-tip="Ще" data-key="7"><svg class="ic" width="20" height="20"><use href="#i-more"/></svg><span class="nl">Ще</span></button>
+  </nav>
+  <div class="side-foot">
+    <button class="iconbtn" id="phoneBtn" data-tip="Перегляд на телефоні" data-key="P" hidden><svg class="ic" width="18" height="18"><use href="#i-phone"/></svg></button>
+    <button class="iconbtn" id="scrnBtn" data-tip="Режим скріншоту: сховати всі суми (S)" data-key="S"><svg class="ic" width="18" height="18"><use href="#i-eye"/></svg></button>
+    <button class="iconbtn" id="themeBtn" data-tip="Світла / темна тема" data-key="T"><svg class="ic" width="18" height="18"><use href="#i-theme"/></svg></button>
+    <button class="iconbtn" id="navToggle" data-tip="Звузити панель" data-key="["><svg class="ic" width="18" height="18"><use href="#i-chevron"/></svg></button>
   </div>
-</header>
-
-<nav class="tabs" id="tabs">
-  <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
-  <button data-tab="overview" aria-current="true"><em>▦</em>Огляд</button>
-  <button data-tab="cats"><em>◑</em>Категорії</button>
-  <button data-tab="tx"><em>≡</em>Операції</button>
-  <button data-tab="budget"><em>◎</em>Кошториси</button>
-  <button data-tab="inv"><em>◈</em>Інвестиції</button>
-  <button data-tab="subs"><em>↻</em>Підписки</button>
-  <button data-tab="settings"><em>⚙</em>Ще</button>
-</nav>
+</aside>
+<div class="wrap">
 
 <div id="periodWrap">
 <div class="periodbar" id="periods"><span class="chip-ind" id="periodInd" aria-hidden="true"></span></div>
@@ -1841,6 +1829,7 @@ nav.tabs button[aria-current="true"]{color:var(--text)}
 </section>
 
 </div>
+</div><!-- /shell -->
 <div id="sdp" hidden></div>
 <div id="modal" class="modal" hidden>
   <div class="modalbd" id="modalBd"></div>
@@ -8547,7 +8536,8 @@ function scrnToggle(on){
   SCRN = on === undefined ? !SCRN : !!on;
   document.body.classList.toggle('scrn', SCRN);
   const b = el('scrnBtn');
-  if(b){ b.classList.toggle('on', SCRN); b.textContent = SCRN ? '🙈' : '👁'; }
+  /* Лише клас: textContent знищив би SVG-іконку всередині кнопки. */
+  if(b) b.classList.toggle('on', SCRN);
   const badge = el('scrnBadge');
   if(badge) badge.hidden = !SCRN;
   render();
@@ -8850,20 +8840,39 @@ el('pvClear').onclick = async ()=>{
 pvUpdateUi();
 
 /* ═══════════════════════ ІНДИКАТОР ВКЛАДОК ═══════════════════════ */
-function slideInd(host, ind, act, pad){
+function slideInd(host, ind, act, both){
   if(!act) return;
   const h = host.getBoundingClientRect(), b = act.getBoundingClientRect();
   ind.style.width  = b.width + 'px';
   ind.style.height = b.height + 'px';
-  ind.style.transform = `translateX(${b.left - h.left + host.scrollLeft}px)`;
+  // Бічна панель рухає індикатор по обох осях, рядок періодів — лише по X
+  // (його `top` задає CSS): інакше висота рядка додавалась би двічі.
+  const y = both ? (b.top - h.top + host.scrollTop) : 0;
+  ind.style.transform = `translate(${b.left - h.left + host.scrollLeft}px,${y}px)`;
   requestAnimationFrame(()=>ind.classList.add('ready'));
 }
 function moveTabIndicator(){
   const nav = el('tabs');
-  slideInd(nav, el('tabInd'), nav.querySelector('button[aria-current="true"]'));
+  slideInd(nav, el('tabInd'), nav.querySelector('button[aria-current="true"]'), true);
   const pb = el('periods');
   slideInd(pb, el('periodInd'), pb.querySelector('.chip[aria-pressed="true"]'));
 }
+/* Стан панелі: звужена вручну (≥1000 px) або автоматично (<1000 px).
+   Зберігається через store, як решта налаштувань. */
+const shellEl = el('shell');
+function applyShell(){
+  const forced = matchMedia('(max-width:999px)').matches;
+  shellEl.classList.toggle('collapsed', forced || !!store.get('navCollapsed', false));
+  el('navToggle').hidden = forced;
+  el('navToggle').dataset.tip = shellEl.classList.contains('collapsed') ? 'Розгорнути панель' : 'Звузити панель';
+  // Ширина колонки анімується: індикатор треба перемістити й після переходу,
+  // інакше він лишиться за розмірами кнопок посеред руху.
+  shellEl.addEventListener('transitionend', moveTabIndicator, {once:true});
+  requestAnimationFrame(moveTabIndicator);
+}
+el('navToggle').onclick = ()=>{ store.set('navCollapsed', !store.get('navCollapsed', false)); applyShell(); };
+addEventListener('resize', applyShell);
+applyShell();
 addEventListener('scroll', ()=>{}, true);
 addEventListener('resize', moveTabIndicator);
 document.addEventListener('scroll', e=>{ if(e.target.id==='periods') moveTabIndicator(); }, true);
@@ -9106,6 +9115,7 @@ function hotkeysHelp(){
 / — пошук в Операціях
 T — світла/темна тема
 P — перегляд на телефоні (браузерна версія)
+[ — звузити / розгорнути бічну панель
 S — режим скріншоту (сховати суми)
 ? — ця довідка
 Esc — закрити вікно / зняти вибір
@@ -9123,6 +9133,7 @@ addEventListener('keydown', e=>{
   if(/^[1-7]$/.test(e.key)){ go(TABKEYS[+e.key-1]); e.preventDefault(); return; }
   if(k==='t' || k==='е'){ el('themeBtn').click(); return; }
   if(k==='s' || k==='і'){ scrnToggle(); return; }
+  if(k==='['){ const b=el('navToggle'); if(!b.hidden) b.click(); return; }
   if(k==='p' || k==='з'){ const b=el('phoneBtn'); if(!b.hidden) b.click(); return; }
   if(e.key==='/'){ e.preventDefault(); go('tx'); setTimeout(()=>el('q').focus(), 60); return; }
   if(e.key==='?'){ e.preventDefault(); hotkeysHelp(); return; }
