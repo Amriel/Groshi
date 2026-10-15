@@ -98,6 +98,19 @@ try {
     // ── картка проєкту ──
     await seed('one');
     await page.waitForTimeout(250);
+
+    // Підказки на назвах колонок: «ОТ» (овертайм) і «Окремі» без пояснення нікому
+    // нічого не казали. Тільки data-tip (title заборонений правилами проєкту).
+    const tips = await page.evaluate(() => Object.fromEntries(
+      [...document.querySelectorAll('#pjTable thead th')].map(t => [t.textContent.trim(), t.dataset.tip || ''])));
+    for (const col of ['Задача', 'Тип', 'Ставка', 'Обсяг', 'ОТ', 'Окремі', 'USD', '₴ з податком', 'Коментар']) {
+      assert.ok(tips[col], `${mode}: у колонки «${col}» немає підказки (data-tip)`);
+    }
+    assert.match(tips['ОТ'], /вертайм/, `${mode}: підказка «ОТ» має пояснювати, що це овертайм: «${tips['ОТ']}»`);
+    await page.hover('#pjTable thead th:nth-child(5)');
+    await page.waitForFunction(() => document.getElementById('kbtip').classList.contains('on')
+      && /вертайм/.test(document.getElementById('kbtip').textContent), null, {timeout: 3000});
+    await page.mouse.move(5, 5);
     assert.ok(await sw() <= 391, `${mode}: картка проєкту на 390 px: scrollWidth ${await sw()}`);
     await page.setViewportSize({width: 1400, height: 1000});
     await page.waitForTimeout(250);

@@ -1144,10 +1144,14 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   color:var(--text-dim);font-variant-numeric:tabular-nums}
 .tx-when{flex:none;white-space:nowrap}
 .tx-meta .tag{flex:0 1 auto;min-width:0;padding:1px 8px}
-.tx-amt{flex:none;text-align:right}
+/* Висота стовпця суми навмисно менша за висоту лівого (мерчант + мета): з
+   рядком дубліката в $ під сумою рядок операції не росте. Без цього кожне
+   надходження курсу з банку (воно приходить уже після першого малювання)
+   додавало б по кілька пікселів кожному рядку, і список ворушився б. */
+.tx-amt{flex:none;text-align:right;line-height:1.2}
 .tx-amt.inc,.det .sum.inc{color:var(--success)}
 .tx-amt .ccy{display:block;font-style:normal;font-size:var(--fs-xs);font-weight:500;
-  color:var(--text-mute);letter-spacing:0}
+  color:var(--text-mute);letter-spacing:0;line-height:1.3}
 .txrow .pin{font-size:11px;opacity:.6;flex:none}
 .txdetail{padding:0 0 14px}
 @media(max-width:759px){.tx-amt.num-md{font-size:var(--fs-lg)}}
@@ -1607,6 +1611,10 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 /* Рядки реквізитів, клієнтів і виставлених рахунків = .row; на вузькому
    екрані дії переносяться під текст, а не стискають його до нуля. */
 .pjline{padding:8px 0;gap:6px 10px;flex-wrap:wrap}
+/* Замінений рахунок: сіре й закреслена сума — видно, що це історія, а не
+   гроші, які ще чекаємо. Колір лише на тексті, без смуги й заливки. */
+.pjline.void .pjtxt,.pjline.void .pjtxt .muted,.pjline.void .pjamt{color:var(--text-mute)}
+.pjline.void .pjamt{text-decoration:line-through}
 .pjline>.pjtxt{flex:1 1 160px}
 .pjtxt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pjtxt .muted,.pjsm,.pjwait{font-size:var(--fs-xs)}
@@ -2606,6 +2614,12 @@ function alt(n){
   if(!k) return '';
   return '≈ ' + fmt(n / k) + ' ' + sgn(a);
 }
+/* Те саме, але з копійками: у списку операцій 12 $ і 12,40 $ — різні
+   суми, а «≈ 18 $» під рядком у 767 ₴ округлило б усе до цілих доларів. */
+function alt2(n){
+  const a = ALT(), k = fxOf(a);
+  return k ? '≈ ' + fmt2(n / k) + ' ' + sgn(a) : '';
+}
 /* «1 різних назв» — дрібниця, але вона щоразу спотикає око. Українська
    має три форми, і вибір між ними — арифметика, а не смак. */
 const plural = (n, one, few, many) => {
@@ -3423,7 +3437,7 @@ function calEvents(ym){
   }
   /* очікувані оплати рахунків: орієнтир — 14 днів від дати рахунку */
   for(const x of INVCLOG){
-    if(x.paid) continue;
+    if(!invcLive(x)) continue;
     const due = dstr(dnum(x.date) + INVC_DUE());
     if(!inM(due)) continue;
     ev.push({ date:due, kind:'invc', text:`Оплата ${x.no} · ${x.client}`,
@@ -3500,7 +3514,7 @@ function renderCal(){
 const INVC_DUE = () => +store.get('invcDueDays', 14);
 function invcOverdue(){
   const dn = d => Math.floor((Date.now() - new Date(d+'T12:00:00'))/864e5);
-  return INVCLOG.filter(x=>!x.paid && dn(x.date) >= INVC_DUE())
+  return INVCLOG.filter(x=>invcLive(x) && dn(x.date) >= INVC_DUE())
                 .map(x=>({...x, days: dn(x.date)}))
                 .sort((a,b)=>b.days-a.days);
 }
@@ -4111,6 +4125,14 @@ function renderTx(){
       head = `<div class="lbl txday"><span>${txDayLbl(t.date)}</span><span class="txday-sum">${sums}</span></div>`;
     }
     const clock = t.time ? t.time.slice(11,16) : '';
+    /* Під сумою — дублікат у другій валюті (гривня → долар, долар → гривня)
+       і, для операцій із валютних рахунків, оригінал. Якщо рахунок уже в цій
+       самій валюті, дублікат тільки повторив би оригінал. Одним рядком, щоб
+       висота рядка не росла: ліворуч у нього й так два рядки. */
+    const orig = t.accAmount ? `${fmt2(t.accAmount)} ${esc(CCYSIGN[t.accCcy]||t.accCcy)}` : '';
+    const dup  = t.accCcy && t.accCcy === ALT() ? '' : alt2(t.amount);
+    const sub  = [orig, dup].filter(Boolean).join(' · ');
+    const subTip = dup ? ` data-tip="${esc(`Дублікат у ${ALT()} за поточним курсом: 1 $ = ${fmt2(fxOf('USD'))} ₴. Сума приблизна`)}"` : '';
     return head + `<div class="row txrow" data-id="${esc(t.id)}"${on?' data-on':''}>
         <span class="tx-sel"><input type="checkbox" data-selbox="${esc(t.id)}"${on?' checked':''}
           aria-label="обрати операцію"></span>
@@ -4123,7 +4145,7 @@ function renderTx(){
           <span class="tx-meta"><span class="tx-when">${isOpen?'▾':'▸'} ${byDate ? clock : (t.date + (clock ? ' ' + clock : ''))}</span><span class="tag">${esc(cat)}</span></span>
         </span>
         <span class="tx-amt num-md${t.dir==='income'?' inc':''}">${t.dir==='income'?'+':'−'}${num2(t.amount)}${
-          t.accAmount ? `<em class="ccy">${fmt2(t.accAmount)} ${esc(CCYSIGN[t.accCcy]||t.accCcy)}</em>` : ''}</span>
+          sub ? `<em class="ccy"${subTip}>${sub}</em>` : ''}</span>
       </div>`
       + (isOpen ? `<div class="txdetail">${detailCard(t)}</div>` : '');
   }).join('') || '<p class="muted txempty">Нічого не знайдено. Спробуйте інший запит або довший період.</p>';
@@ -5750,9 +5772,18 @@ const PJ_TABLE_HTML = `
       <colgroup><col><col class="cw-type"><col class="cw-rate"><col class="cw-days"><col class="cw-ot">
         <col class="cw-ind"><col class="cw-usd"><col class="cw-uah"><col class="cw-note"><col class="cw-x"></colgroup>
       <thead><tr>
-        <th>Задача</th><th>Тип</th>
-        <th class="num rate">Ставка</th><th class="num">Обсяг</th><th class="num">ОТ</th><th class="num">Окремі</th>
-        <th class="num calc">USD</th><th class="num calc">₴ з податком</th><th>Коментар</th><th></th>
+        <!-- Скорочення «ОТ» і «Окремі» без пояснення нікому нічого не казали
+             (ОТ — овертайм, а не «оплата труда»): підказка стоїть на самій
+             назві колонки, бо саме там людина зупиняється поглядом. -->
+        <th data-tip="Назва задачі або етапу роботи">Задача</th>
+        <th data-tip="Вид роботи: за ним будується розбивка за типами. На суму не впливає">Тип</th>
+        <th class="num rate" data-tip="Ставка за один день (або за одну штуку), у доларах">Ставка</th>
+        <th class="num" data-tip="Скільки днів роботи. Кнопка «дн» поруч із числом перемикає рахунок на штуки">Обсяг</th>
+        <th class="num" data-tip="Овертайм: додаткові дні понад звичайні. Додаються до обсягу в формулі. Для рядків у штуках не рахується">ОТ</th>
+        <th class="num" data-tip="Окремі витрати в доларах: додаються до суми як є, без множення на ставку">Окремі</th>
+        <th class="num calc" data-tip="Сума в доларах = ставка × (дні + ОТ) + окремі">USD</th>
+        <th class="num calc" data-tip="Сума в гривнях = USD × (1 + податок) × курс">₴ з податком</th>
+        <th data-tip="За що саме цей рядок: нотатка до нього">Коментар</th><th></th>
       </tr></thead>
       <tbody></tbody>
       <tfoot><tr>
@@ -6042,6 +6073,11 @@ let BIZSIGN = safeImage(store.get('bizSign', null));     // лише вбудо�
 let CLIENTS = store.get('clientsDB', {});     // клієнт → реквізити
 let INVSEQ  = store.get('invSeq', {});        // рік → останній номер
 let INVCLOG = store.get('invcLog', []);       // виставлені рахунки: звірка з оплатами
+/* Рахунок «живий», поки його чекають: не оплачений і не замінений. Замінений
+   (x.void) лишається в журналі як історія, але в очікувані гроші не входить:
+   правка рахунку дає йому новий номер, і без цього кожна правка додавала б
+   у календар ще одну очікувану суму по тому самому проєкту. */
+const invcLive = x => !x.paid && !x.void;
 
 const invcNo = () => {
   const y = new Date().getFullYear();
@@ -6310,6 +6346,24 @@ async function invoiceFlow(p){
         list:['Інвойс-акт, двомовний','Інвойс, двомовний','Інвойс-акт, англійською','Інвойс, англійською','Інвойс-акт, українською','Інвойс, українською']},
     ]});
   if(!r || !r.cname) return;
+  /* Той самий проєкт уже має неоплачений рахунок — це майже завжди правка
+     того ж рахунку під новим номером, а не другий платіж. Без питання кожна
+     правка додавала в календар ще одну очікувану суму (INV-007, -008, -009
+     по одному проєкту давали утричі більше «Має прийти»). Питаємо ДО
+     завантаження файлу, щоб Esc скасовував усе: ні номер, ні журнал не
+     міняються. Мовчки замінювати не можна: бувають і два справжні рахунки
+     (аванс і залишок). */
+  const prior = INVCLOG.filter(x => x.pj === p.id && invcLive(x) && x.no !== r.no);
+  let replace = false;
+  if(prior.length){
+    const ans = await uiPick({ title:'Цей проєкт уже має рахунок без оплати',
+      text:`Виставлено: ${prior.map(x=>`${x.no} на ${fmt2(x.total)} ${x.ccy}`).join('; ')}. Новий рахунок — це правка старого чи окремий платіж?`,
+      options:[
+        {v:'replace', n:'Це правка: замінити старий', h:'старий лишиться в журналі, але не чекатиме оплати'},
+        {v:'keep',    n:'Окремий платіж: лишити обидва', h:'обидва чекатимуть оплати'} ] });
+    if(!ans) return;
+    replace = ans === 'replace';
+  }
   const biz = BIZPROF.find(b=>b.label===r.prof) || BIZPROF[0];
   store.set('bizCur', biz.label);
   if(p.client !== PJ_NOCLIENT){
@@ -6329,8 +6383,9 @@ async function invoiceFlow(p){
   const tot = invcRows(p, (a)=>a, k).reduce((s,x)=>s+x.amount,0);
   pjLog(p, `Рахунок ${r.no} на ${fmt(Math.round(tot))} ${r.ccy}${k!==1?` (k=${k.toFixed(2)})`:''}`, true);
   /* журнал виставлених: з нього апка сама бачитиме, чи прийшла оплата */
+  if(replace) for(const o of prior) o.void = { date: todayISO(), by: r.no };
   INVCLOG = INVCLOG.filter(x=>x.no!==r.no);
-  INVCLOG.unshift({ no:r.no, date:r.date, client:r.cname, total: Math.round(tot*100)/100,
+  INVCLOG.unshift({ no:r.no, pj:p.id, date:r.date, client:r.cname, total: Math.round(tot*100)/100,
                     ccy:r.ccy, paid:null, lang, biz: biz && biz.label || '' });
   store.set('invcLog', INVCLOG);
   pjSave();
@@ -6354,7 +6409,7 @@ function renderInvcLog(){
   const accs = new Set(fopAccNames(fopCfg()));
   let dirty = false;
   for(const inv of INVCLOG){
-    if(inv.paid) continue;
+    if(!invcLive(inv)) continue;      // замінений рахунок оплату не «ловить»
     const expect = inv.total * (inv.ccy==='UAH' ? 1 : (fxOf(inv.ccy)||0));
     if(!expect) continue;
     const hit = TX.find(t=>isIncome(t) && t.date >= inv.date
@@ -6364,21 +6419,33 @@ function renderInvcLog(){
   }
   if(dirty) store.set('invcLog', INVCLOG);
   const dnum = d => Math.floor((Date.now() - new Date(d+'T12:00:00'))/864e5);
-  el('invcLogHint').textContent = `${INVCLOG.filter(x=>!x.paid).length} очікує оплати`;
+  const skipped = INVCLOG.filter(x=>x.void && !x.paid).length;
+  el('invcLogHint').textContent = `${INVCLOG.filter(invcLive).length} очікує оплати`
+    + (skipped ? ` · ${skipped} не рахується` : '');
   el('invcLogList').innerHTML = INVCLOG.slice(0,20).map((x,i)=>`
-    <div class="row pjline">
+    <div class="row pjline${x.void && !x.paid ? ' void' : ''}">
       <span class="pjtxt">
         <b>${esc(x.no)}</b> <span class="muted">· ${esc(x.client)} · ${x.date}</span></span>
       <span class="num pjamt">${fmt2(x.total)} ${esc(x.ccy)}</span>
       ${x.paid
         ? `<span class="tag"><i class="dot ok"></i>${x.paid.date}${x.paid.auto?'':' (руками)'}</span>
            <button class="btn sm ghost" data-iunpay="${i}" data-tip="Зняти позначку" aria-label="Зняти позначку">↺</button>`
+        : x.void
+        ? `<span class="tag"><i class="dot off"></i>не рахується${x.void.by ? ` · замінено на ${esc(x.void.by)}` : ''}</span>
+           <button class="btn sm ghost" data-iunvoid="${i}" data-tip="Знову чекати оплату за цим рахунком" aria-label="Знову чекати оплату">↺</button>`
         : `<span class="muted pjwait">очікує ${plural(Math.max(0,dnum(x.date)),'день','дні','днів')}</span>
-           <button class="btn sm" data-ipay="${i}">Оплачено</button>`}
+           <button class="btn sm" data-ipay="${i}">Оплачено</button>
+           <button class="btn sm ghost" data-ivoid="${i}" data-tip="Не чекати оплату: наприклад, рахунок замінено новим. У журналі він лишиться, але зникне з очікуваних надходжень">Не рахувати</button>`}
       <button class="btn sm ghost danger" data-idel="${i}" aria-label="Прибрати з журналу">✕</button>
     </div>`).join('');
   el('invcLogList').querySelectorAll('[data-ipay]').forEach(b=>b.onclick=()=>{
     INVCLOG[+b.dataset.ipay].paid = { date: todayISO(), auto:false };
+    store.set('invcLog', INVCLOG); renderInvcLog(); });
+  el('invcLogList').querySelectorAll('[data-ivoid]').forEach(b=>b.onclick=()=>{
+    INVCLOG[+b.dataset.ivoid].void = { date: todayISO() };
+    store.set('invcLog', INVCLOG); renderInvcLog(); });
+  el('invcLogList').querySelectorAll('[data-iunvoid]').forEach(b=>b.onclick=()=>{
+    INVCLOG[+b.dataset.iunvoid].void = null;
     store.set('invcLog', INVCLOG); renderInvcLog(); });
   el('invcLogList').querySelectorAll('[data-iunpay]').forEach(b=>b.onclick=()=>{
     INVCLOG[+b.dataset.iunpay].paid = null;
