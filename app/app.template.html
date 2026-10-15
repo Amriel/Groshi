@@ -90,11 +90,8 @@ body{
   padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   overscroll-behavior-y:contain;
 }
-h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:700;letter-spacing:-.01em}
 .num,.tw,.dl dd,td.num{font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
-  border:1px solid var(--border-soft);border-radius:5px;padding:1px 5px}
 
 /* ── підказка з клавішею, що ковзає між кнопками ── */
 /* ── ручне додавання підписки: поля, підказки, знайдені операції ── */
@@ -126,10 +123,11 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
 .mtx .a{font-variant-numeric:tabular-nums;font-weight:600;flex:none}
 .mtx.off{opacity:.4}
 /* Своя галочка: системний checkbox малює ОС і в темній темі він білий. */
-.tick{width:17px;height:17px;border-radius:6px;flex:none;position:relative;
-  box-shadow:inset 0 0 0 1.5px var(--border);background:rgba(255,255,255,.05)}
+/* Та сама коробка, що й input[type=checkbox] нижче: 18 px, токени. */
+.mtx .tick{width:18px;height:18px;border-radius:6px;flex:none;position:relative;
+  box-shadow:inset 0 0 0 1px var(--border);background:var(--surface-2)}
 .mtx.on .tick{background:var(--accent);box-shadow:none}
-.mtx.on .tick::after{content:'';position:absolute;left:5px;top:1.5px;width:5px;height:10px;
+.mtx.on .tick::after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;
   border:solid var(--accent-contrast);border-width:0 2px 2px 0;transform:rotate(42deg)}
 
 /* ── примітки ── */
@@ -207,23 +205,22 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
 /* Системний checkbox малює операційна система: у темній темі він
    світлий, а accent-color лише підфарбовує галочку — коробка лишається
    чужою. Тут своя, тими самими засобами, що й галочки у списку
-   знайдених операцій. */
+   знайдених операцій. Кольори — лише токени: окремі світлі перекриття
+   з сирими rgba розходились із палітрою після зміни токенів, а тепер
+   обидві теми беруть коробку з --surface-2/--border. Межа — inset-тінь
+   без зсуву (border додав би до 18 px ще 2). */
 :root:root input[type="checkbox"]{
   appearance:none;-webkit-appearance:none;position:relative;cursor:pointer;
-  width:17px;height:17px;flex:none;margin:0;padding:0;border:0;border-radius:6px;
-  background:rgba(255,255,255,.06);
-  box-shadow:inset 0 0 0 1.5px var(--border);
-  transition:background .12s ease}
-:root:root input[type="checkbox"]:hover{background:rgba(255,255,255,.12)}
+  width:18px;height:18px;flex:none;margin:0;padding:0;border:0;border-radius:6px;
+  background:var(--surface-2);
+  box-shadow:inset 0 0 0 1px var(--border);
+  transition:background var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+:root:root input[type="checkbox"]:hover{box-shadow:inset 0 0 0 1px var(--accent-line)}
 :root:root input[type="checkbox"]:checked{background:var(--accent);box-shadow:none}
 :root:root input[type="checkbox"]:checked::after{content:'';position:absolute;
-  left:5px;top:1.5px;width:5px;height:10px;
+  left:6px;top:2px;width:5px;height:10px;
   border:solid var(--accent-contrast);border-width:0 2px 2px 0;transform:rotate(42deg)}
 :root:root input[type="checkbox"]:focus-visible{outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
-:root:root[data-theme="light"] input[type="checkbox"]{background:rgba(255,255,255,.7);
-  box-shadow:inset 0 0 0 1.5px rgba(20,23,25,.18)}
-:root:root[data-theme="light"] input[type="checkbox"]:hover{background:#fff}
-:root:root[data-theme="light"] input[type="checkbox"]:checked{background:var(--accent);box-shadow:none}
 
 #modalForm[hidden]{display:none}
 #modalForm{display:flex;flex-wrap:wrap;gap:0 10px}
@@ -287,8 +284,8 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
 .mrerr[hidden]{display:none}
 .modalacts{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
 .modalacts .btn{min-width:104px;justify-content:center}
-/* :root:root — щоб перебити .btn.pri і .btn.pri:hover плоскої бази нижче
-   по файлу: без цього кнопка небезпечної дії лишалась би лаймовою. */
+/* :root:root — щоб перебити .btn.pri і .btn.pri:hover блоку «КОМПОНЕНТИ»
+   нижче по файлу: без цього кнопка небезпечної дії лишалась би лаймовою. */
 :root:root .modalw .btn.danger{background:linear-gradient(340deg,#FF7A7A,#E05252);
   color:#2A0A0A;box-shadow:0 10px 24px -14px rgba(255,107,107,.55)}
 :root:root .modalw .btn.danger:hover{background:linear-gradient(340deg,#FF9090,#EC6666)}
@@ -325,9 +322,6 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
 
 
 .spacer{flex:1}
-.iconbtn{width:var(--ctl);height:var(--ctl);border-radius:13px;display:grid;place-items:center;flex:none;
-  color:var(--text-dim)}
-.iconbtn:hover{color:var(--text)}
 
 /* ── періоди ────────────────────────────────────────────── */
 #periodWrap[hidden]{display:none}
@@ -340,36 +334,17 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
 /* Позиція, розмір, фон і рух — у спільному правилі .tab-ind,.chip-ind
    (блок «КАРКАС» унизу); тут лишається тільки те, що специфічне для чипів. */
 .periodbar::-webkit-scrollbar{display:none}
-.chip{display:inline-flex;align-items:center;height:var(--ctl);white-space:nowrap;padding:0 16px;
-  border-radius:var(--radius-pill);font-size:12.5px;font-weight:600;color:var(--text-dim);flex:none}
-.chip:hover{color:var(--text)}
 
 /* ── картки ─────────────────────────────────────────────── */
-.card{position:relative;isolation:isolate}
-
-.grid{display:grid;gap:12px}
+/* Без явних колонок грід має одну неявну колонку auto, і вона росте до
+   мінімальної ширини вмісту: «.grid.two» на «Інвестиціях» (класу .two в
+   CSS немає) розпирав сторінку на 390 px до 452 px через два сегменти в
+   заголовку картки. minmax(0,1fr) і min-width:0 у дітей тримають колонку
+   в ширині контейнера; власні колонки (.kpis, інлайнові) це перекривають. */
+.grid{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.grid>*{min-width:0}
 .kpis{grid-template-columns:repeat(auto-fit,minmax(165px,1fr));margin-bottom:12px}
-/* Заголовок тримає два рядки завжди — навіть коли текст короткий.
-   Інакше «Витрати за період» стоїть в один рядок, «Надходження за
-   період» у два, і сусідні великі числа опиняються на різній висоті:
-   ряд плиток читається як зсунутий, хоч нічого не «поїхало». */
-.kpi{display:flex;flex-direction:column}
-.kpi .lbl{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.07em;
-  font-weight:700;line-height:1.3;min-height:2.6em}
-.kpi .val{font-family:var(--font-display);font-size:clamp(21px,5.4vw,28px);font-weight:700;
-  letter-spacing:-.025em;margin-top:7px;line-height:1.05;font-variant-numeric:tabular-nums}
-/* Друга валюта: помітно менша за головну суму — це довідка, а не
-   друге число, між якими треба вибирати. Рядок тримає висоту й тоді,
-   коли курсу немає: інакше підпис під сусідньою плиткою стрибав би. */
-.kpi .valalt{font-family:var(--font-display);font-size:13px;font-weight:600;margin-top:3px;
-  color:var(--text-mute);font-variant-numeric:tabular-nums;min-height:1.15em}
-.kpi .sub{margin-top:auto}
-.kpi .sub{font-size:12.5px;color:var(--text-dim);margin-top:6px;line-height:1.45}
 .up{color:var(--danger)} .down{color:var(--success)}
-
-.cardhead{display:flex;align-items:baseline;gap:10px;margin-bottom:15px}
-.cardhead h2{font-size:16px}
-.cardhead .hint{font-size:12px;color:var(--text-dim);margin-left:auto;text-align:right}
 
 /* ── графіки ────────────────────────────────────────────── */
 svg{display:block;width:100%;overflow:visible}
@@ -388,9 +363,7 @@ svg{display:block;width:100%;overflow:visible}
 .legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
 
 /* ── списки ─────────────────────────────────────────────── */
-.row{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--border-soft)}
-.row:last-child{border-bottom:0}
-.dot{width:8px;height:8px;border-radius:3px;flex:none}
+/* .row і .dot — у блоці «КОМПОНЕНТИ». */
 .row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row .amt{font-family:var(--font-display);font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
 .row .cnt{font-size:11px;color:var(--text-mute);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
@@ -502,9 +475,6 @@ span.ivlogo.mono{display:inline-block;overflow:hidden;text-align:center;font-siz
 .ovsub .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-dim)}
 .ovsub .amt{font-family:var(--font-display);font-weight:600;font-variant-numeric:tabular-nums;
   min-width:84px;text-align:right}
-.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:var(--radius-pill);
-  border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);
-  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 section[hidden]{display:none}
 /* [hidden] — це лише правило браузера без класу, тож будь-який display у
@@ -620,7 +590,6 @@ section[hidden]{display:none}
 }
 
 /* ── картка операції ────────────────────────────────────── */
-.det{position:relative;isolation:isolate}
 .det h4{margin:0 0 2px;font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--text-dim)}
 .det .sum{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.03em;
   margin:4px 0 18px;font-variant-numeric:tabular-nums;line-height:1}
@@ -663,7 +632,8 @@ section[hidden]{display:none}
 .ph-frame.landscape .ph-home{bottom:50%;left:auto;right:20px;transform:translateY(50%);width:5px;height:36%}
 
 /* ── дрібне ─────────────────────────────────────────────── */
-.muted{color:var(--text-dim);font-size:12.5px;line-height:1.5}
+/* Колір .muted — у блоці «КОМПОНЕНТИ» (--text-mute), тут лише кегль. */
+.muted{font-size:12.5px;line-height:1.5}
 /* Колір попередження — лише в крапці. Бічна смуга й тонований фон
    робили з кожної підказки тривогу й порушували правило оформлення:
    колірне кодування живе в бейджі чи крапці, а не в краю й тлі картки. */
@@ -675,12 +645,6 @@ section[hidden]{display:none}
 .warnbox b{color:var(--text)}
 /* Кнопка в рядку тексту розтягувала міжрядковий інтервал до своєї висоти. */
 .warnbox > .btn{display:flex;width:fit-content}
-.fieldrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0}
-.fieldrow label{font-size:12.5px;color:var(--text-dim);min-width:135px}
-.btn{display:inline-flex;align-items:center;justify-content:center;height:var(--ctl);padding:0 16px;
-  border-radius:13px;font-size:12.5px;font-weight:600;color:var(--text-dim)}
-.btn:hover{color:var(--text)}
-.btn.pri{font-weight:700}
 
 
 /* ── підписки ── */
@@ -1081,29 +1045,93 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   0 0 0 3px var(--accent-soft)}
 .cmbm{padding:6px}
 
-/* ══════════════════ ДИЗАЙН-СИСТЕМА: плоска база ══════════════════
-   Поверхня = різниця тону + тонка межа. Тіней, розмиття й заломлення
-   немає: вони давали вигляд, який не відтворювався однаково між
-   WebGL і CSS-запасним варіантом, і коштували кадрів під час скролу. */
+/* ══════════════════ КОМПОНЕНТИ ══════════════════
+   Поверхня — різниця тону + тонка межа; жодних кольорових смуг і
+   тонування картки. Колір категорії лише в .dot / .badge-ico / .tag.
+   Тіней, розмиття й заломлення немає: вони давали вигляд, який не
+   відтворювався однаково між WebGL і CSS-запасним варіантом, і коштували
+   кадрів під час скролу. Блок стоїть ДО каркаса й контентної області:
+   їхні медіа-запити (картка 16 px і кегль KPI на 390 px) мусять
+   перекривати його за порядком у файлі. */
 body{background:var(--bg);color:var(--text);font:var(--fs-md)/1.5 var(--font-ui);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.card,.det{background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing:-.01em}
+/* position:relative — опора для абсолютних дітей (підказки графіків тощо);
+   isolation тримає їхні z-index усередині картки, як і раніше. */
+.card,.det{position:relative;isolation:isolate;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px 22px}
 .det{border-radius:var(--radius-lg)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  height:var(--ctl);padding:0 16px;border-radius:var(--radius-sm);
-  background:var(--surface-2);border:1px solid var(--border);
-  color:var(--text);font-size:var(--fs-sm);font-weight:600;
+.card.flat{background:var(--surface-2);border-color:transparent;padding:14px 16px}
+/* flex-wrap: заголовок із двома сегментами («Дивіденди» на «Інвестиціях»)
+   на 390 px ширший за картку; без переносу він виходив за край екрана. */
+.cardhead{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.cardhead h2{font-size:var(--fs-lg);font-weight:600}
+.cardhead .hint{font-size:12px;margin-left:auto;text-align:right}
+.hint,.muted{color:var(--text-mute)}
+.lbl{font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--text-mute)}
+.num-lg{font-size:var(--fs-3xl);font-weight:600;letter-spacing:-.03em;line-height:1.1;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.num-md{font-size:var(--fs-xl);font-weight:600;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.stack{display:flex;flex-direction:column;gap:12px}
+.cluster{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grow{flex:1;min-width:0}
+/* Плитка показника. container-type — щоб кегль суми брався від ширини
+   самої плитки (cqw): у вікні 900 px плиток чотири в ряд, на 390 px — дві,
+   і фіксований розмір в обох випадках переповнював би внутрішню ширину
+   ~135 px. На вузькому екрані кегль ще зменшує «Контентна область». */
+.kpi{display:flex;flex-direction:column;gap:6px;padding:18px 20px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius);container-type:inline-size}
+/* Заголовок тримає два рядки завжди — навіть коли текст короткий.
+   Інакше «Витрати за період» стоїть в один рядок, «Надходження за
+   період» у два, і сусідні великі числа опиняються на різній висоті:
+   ряд плиток читається як зсунутий, хоч нічого не «поїхало». */
+.kpi .lbl{line-height:1.3;min-height:2.6em}
+/* Сума в плитці завжди в один рядок: перенос «₴» окремо від числа
+   читається як помилка. */
+.kpi .val{font-size:clamp(18px,13.5cqw,var(--fs-2xl));font-weight:600;letter-spacing:-.02em;
+  line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* У .val бувають вкладені підписи (Підписки: «найближче», «активних»):
+   вони мусять переноситись, інакше довгий продавець розпирає плитку. */
+.kpi .val .sub,.kpi .val .muted{white-space:normal}
+/* Друга валюта: помітно менша за головну суму — це довідка, а не
+   друге число, між якими треба вибирати. Рядок тримає висоту й тоді,
+   коли курсу немає: інакше підпис під сусідньою плиткою стрибав би. */
+.kpi .valalt{font-size:var(--fs-sm);font-weight:600;color:var(--text-mute);
+  font-variant-numeric:tabular-nums;min-height:1.15em}
+.kpi .sub{font-size:var(--fs-sm);color:var(--text-mute);line-height:1.45}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+.badge-ico{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;
+  color:var(--accent-contrast)}
+.tag{display:inline-flex;align-items:center;max-width:100%;padding:3px 10px;border-radius:var(--radius-pill);
+  font-size:var(--fs-xs);font-weight:600;color:var(--text-dim);background:var(--surface-2);
+  border:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--ctl);padding:0 16px;
+  border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text);font-size:var(--fs-sm);font-weight:600;white-space:nowrap;
   transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .btn:hover{background:var(--surface-3)}
 .btn:active{transform:scale(.98)}
+.btn:focus-visible,.iconbtn:focus-visible,.chip:focus-visible,nav.tabs button:focus-visible{
+  outline:2px solid var(--accent-line);outline-offset:2px}
 .btn.pri,button.on{background:var(--accent);border-color:transparent;color:var(--accent-contrast)}
 .btn.pri:hover,button.on:hover{background:var(--accent-hover)}
+.btn.sm{height:var(--ctl-sm);padding:0 12px;font-size:var(--fs-xs)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--text-dim)}
+.btn.ghost:hover{background:var(--surface-2);color:var(--text)}
+.btn.danger{color:var(--danger)}
+.btn[disabled],.btn.disabled{opacity:.45;pointer-events:none}
+/* flex:none: іконкові кнопки в підвалі панелі й заголовках не стискаються,
+   інакше квадрат 40×40 сплющувався поруч із довгим текстом. */
 .iconbtn{width:var(--ctl);height:var(--ctl);border-radius:var(--radius-sm);display:grid;place-items:center;
-  color:var(--text-dim);background:transparent}
+  flex:none;color:var(--text-dim);background:transparent}
 .iconbtn:hover{color:var(--text);background:var(--surface-2)}
+/* Увімкнений стан (режим скріншоту) — заливка акцентом, видно з першого погляду. */
+.iconbtn.on{background:var(--accent);color:var(--accent-contrast)}
+/* flex:none: #periodInd міряє прямокутники чипів, і стиснутий чип
+   у вузькому сегменті давав індикатор не тієї ширини. */
 .chip{display:inline-flex;align-items:center;height:var(--ctl-sm);padding:0 14px;border-radius:var(--radius-pill);
-  font-size:var(--fs-sm);font-weight:500;color:var(--text-dim);background:transparent}
+  flex:none;font-size:var(--fs-sm);font-weight:500;color:var(--text-dim);background:transparent;white-space:nowrap}
 .chip:hover{color:var(--text)}
 .chip[aria-pressed="true"]{color:var(--text);font-weight:600;background:var(--surface-3)}
 input,select,textarea{font:inherit;color:var(--text);background:var(--surface-2);
@@ -1113,8 +1141,19 @@ input,select,textarea{font:inherit;color:var(--text);background:var(--surface-2)
    він світлий; висоту поле бере від вмісту, тягати руками нема потреби. */
 textarea{height:auto;min-height:96px;padding:10px 13px;line-height:1.5;resize:none}
 input::placeholder,textarea::placeholder{color:var(--text-mute)}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-line);
-  box-shadow:0 0 0 3px var(--accent-soft)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft)}
+/* Рядок «мітка + поля» (налаштування, свій період). */
+.fieldrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0}
+.fieldrow label{font-size:var(--fs-sm);color:var(--text-dim);min-width:135px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-soft)}
+.row:last-child{border-bottom:0}
+/* Широка таблиця гортається вбік усередині картки, а не тягне сторінку. */
+.tablewrap{overflow-x:auto}
+.tablewrap table{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+.tablewrap th{font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-mute);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+.tablewrap td{padding:11px 10px;border-bottom:1px solid var(--border-soft);font-variant-numeric:tabular-nums}
+.tablewrap tr:hover td{background:var(--surface-2)}
 code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
   border:1px solid var(--border-soft);border-radius:6px;padding:1px 6px}
 #tip,#kbtip{background:var(--surface-3);color:var(--text);border:1px solid var(--border);
@@ -1204,15 +1243,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
    найширшого вмісту (на «Інвестиціях» 390 px — до 452 px), тоді як у
    блоковій розкладці вона просто мала ширину контейнера. */
 .wrap>*{min-width:0}
-/* Сума в плитці завжди в один рядок: перенос «₴» окремо від числа читається як помилка.
-   Щоб не вилазила за картку, кегль береться від ширини самої плитки (cqw):
-   у вікні 900 px плиток чотири в ряд, на 390 px — дві, і фіксований розмір
-   у обох випадках переповнював би внутрішню ширину ~135 px. */
-.kpi{container-type:inline-size}
-.kpi .val{white-space:nowrap;font-size:clamp(18px,13.5cqw,28px)}
-/* У .val бувають вкладені підписи (Підписки: «найближче», «активних»):
-   вони мусять переноситись, інакше довгий продавець розпирає плитку. */
-.kpi .val .sub,.kpi .val .muted{white-space:normal}
+/* Плитка KPI (кегль суми від ширини плитки, nowrap) — у блоці «КОМПОНЕНТИ». */
 /* Плаваючі підписи: положення тут, а не інлайном, щоб медіа-запит міг їх підняти. */
 .scrnbadge{bottom:14px}
 .apptoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
