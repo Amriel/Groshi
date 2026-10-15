@@ -94,48 +94,6 @@ body{
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 /* ── підказка з клавішею, що ковзає між кнопками ── */
-/* ── ручне додавання підписки: поля, підказки, знайдені операції ── */
-.subaddbox{margin-top:12px}
-.mfields{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
-.mf{display:flex;flex-direction:column;gap:6px;min-width:0}
-.mf.grow{flex:1;min-width:190px}
-.mf > span{font-size:11px;font-weight:600;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--text-mute)}
-.mf input, .mf .csel{width:100%}
-.mf.w130{width:130px}.mf.w110{width:110px}.mf.w160{width:160px}.mf.w150{width:150px}
-.macts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
-
-/* Знайдені операції мерчанта — з галочками: що позначено, те й привʼяжеться. */
-.mfound{margin-top:14px;padding:13px 15px;border-radius:18px;
-  background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px var(--border-soft)}
-:root[data-theme="light"] .mfound{background:rgba(20,23,25,.03)}
-.mfound[hidden]{display:none}
-.mfhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
-.mfhead b{font-size:13.5px}
-.mfhead .muted{font-size:12px}
-.mfhead .btn{padding:4px 10px;height:auto;font-size:11.5px;margin-left:auto}
-.mflist{max-height:212px;overflow:auto;margin:0 -4px;padding:0 4px}
-.mtx{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12.5px;
-  border-bottom:1px solid var(--border-soft);cursor:pointer}
-.mtx:last-child{border-bottom:0}
-.mtx .d{color:var(--text-mute);font-variant-numeric:tabular-nums;flex:none;width:78px}
-.mtx .c{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-dim)}
-.mtx .a{font-variant-numeric:tabular-nums;font-weight:600;flex:none}
-.mtx.off{opacity:.4}
-/* Своя галочка: системний checkbox малює ОС і в темній темі він білий. */
-/* Та сама коробка, що й input[type=checkbox] нижче: 18 px, токени. */
-.mtx .tick{width:18px;height:18px;border-radius:6px;flex:none;position:relative;
-  box-shadow:inset 0 0 0 1px var(--border);background:var(--surface-2)}
-.mtx.on .tick{background:var(--accent);box-shadow:none}
-.mtx.on .tick::after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;
-  border:solid var(--accent-contrast);border-width:0 2px 2px 0;transform:rotate(42deg)}
-
-/* ── примітки ── */
-.subnote{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-dim);
-  margin-top:2px;cursor:text}
-.subnote i{font-style:normal;opacity:.55;flex:none}
-.subnote.empty{color:var(--text-mute)}
-.subnote:hover{color:var(--text)}
 .notebox{margin:14px 0 0}
 .notebox > span{display:block;margin-bottom:7px;font-size:11px;font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
@@ -149,7 +107,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent),0 0 0 3px var(--accent-soft)}
 .notebox .hint{display:block;margin-top:6px;font-size:11.5px;color:var(--text-mute)}
 /* .lnk і .pinchip — у блоці «ЕКРАНИ» (Операції). */
-.subrow .subops{font-size:11px;color:var(--text-mute)}
 
 /* ── однодатне поле: та сама сітка, що й у виборі періоду ── */
 .sdfield{position:relative;display:block}
@@ -547,39 +504,6 @@ section[hidden]{display:none}
 .warnbox > .btn{display:flex;width:fit-content}
 
 
-/* ── підписки ── */
-.subrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border-soft);flex-wrap:wrap}
-.subrow:last-child{border-bottom:0}
-.subrow.soon .nm{color:var(--warn)}
-.submain{flex:1;min-width:150px;display:flex;flex-direction:column;gap:3px}
-.submain .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.submeta{font-size:11.5px;color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.subwhen{font-size:12.5px;min-width:112px;font-variant-numeric:tabular-nums;text-align:right}
-.subwhen em{font-style:normal;display:block;font-size:11px;opacity:.75}
-.subrow .amt{font-family:var(--font-display);font-variant-numeric:tabular-nums;font-weight:700;
-  min-width:86px;text-align:right;white-space:nowrap}
-.subrow .cnt{font-size:11px;color:var(--text-mute);font-variant-numeric:tabular-nums;
-  min-width:80px;text-align:right;white-space:nowrap}
-.subacts{display:flex;gap:6px;align-items:center;flex:none}
-.subacts .btn{padding:5px 11px;height:auto;font-size:12px}
-.subadd{margin-top:12px}
-.subadd summary{cursor:pointer;font-size:12.5px;color:var(--text-dim);font-weight:600;
-  list-style:none;display:inline-flex;align-items:center;gap:6px}
-.subadd summary::-webkit-details-marker{display:none}
-.subadd summary::before{content:'+';font-size:15px;line-height:1}
-.subadd[open] summary::before{content:'−'}
-.subadd summary:hover{color:var(--text)}
-@media(max-width:759px){
-  /* На вузькому екрані рядок розкладається у три поверхи: назва й сума,
-     під ними опис і дата, знизу дії. Flex тут перекидав суму вліво під
-     назву — сітка ставить її туди, де її шукають очима: праворуч зверху. */
-  .subrow{display:grid;grid-template-columns:1fr auto;align-items:start;gap:2px 10px;padding:13px 0}
-  .submain{grid-column:1;grid-row:1/3;min-width:0}
-  .subrow .amt{grid-column:2;grid-row:1;min-width:0}
-  .subwhen{grid-column:2;grid-row:2;min-width:0}
-  .subacts{grid-column:1/-1;grid-row:3;justify-content:flex-end;margin-top:8px}
-  .subrow .cnt{display:none}
-}
 
 
 
@@ -1417,6 +1341,114 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .tw-det{padding-inline-start:20px}
   .tw-more{padding-inline-start:56px}
 }
+
+/* ── Підписки ── */
+/* Картки екрана — стек із проміжком 12 px; поле задає роль, а не інлайн. */
+#tab-subs>.card{margin-bottom:12px}
+#tab-subs>.card:last-child{margin-bottom:0}
+.subhint{margin:0 0 12px;font-size:12px}
+#calHint{margin-bottom:10px}
+#calSeg{margin-left:auto}
+.subleadrow label{min-width:auto}
+#tab-subs .stack>.fieldrow,#tab-subs .stack>.subhint{margin:0}
+#subLead{width:80px}
+/* Календар місяця: підсумки зверху, під ними рядки подій. */
+.calsum{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px}
+.calstat{font-size:12px;color:var(--text-mute)}
+.calstat b{display:block;font-size:16px;font-family:var(--font-display);color:var(--text)}
+.calstat b.pos{color:var(--success)}
+.calrow{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12.5px}
+.calrow.past{opacity:.4}
+.calrow .d{flex:none;width:46px;color:var(--text-mute);font-variant-numeric:tabular-nums}
+.calrow .t{flex:1;min-width:0}
+/* block, а не inline: text-overflow на рядковому span не діє, і довга
+   назва розпирала рядок замість «…». */
+.calrow .nm{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calrow .k{display:block;font-size:var(--fs-xs);color:var(--text-mute)}
+.calrow .k.tax{color:var(--warn)}
+.calrow .k.div,.calrow .k.invc{color:var(--success)}
+.calrow .a{font-variant-numeric:tabular-nums;white-space:nowrap}
+.calrow .a.pos{color:var(--success)}
+/* Рядок підписки = .row. .row стоїть у «КОМПОНЕНТИ» раніше за цей блок, тож
+   мобільна сітка нижче перекриває його display:flex порядком у файлі. */
+.subrow{flex-wrap:wrap}
+.subrow.soon .nm{color:var(--warn)}
+.submain{flex:1;min-width:150px;display:flex;flex-direction:column;gap:3px}
+.submain .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.submeta{font-size:11.5px;color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.subrow .subops{font-size:var(--fs-xs);color:var(--text-mute)}
+/* Колір дати — стан рядка, а не інлайн: звичайна, «скоро» (лише текст), зупинена. */
+.subwhen{font-size:12.5px;min-width:112px;font-variant-numeric:tabular-nums;text-align:right;color:var(--text-dim)}
+.subrow.soon .subwhen{color:var(--warn)}
+.subrow.off .subwhen{color:var(--text-mute)}
+.subwhen em{font-style:normal;display:block;font-size:var(--fs-xs);opacity:.75}
+.subrow .amt{font-family:var(--font-display);font-variant-numeric:tabular-nums;font-weight:700;
+  min-width:86px;text-align:right;white-space:nowrap}
+.subrow .amt .subfx{display:block;font-size:var(--fs-xs);font-weight:400}
+.subrow .cnt{font-size:var(--fs-xs);color:var(--text-mute);font-variant-numeric:tabular-nums;
+  min-width:80px;text-align:right;white-space:nowrap}
+.subacts{flex:none;flex-wrap:nowrap;gap:6px}
+.subacts [data-subdel]:hover{color:var(--danger)}
+.subnote{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-dim);
+  margin-top:2px;cursor:text}
+.subnote i{font-style:normal;opacity:.55;flex:none}
+.subnote.empty{color:var(--text-mute)}
+.subnote:hover{color:var(--text)}
+/* Розкривна форма. Знак «+/−» малює ::before, у тексті його немає — інакше
+   подвоювався. */
+.subadd{margin-top:12px}
+.subadd summary{cursor:pointer;font-size:12.5px;color:var(--text-dim);font-weight:600;
+  list-style:none;display:inline-flex;align-items:center;gap:6px}
+.subadd summary::-webkit-details-marker{display:none}
+.subadd summary::before{content:'+';font-size:15px;line-height:1}
+.subadd[open] summary::before{content:'−'}
+.subadd summary:hover{color:var(--text)}
+.subaddbox{margin-top:12px}
+/* Поля — сітка-кластер: ширина за роллю, вирівнювання по низу. */
+.mfields{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.mf{display:flex;flex-direction:column;gap:6px;min-width:0}
+.mf.grow{flex:1;min-width:190px}
+.mf > span{font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-mute)}
+.mf input, .mf .csel{width:100%}
+.mf.w130{width:130px}.mf.w110{width:110px}.mf.w160{width:160px}.mf.w150{width:150px}
+.macts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+/* Знайдені операції мерчанта — з галочками: що позначено, те й привʼяжеться.
+   Плоска вставка --surface-2, без напівпрозорого тла. */
+.mfound{margin-top:14px;padding:14px 16px;border-radius:var(--radius);
+  background:var(--surface-2);border:1px solid var(--border-soft)}
+.mfound[hidden]{display:none}
+.mfhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.mfhead b{font-size:13.5px}
+.mfhead .muted{font-size:12px}
+.mfhead .btn{margin-left:auto}
+.mflist{max-height:212px;overflow:auto;margin:0 -4px;padding:0 4px}
+.mfnote{margin:9px 0 0;font-size:11.5px}
+.mtx{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12.5px;
+  border-bottom:1px solid var(--border-soft);cursor:pointer}
+.mtx:last-child{border-bottom:0}
+.mtx .d{color:var(--text-mute);font-variant-numeric:tabular-nums;flex:none;width:78px}
+.mtx .c{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-dim)}
+.mtx .a{font-variant-numeric:tabular-nums;font-weight:600;flex:none}
+.mtx.off{opacity:.4}
+/* Своя галочка: системний checkbox малює ОС і в темній темі він білий. Та
+   сама коробка 18 px, що й input[type=checkbox]. */
+.mtx .tick{width:18px;height:18px;border-radius:6px;flex:none;position:relative;
+  box-shadow:inset 0 0 0 1px var(--border);background:var(--surface)}
+.mtx.on .tick{background:var(--accent);box-shadow:none}
+.mtx.on .tick::after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;
+  border:solid var(--accent-contrast);border-width:0 2px 2px 0;transform:rotate(42deg)}
+@media(max-width:759px){
+  /* На вузькому екрані рядок розкладається у три поверхи: назва й сума,
+     під ними опис і дата, знизу дії. Flex тут перекидав суму вліво під
+     назву — сітка ставить її туди, де її шукають очима: праворуч зверху. */
+  .subrow{display:grid;grid-template-columns:1fr auto;align-items:start;gap:2px 10px;padding:13px 0}
+  .submain{grid-column:1;grid-row:1/3;min-width:0}
+  .subrow .amt{grid-column:2;grid-row:1;min-width:0}
+  .subwhen{grid-column:2;grid-row:2;min-width:0}
+  .subacts{grid-column:1/-1;grid-row:3;justify-content:flex-end;margin-top:8px}
+  .subrow .cnt{display:none}
+}
 </style>
 </head>
 <body>
@@ -1825,18 +1857,18 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 <section id="tab-subs" hidden>
   <div class="grid kpis" id="subTotals"></div>
 
-  <div class="card" id="calCard" style="margin-bottom:12px">
+  <div class="card" id="calCard">
     <div class="cardhead"><h2 id="calTitle">Що спишеться цього місяця</h2>
-      <span class="seg" id="calSeg" style="margin-left:auto"></span></div>
-    <p class="muted" id="calHint" style="margin:0 0 10px;font-size:12px"></p>
+      <span class="seg" id="calSeg"></span></div>
+    <p class="muted subhint" id="calHint"></p>
     <div id="calBody"></div>
   </div>
 
-  <div class="card" style="margin-bottom:12px">
+  <div class="card">
     <div class="cardhead"><h2>Мої підписки</h2><span class="hint">за датою найближчого списання</span></div>
     <div id="subMine"></div>
     <details class="subadd">
-      <summary>＋ Додати свою підписку — і таку, якої немає в банку (оренда, хостинг, готівкою)</summary>
+      <summary>Додати свою підписку — і таку, якої немає в банку (оренда, хостинг, готівкою)</summary>
       <div class="subaddbox">
         <div class="mfields">
           <label class="mf grow"><span>Назва або мерчант</span>
@@ -1865,28 +1897,30 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     </details>
   </div>
 
-  <div class="card" style="margin-bottom:12px">
+  <div class="card">
     <div class="cardhead"><h2>Схоже на підписки</h2><span class="hint" id="subFoundCount"></span></div>
-    <p class="muted" style="margin:0 0 12px">Апка сама шукає рівні ряди списань: той самий мерчант,
+    <p class="muted subhint">Апка сама шукає рівні ряди списань: той самий мерчант,
       схожа сума, однаковий крок у часі. Підтвердьте — і підписка потрапить у список вище й у нагадування.</p>
     <div id="subFound"></div>
   </div>
 
   <div class="card">
     <div class="cardhead"><h2>Нагадування</h2></div>
-    <div class="fieldrow" style="margin-bottom:12px">
-      <label style="min-width:auto">Попереджати за</label>
-      <input id="subLead" type="number" min="0" max="30" step="1" style="width:80px" inputmode="numeric">
+    <div class="stack">
+    <div class="fieldrow subleadrow">
+      <label>Попереджати за</label>
+      <input id="subLead" type="number" min="0" max="30" step="1" inputmode="numeric">
       <span class="muted">дн. до списання</span>
       <button class="btn" id="subNotify">Увімкнути сповіщення</button>
       <span class="muted" id="subNotifyState"></span>
     </div>
-    <p class="muted" style="margin:0 0 12px">Сторінка може сповістити лише поки вона відкрита — це обмеження
+    <p class="muted subhint">Сторінка може сповістити лише поки вона відкрита — це обмеження
       браузера, а не налаштування. Щоб нагадування приходили й тоді, коли апку закрито,
       експортуйте підписки в календар: у файлі є правило повтору й будильник за вказану кількість днів.</p>
     <div class="fieldrow">
       <button class="btn pri" id="subIcs">Експорт у календар (.ics)</button>
       <span class="muted" id="subMsg" hidden></span>
+    </div>
     </div>
   </div>
 </section>
@@ -3098,7 +3132,6 @@ function calEvents(ym){
 /* Мітка словом, а не значком: «↻» поруч із назвою нікому нічого не
    каже, а «підписка» каже все й одразу. */
 const CAL_KIND = { sub:'підписка', tax:'податок', div:'дивіденди', invc:'рахунок' };
-const CAL_COL  = { sub:'text-mute', tax:'warn', div:'good', invc:'good' };
 function renderCal(){
   const card = el('calCard'); if(!card) return;
   const base = new Date();
@@ -3129,15 +3162,14 @@ function renderCal(){
       підтверджені підписки, податки ФОП, дивіденди й очікувані оплати зʼявляться тут самі.</p>`;
     return;
   }
+  /* Підсумки й рядки подій — класи .calsum/.calrow, а не інлайн: колір
+     мітки залежить від виду події (.k.tax/.div/.invc), мінус/плюс — від знака. */
+  const left = ev.filter(e=>e.sign<0 && e.date >= tISO).reduce((s,e)=>s+e.amount,0);
   el('calBody').innerHTML =
-    `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px">
-       <span class="muted" style="font-size:12px">Спишеться за місяць<b style="display:block;font-size:16px;
-         font-family:var(--font-display);color:var(--text)">${money(out)}</b></span>
-       ${inc ? `<span class="muted" style="font-size:12px">Має прийти<b style="display:block;font-size:16px;
-         font-family:var(--font-display);color:var(--good)">${money(inc)}</b></span>` : ''}
-       ${(()=>{ const left = ev.filter(e=>e.sign<0 && e.date >= tISO).reduce((s,e)=>s+e.amount,0);
-          return left && left !== out ? `<span class="muted" style="font-size:12px">Ще попереду<b style="display:block;
-            font-size:16px;font-family:var(--font-display);color:var(--text)">${money(left)}</b></span>` : ''; })()}
+    `<div class="calsum">
+       <span class="calstat">Спишеться за місяць<b>${money(out)}</b></span>
+       ${inc ? `<span class="calstat">Має прийти<b class="pos">${money(inc)}</b></span>` : ''}
+       ${left && left !== out ? `<span class="calstat">Ще попереду<b>${money(left)}</b></span>` : ''}
      </div>`
     + ev.map(e=>{
       const past = e.date < tISO, today = e.date === tISO;
@@ -3146,14 +3178,12 @@ function renderCal(){
          каже, і саме заради цього люди відкривають календар. */
       const when = past ? 'минуло' : today ? 'сьогодні'
         : d === 1 ? 'завтра' : `через ${plural(d,'день','дні','днів')}`;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12.5px;
-                ${past?'opacity:.4':''}">
-        <span class="muted" style="width:46px;font-variant-numeric:tabular-nums">${dmy(e.date)}</span>
-        <span style="flex:1;min-width:0">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.text)}</span>
-          <span class="muted" style="font-size:11px;display:block;color:var(--${CAL_COL[e.kind]})">
-            ${CAL_KIND[e.kind]} · ${when}</span></span>
-        <span style="font-variant-numeric:tabular-nums;white-space:nowrap;${e.sign>0?'color:var(--good)':''}">${
+      return `<div class="calrow${past?' past':''}">
+        <span class="d">${dmy(e.date)}</span>
+        <span class="t">
+          <span class="nm">${esc(e.text)}</span>
+          <span class="k ${e.kind}">${CAL_KIND[e.kind]} · ${when}</span></span>
+        <span class="a${e.sign>0?' pos':''}">${
           e.amount ? (e.sign>0?'+':'−') + money(e.amount) : ''}</span>
       </div>`;
     }).join('');
@@ -4818,10 +4848,9 @@ const dmy = iso => { const [y,m,d]=iso.split('-'); return `${d}.${m}`; };
 function subRow(s, kind){
   const live = s.live !== undefined ? s.live : isLive(s);
   const d = daysTo(s.next), soon = live && d>=0 && d<=SUB_LEAD;
-  const col = !live ? 'var(--text-mute)' : soon ? 'var(--warn)' : 'var(--text-dim)';
   const ids = subTxIds(s);
   const note = (s.note||'').trim();
-  return `<div class="subrow${soon?' soon':''}">
+  return `<div class="row subrow${soon?' soon':''}${live?'':' off'}">
     <div class="submain">
       <span class="nm">${esc(s.merchant)}</span>
       <span class="submeta">${perOf(s.period).n} · ${esc(s.cat||'—')}${s.why?' · '+esc(s.why):''}${
@@ -4829,20 +4858,20 @@ function subRow(s, kind){
       ${kind==='mine' ? `<span class="subnote${note?'':' empty'}" data-subnote="${esc(s.key)}"
           data-tip="Натисніть, щоб змінити"><i>✎</i>${note ? esc(note) : 'додати примітку'}</span>` : ''}
     </div>
-    <div class="subwhen" style="color:${col}">
+    <div class="subwhen">
       ${live ? `${dmy(s.next)} <em>${dueLabel(d)}</em>` : '<em>зупинена</em>'}
     </div>
     <span class="amt">${money(s.amount)}${s.ccy && s.ccy!=='UAH' && s.famt
-      ? `<span class="muted" style="font-size:11px;display:block;font-weight:400">${fmt2(s.famt)} ${sgn(s.ccy)}</span>` : ''}</span>
+      ? `<span class="muted subfx">${fmt2(s.famt)} ${sgn(s.ccy)}</span>` : ''}</span>
     <span class="cnt">${money(perMonth(s))}/міс</span>
-    <span class="subacts">
+    <span class="subacts cluster">
       ${kind==='mine'
-        ? `<button class="btn" data-subopen="${esc(s.key)}">Операції${ids.length?` · ${ids.length}`:''}</button>
-           <button class="btn" data-subedit="${esc(s.key)}" data-tip="Змінити суму, період, дату">✎</button>
-           <button class="btn" data-subdel="${esc(s.key)}" data-tip="Прибрати зі списку">✕</button>`
+        ? `<button class="btn sm" data-subopen="${esc(s.key)}">Операції${ids.length?` · ${ids.length}`:''}</button>
+           <button class="btn sm ghost" data-subedit="${esc(s.key)}" data-tip="Змінити суму, період, дату" aria-label="Змінити підписку">✎</button>
+           <button class="btn sm ghost" data-subdel="${esc(s.key)}" data-tip="Прибрати зі списку" aria-label="Прибрати зі списку">✕</button>`
         : `<span class="tag">${esc(s.conf)}</span>
-           <button class="btn pri" data-subyes="${esc(s.key)}">Це підписка</button>
-           <button class="btn" data-subno="${esc(s.key)}">Ні</button>`}
+           <button class="btn sm" data-subyes="${esc(s.key)}">Це підписка</button>
+           <button class="btn sm ghost" data-subno="${esc(s.key)}">Ні</button>`}
     </span>
   </div>`;
 }
@@ -9391,7 +9420,7 @@ function mRenderFound(){
     <div class="mfhead">
       <b>Знайдено в операціях</b>
       <span class="muted">${why}${a.other ? ` · ще ${a.other} з іншою сумою` : ''}</span>
-      <button class="btn" id="mAll">${MPICK.size===all ? 'Зняти всі' : 'Позначити всі'}</button>
+      <button class="btn sm" id="mAll">${MPICK.size===all ? 'Зняти всі' : 'Позначити всі'}</button>
     </div>
     <div class="mflist">${a.list.slice().reverse().map(t=>
       `<div class="mtx${MPICK.has(t.id)?' on':' off'}" data-mt="${esc(t.id)}">
@@ -9400,7 +9429,7 @@ function mRenderFound(){
          <span class="c">${esc(catOf(t))}${txNote(t.id)?' · '+esc(txNote(t.id)):''}</span>
          <span class="a">${amt2(t.amount)}</span>
        </div>`).join('')}</div>
-    <p class="muted" style="margin:9px 0 0;font-size:11.5px">
+    <p class="muted mfnote">
       Позначені операції привʼяжуться до підписки — далі їх видно кнопкою «Операції»,
       а в картці кожної буде вказано підписку.</p>`;
   host.querySelectorAll('[data-mt]').forEach(n=>n.onclick = ()=>{
