@@ -24,11 +24,17 @@
   color-scheme:dark;
   --bg:#0A0A0B; --surface:#151517; --surface-2:#1E1E21; --surface-3:#28282C;
   --border:rgba(255,255,255,.08); --border-soft:rgba(255,255,255,.05);
-  --text:#F5F5F7; --text-dim:#A1A1A6; --text-mute:#8E8E93;
+  /* --text-mute #8E8E93 давав на --surface-3 (тло підказок) рівно 4,50:1 —
+     межа, яку перекидає округлення; #939398 тримає 4,8. */
+  --text:#F5F5F7; --text-dim:#A1A1A6; --text-mute:#939398;
   --accent:#C9F24B; --accent-hover:#D6F76B; --accent-soft:rgba(201,242,75,.14);
   --accent-contrast:#16200A; --accent-ink:#C9F24B;
   --accent-line:color-mix(in srgb,var(--accent) 45%,var(--border));
   --success:#34D399; --warn:#FBBF3C; --danger:#FF6B6B; --info:#7AA2FF;
+  /* Заливка з текстом на ній (бейдж-лічильник панелі, бейдж скріншоту).
+     Окремо від --warn: світлий --warn — колір ДРІБНОГО тексту на білому, він
+     темний, і темний текст на ньому вже не читається (4,36 → 3,3). */
+  --warn-fill:var(--warn); --on-warn:#151515;
   --radius:18px; --radius-sm:12px; --radius-lg:24px; --radius-pill:999px; --ctl:40px; --ctl-sm:32px;
   --shadow:none; --shadow-pop:0 12px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
   --ease:cubic-bezier(.2,.8,.2,1); --dur:180ms;
@@ -42,10 +48,25 @@
   /* аліаси старих імен: знімаються екран за екраном, остаточно — Задача 14 */
   --surface-1:var(--surface); --plane:var(--bg);
   --ink:var(--text); --ink-2:var(--text-dim); --muted:var(--text-mute);
-  --grid:rgba(255,255,255,.10); --axis:rgba(255,255,255,.42);
   --good:var(--success); --crit:var(--danger); --serious:#EC835A;
-  --bar-exp:#7AA2FF; --bar-inc:#A9DE2C;
-  /* серії графіків: перевіряються в Задачі 13 */
+
+  /* ── графіки ── Значення не «на око»: валідатор скіла dataviz
+     (validate_palette.js — смуга світлоти OKLCH, мінімальна хрома,
+     розрізнюваність сусідніх серій для протанопії/дейтеранопії ≥ 8 ΔE,
+     звичайний зір ≥ 15 ΔE, ≥ 3:1 до --surface) проходить для кожної теми
+     окремо; вивід — у звіті Задачі 13. Темна тема — власні сходинки тих
+     самих відтінків, а не автоматичне віддзеркалення світлої.
+     Сітка — ледь помітна волосінь, вісь (нульова лінія) трохи сильніша:
+     обидві мусять поступатися стовпчикам, а не змагатися з ними
+     (.42 давала вісь яскравішу за самі дані). */
+  --grid:rgba(255,255,255,.08); --axis:rgba(255,255,255,.20);
+  /* Витрати/надходження: попередні #7AA2FF/#A9DE2C були світлішими за
+     смугу темної теми (L 0,72/0,83 > 0,67) і світились на темному; до того
+     ж #7AA2FF збігався з --info — статусний колір у ролі серії. */
+  --bar-exp:#5a8ff3; --bar-inc:#7fa51b;
+  /* Категоріальні серії: порядок слотів — механізм розрізнюваності
+     (сусідні пари перевірені), тож порядок не тасувати і нових відтінків
+     для 9-ї серії не генерувати. */
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
   --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
 }
@@ -53,15 +74,23 @@
   color-scheme:light;
   --bg:#F2F2F7; --surface:#FFFFFF; --surface-2:#F5F5F7; --surface-3:#E8E8ED;
   --border:rgba(0,0,0,.08); --border-soft:rgba(0,0,0,.05);
-  --text:#1D1D1F; --text-dim:#48484A; --text-mute:#6E6E73;
+  /* --text-mute: #6E6E73 мав на --surface-3 лише 4,15:1. */
+  --text:#1D1D1F; --text-dim:#48484A; --text-mute:#67676C;
   --accent:#B7E03A; --accent-hover:#A8D12C; --accent-soft:rgba(183,224,58,.22);
   --accent-contrast:#16200A; --accent-ink:#3F5E00;
-  --success:#12855A; --warn:#A9700A; --danger:#C33B3B; --info:#2E5FBF;
+  /* Статусні кольори — це й дрібний текст (11–12,5 px) на всіх чотирьох
+     поверхнях: #A9700A мав 4,19 на білому, #12855A — 3,80 на --surface-3,
+     #C33B3B — 4,29 там само. Нові ≥ 4,6 скрізь (tests/contrast.mjs). */
+  --success:#0A744C; --warn:#915C00; --danger:#B83232; --info:#2E5FBF;
+  --warn-fill:#E0A019;
   --shadow-pop:0 12px 40px rgba(0,0,0,.14); --scrim:rgba(0,0,0,.28);
-  --grid:rgba(0,0,0,.10); --axis:rgba(0,0,0,.42);
+  --grid:rgba(0,0,0,.08); --axis:rgba(0,0,0,.24);
   --bar-exp:#3B6FD4; --bar-inc:#6F9412;
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
-  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+  /* s3, s4, s5 — темніші сходинки тих самих відтінків (#1baf7a, #eda100,
+     #e87ba4 мали 2,2–2,8:1 на білій картці й губились); з ними валідатор
+     проходить і світлу тему без «послаблення на підписи». */
+  --s1:#2a78d6; --s2:#eb6834; --s3:#199e70; --s4:#c98500;
+  --s5:#d55181; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -298,13 +327,21 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 /* ── графіки ────────────────────────────────────────────── */
 svg{display:block;width:100%;overflow:visible}
-.gridline{stroke:var(--border-soft);stroke-width:1}
-.axisline{stroke:var(--border);stroke-width:1}
-.tick{fill:var(--text-mute);font-size:10.5px;font-family:var(--font-display);font-variant-numeric:tabular-nums}
+/* Сітка й вісь — власні токени графіків (а не --border*, що описують межі
+   карток): їхню силу підібрано відносно стовпчиків, див. блок токенів. */
+.gridline{stroke:var(--grid);stroke-width:1}
+.axisline{stroke:var(--axis);stroke-width:1}
+.tick{fill:var(--text-mute);font-size:var(--fs-xs);font-family:var(--font-display);font-variant-numeric:tabular-nums}
 .dlabel{fill:var(--text-dim);font-size:11px;font-family:var(--font-display);
   font-weight:600;font-variant-numeric:tabular-nums}
 .narrow .tick{font-size:19px} .narrow .dlabel{font-size:19px}
 .bar{transition:opacity .12s} .bar:hover{opacity:.75}
+/* Точки ліній тренду — лише при наведенні на графік. Шість серій ×
+   N місяців постійних кружечків перетворювали лінії на намисто, і саме
+   намисто, а не хід лінії, чіплялося оку. Кружечок лишається в DOM
+   прозорим: він і є ціллю для підказки. */
+.tdot{opacity:0;transition:opacity var(--dur) var(--ease)}
+svg:hover .tdot{opacity:1}
 /* Смуга-ціль для кліку по проміжку: підсвічується вся колонка, тож
    видно, що саме зараз вибереться. */
 .barhit{cursor:pointer}
@@ -349,8 +386,9 @@ svg{display:block;width:100%;overflow:visible}
 #invCryNav svg{display:block;width:100%;height:110px}
 .invnavlbl{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-mute);
   font-variant-numeric:tabular-nums;margin-top:4px}
-/* Плитки «динаміки» й фактів акції — прозорі з межею, а не на --surface-2:
-   на ньому світлий --success має лише 4,26:1, а значення тут кольорові. */
+/* Плитки «динаміки» й фактів акції — прозорі з межею, а не на --surface-2.
+   Спершу — бо світлий --success мав там лише 4,26:1 (тепер ≥ 4,5 скрізь);
+   лишились прозорими, бо так вони однакові з .qstats і не важчають за графік. */
 .invdyn{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .invdyn .d{flex:1;min-width:96px;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border)}
 .invdyn .d .t{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute)}
@@ -359,7 +397,7 @@ svg{display:block;width:100%;overflow:visible}
 /* дивіденди по місяцях: той самий словник, що стовпчики Огляду */
 .dvrow{position:relative;display:flex;align-items:flex-end;gap:5px;height:86px;margin:4px 0 2px}
 .dvrow .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
-.dvrow .c i{display:block;width:100%;max-width:34px;border-radius:5px 5px 2px 2px;background:var(--success);opacity:.85}
+.dvrow .c i{display:block;width:100%;max-width:34px;border-radius:4px 4px 0 0;background:var(--success)}
 .dvrow .c i.z{opacity:.25}
 .dvrow .c em{font-style:normal;font-size:9.5px;color:var(--text-mute);white-space:nowrap}
 .dvrow .c b{font-size:9px;color:var(--text-dim);font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
@@ -377,14 +415,16 @@ svg{display:block;width:100%;overflow:visible}
    стовпчики замість плавати над ними */
 .qline{position:absolute;top:0;bottom:0;width:1px;background:var(--text-mute);
   opacity:0;pointer-events:none}
-.qlab{position:absolute;top:3px;padding:3px 9px;border-radius:9px;font-size:11px;
-  background:var(--surface-3);color:var(--text);white-space:nowrap;opacity:0;pointer-events:none;
-  font-variant-numeric:tabular-nums;box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:5}
+/* Підпис курсора — та сама спливна поверхня, що й #tip (--surface-3, межа,
+   --radius-sm, --shadow-pop) в обох темах. Раніше в темній він мав власну
+   сиру тінь, а в світлій лягав на --surface: світлий --success на
+   --surface-3 давав лише 3,8:1. Тепер статусні кольори тримають ≥ 4,5 на
+   --surface-3 (tests/contrast.mjs), і окреме світле перекриття не потрібне. */
+.qlab{position:absolute;top:3px;padding:3px 9px;border-radius:var(--radius-sm);font-size:11px;
+  background:var(--surface-3);color:var(--text);border:1px solid var(--border);box-shadow:var(--shadow-pop);
+  white-space:nowrap;opacity:0;pointer-events:none;font-variant-numeric:tabular-nums;z-index:5}
 .qlab .pos{color:var(--success)} .qlab .neg{color:var(--danger)}
 .qlab .qnote{font-size:10.5px}
-/* У світлій темі --success на --surface-3 дає лише 3,8:1 — підпис курсора
-   там лягає на саму поверхню картки з межею. */
-:root[data-theme="light"] .qlab{background:var(--surface);border:1px solid var(--border)}
 /* ── картка акції: періоди, факти, новини ── */
 .qstats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
 .qstats .d{padding:6px 11px;border-radius:11px;border:1px solid var(--border);font-size:11px;color:var(--text-mute)}
@@ -716,9 +756,12 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
 /* Колір категорії — клас-слот cN (= серія --sN), а не інлайновий background:
    слот рахує JS, а заливка, колір літери й контраст живуть тут. Літера на
    заливці має ≥4,5:1 в обох темах: де темний --accent-contrast не дотягує,
-   текст білий (c6 завжди; c1 і c7 у світлій), а чотири «межові» заливки
-   (c2, c5 темної; c1, c8 світлої) на 8 % зсунуто до білого чи чорного,
-   бо жоден із двох кольорів тексту на сирій серії не давав 4,5. */
+   текст білий (c6 завжди; c1 і c7 у світлій), а «межові» заливки, на яких
+   жоден із двох кольорів тексту не давав 4,5 на сирій серії, на 8 %
+   зсунуто до білого чи чорного: c2 і c5 в обох темах (світла s5 після
+   Задачі 13 — та сама #d55181, що й темна), c1 і c8 у світлій.
+   Перераховано під палітру Задачі 13; усі 16 пар (8 слотів × 2 теми)
+   сторожить tests/contrast.mjs — зміна --s1..--s8 без цих правил упаде там. */
 .dot.c1,.badge-ico.c1{background:var(--s1)}
 .dot.c2,.badge-ico.c2{background:var(--s2)}
 .dot.c3,.badge-ico.c3{background:var(--s3)}
@@ -741,9 +784,10 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
 .tag{display:inline-block;vertical-align:middle;max-width:100%;padding:3px 10px;border-radius:var(--radius-pill);
   font-size:var(--fs-xs);font-weight:600;color:var(--text-dim);background:var(--surface-2);
   border:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Зміна показника — текстовий колір на прозорому чипі: на заливці
-   --surface-2 світлий --success не дотягує до 4,5:1, а на самій картці
-   дотягує. Колір лише в тексті, фон картки не тонується. */
+/* Зміна показника — текстовий колір на прозорому чипі. Спершу прозорий,
+   бо на --surface-2 світлий --success не дотягував до 4,5:1 (з Задачі 13
+   дотягує скрізь); лишився прозорим, щоб кольоровий текст не стояв на
+   сірій пігулці. Колір лише в тексті, фон картки не тонується. */
 .tag.up,.tag.down,.tag.pos,.tag.neg{background:transparent}
 .tag.up,.tag.neg{color:var(--danger)}
 .tag.down,.tag.pos{color:var(--success)}
@@ -849,7 +893,7 @@ nav.tabs button[data-tab="settings"]{margin-top:auto}
 .tab-ind.ready,.chip-ind.ready{opacity:1}
 nav.tabs button[data-badge]:not([data-badge=""])::after{
   content:attr(data-badge);position:absolute;right:10px;top:50%;transform:translateY(-50%);
-  min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#151515;
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--warn-fill);color:var(--on-warn);
   font-size:var(--fs-xs);font-weight:700;line-height:18px;text-align:center}
 .side-foot{display:flex;flex-wrap:wrap;gap:4px;padding:0 2px}
 #navToggle .ic{transition:transform var(--dur) var(--ease)}
@@ -909,7 +953,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
    беруть ту саму --shadow-pop і живуть поруч. */
 .scrnbadge{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;
   padding:5px 13px;border-radius:var(--radius-pill);font-size:var(--fs-xs);font-weight:600;
-  pointer-events:none;background:var(--warn);color:#101114;box-shadow:var(--shadow-pop)}
+  pointer-events:none;background:var(--warn-fill);color:var(--on-warn);box-shadow:var(--shadow-pop)}
 /* Тост — та сама спливна поверхня, що й підказки (#tip/#kbtip): раніше
    він був чорним прямокутником із білим текстом і в світлій темі
    виглядав чужим. Показ — класом .on, не інлайновою прозорістю. */
@@ -997,7 +1041,9 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 #balList .meter+.ovnote{margin:-2px 0 4px;font-size:var(--fs-xs)}
 /* Стовпчики «Рік у цифрах»: висоту задає JS (% від найдорожчого місяця). */
 .ybars{display:flex;gap:3px;align-items:flex-end;height:36px;margin:8px 0 2px}
-.ybars>div{flex:1;border-radius:2px 2px 0 0;background:var(--s1);opacity:.9}
+/* Без напівпрозорості: розмиті стовпчики читались вицвілими; «поточний»
+   рік і далі блідий (.cur), бо неповний. Верх 4 px — як у всіх стовпчиках. */
+.ybars>div{flex:1;border-radius:4px 4px 0 0;background:var(--s1)}
 .ybars>div.best{background:var(--warn)}
 .ybars>div.cur{opacity:.45}
 /* Поїздки: між рядками тонка межа, перед першим її немає. */
@@ -3006,7 +3052,7 @@ function chartTrend(host, legendHost, rows){
     svg.appendChild(mk('path',{d:s.vals.map((v,i)=>(i?'L':'M')+X(i)+' '+Y(v)).join(' '),
       fill:'none',stroke:col,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'}));
     s.vals.forEach((v,i)=>{
-      svg.appendChild(mk('circle',{cx:X(i),cy:Y(v),r:4.5,fill:col,stroke:'var(--surface-1)','stroke-width':2,
+      svg.appendChild(mk('circle',{cx:X(i),cy:Y(v),r:5,fill:col,stroke:'var(--surface)','stroke-width':2,class:'tdot',
         onhover:`<b>${esc(s.name)}</b><span class="v">${monthLabel(months[i])}: ${money(v)}</span>`}));
     });
     const last = s.vals.length-1, ly = Y(s.vals[last]);
@@ -3649,7 +3695,7 @@ function renderNw(){
     const up = vals[vals.length-1] >= vals[0];
     chart = `<div id="nwChart">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        <path d="${d}" fill="none" stroke="var(--${up?'success':'danger'})" stroke-width="1.6"
+        <path d="${d}" fill="none" stroke="var(--${up?'success':'danger'})" stroke-width="2"
           vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
       </svg></div>`;
     /* За скільки виріс/впав капітал від першого знімка — саме те, чого
@@ -7488,7 +7534,7 @@ function renderInv(){
           <div data-qhov="${esc(p.symbol)}">
             <svg class="invqsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
               <polygon points="0,${H} ${pts2} ${W},${H}" fill="var(--${up?'success':'danger'})" opacity=".10"/>
-              <polyline points="${pts2}" fill="none" stroke="var(--${up?'success':'danger'})" stroke-width="1.6"
+              <polyline points="${pts2}" fill="none" stroke="var(--${up?'success':'danger'})" stroke-width="2"
                 vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
               ${avgLine}
               ${tmarks}
@@ -8572,7 +8618,7 @@ function renderInv(){
       <div data-horizon><svg class="invhsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         ${fiLine}
         <polygon points="0,${H} ${pts} ${W},${H}" fill="var(--s1)" opacity=".10"/>
-        <polyline points="${pts}" fill="none" stroke="var(--s1)" stroke-width="1.6"
+        <polyline points="${pts}" fill="none" stroke="var(--s1)" stroke-width="2"
           vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
       </svg></div>
       <div class="invnavlbl"><span>${nowY}</span><span></span><span>${nowY+yrsH}</span></div>
