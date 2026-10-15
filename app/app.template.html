@@ -83,11 +83,13 @@ body{
   color:var(--text);
   font:15px/1.5 var(--font-ui);
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
-  padding:calc(env(safe-area-inset-top) + var(--fake-safe-top,0px)) env(safe-area-inset-right)
-          calc(env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 96px) env(safe-area-inset-left);
+  /* Верхній і нижній відступи безпечної зони тепер у .wrap (блок «Контентна
+     область»): інакше вони додавались би двічі, а нижній відступ під панеллю
+     (колись фіксовані 96 px) подвоював би місце під нижніми табами. Бокові
+     лишаються тут — вирізи в ландшафті стосуються і панелі, і контенту. */
+  padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   overscroll-behavior-y:contain;
 }
-.wrap{max-width:1180px;margin:0 auto;padding:14px}
 h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:700;letter-spacing:-.01em}
 .num,.tw,.dl dd,td.num{font-variant-numeric:tabular-nums}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
@@ -329,7 +331,7 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
 
 /* ── періоди ────────────────────────────────────────────── */
 #periodWrap[hidden]{display:none}
-.periodbar{position:relative;display:flex;gap:7px;overflow-x:auto;padding:2px 0 6px;margin-bottom:12px;scrollbar-width:none}
+/* Геометрія сегмента — у блоці «Контентна область і період» унизу. */
 /* Заїзд розділу пробували — і прибрали. Рух на 22 px тягнув за собою
    ВЕСЬ текст вкладки, а скляні панелі за ним не встигали: полотно
    прив'язане до документа, тож на кожному перемиканні панелі спершу
@@ -684,11 +686,6 @@ section[hidden]{display:none}
   border-radius:13px;font-size:12.5px;font-weight:600;color:var(--text-dim)}
 .btn:hover{color:var(--text)}
 .btn.pri{font-weight:700}
-
-@media(min-width:760px){
-  .wrap{padding:24px}
-  body{padding-bottom:0}
-}
 
 
 /* ── підписки ── */
@@ -1171,8 +1168,6 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   right:6px;top:4px;transform:none;min-width:14px;height:14px;line-height:14px;padding:0 3px;font-size:10px}
 .shell.collapsed .side-foot{flex-direction:column;align-items:center}
 .shell.collapsed .brand{justify-content:center;padding:0}
-/* У рядка періодів є padding-top 2px: без цього зсуву підсвітка чипа вища за нього на 2 px. */
-.periodbar .chip-ind{top:2px}
 /* ══════════════════ КАРКАС: нижні таби (<760 px) ══════════════════
    Дві розкладки діють за ОДНИМ медіа-запитом: ширина 759/760 — єдина
    межа, тож двох навігацій одночасно не буває. Категорії й Кошториси
@@ -1204,6 +1199,50 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     right:calc(50% - 22px);top:2px;transform:none;min-width:14px;height:14px;line-height:14px;
     padding:0 3px;font-size:10px}
 }
+/* ══════════════════ Контентна область і період ══════════════════ */
+body{overscroll-behavior-y:contain}
+/* width:100% потрібна, бо в гріді .shell auto-поля (margin:0 auto) вимикають
+   розтягування: колонка стискалась би до ширини вмісту, і на кожній вкладці
+   мала б іншу ширину. */
+.wrap{width:100%;max-width:1040px;margin:0 auto;padding:28px 32px 48px;min-width:0;
+  display:flex;flex-direction:column;gap:18px}
+/* min-width:auto у flex-колонці розпирав би секцію до мінімальної ширини
+   найширшого вмісту (на «Інвестиціях» 390 px — до 452 px), тоді як у
+   блоковій розкладці вона просто мала ширину контейнера. */
+.wrap>*{min-width:0}
+/* Сума в плитці завжди в один рядок: перенос «₴» окремо від числа читається як помилка.
+   Щоб не вилазила за картку, кегль береться від ширини самої плитки (cqw):
+   у вікні 900 px плиток чотири в ряд, на 390 px — дві, і фіксований розмір
+   у обох випадках переповнював би внутрішню ширину ~135 px. */
+.kpi{container-type:inline-size}
+.kpi .val{white-space:nowrap;font-size:clamp(18px,13.5cqw,28px)}
+/* Плаваючі підписи: положення тут, а не інлайном, щоб медіа-запит міг їх підняти. */
+.scrnbadge{bottom:14px}
+.apptoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+  background:rgba(20,22,25,.94);color:#fff;padding:9px 16px;border-radius:10px;
+  font-size:12.5px;z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;
+  max-width:80vw;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+@media (max-width:759px){
+  /* Верх — безпечна зона (вирізи / рамка phone-inner), низ — нижня панель:
+     без цього останні картки ховаються під фіксованими табами. */
+  .wrap{padding:calc(env(safe-area-inset-top) + var(--fake-safe-top,0px) + 16px) 16px
+    calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 24px);gap:14px}
+  /* Картки на 16 px: після зняття «скла» зайві 22 px з боків віддавали сумі
+     в плитці KPI замало місця, і знак ₴ падав на другий рядок. */
+  .card,.det{padding:16px}
+  .kpi .val{font-size:clamp(15px,12cqw,var(--fs-xl))}
+  /* Бейдж режиму скріншоту й тост — над нижньою панеллю. */
+  .scrnbadge,.apptoast{bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 14px)}
+}
+/* Період — сегмент у стилі iOS: пігулку під активним чипом малює рухомий
+   індикатор (#periodInd). top = padding сегмента: індикатор позиціонується
+   від padding-краю, тож 3 px рівно вирівнюють його з чипом. */
+.periodbar{position:relative;display:flex;gap:2px;width:max-content;max-width:100%;overflow-x:auto;
+  padding:3px;margin:0;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-pill);scrollbar-width:none}
+.periodbar .chip{position:relative;z-index:1;height:32px}
+.periodbar .chip[aria-pressed="true"]{background:none}
+.periodbar .chip-ind{top:3px;border-radius:var(--radius-pill)}
 </style>
 </head>
 <body>
@@ -1224,7 +1263,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10.5 18.5h3"/></symbol>
   </defs>
 </svg>
-<div id="scrnBadge" hidden style="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;
+<div id="scrnBadge" class="scrnbadge" hidden style="position:fixed;left:50%;transform:translateX(-50%);z-index:9999;
   padding:5px 13px;border-radius:999px;font-size:11.5px;font-weight:600;pointer-events:none;
   background:var(--warn);color:#101114;box-shadow:0 4px 18px rgba(0,0,0,.35)">режим скріншоту — суми сховані</div>
 <div id="lockScreen" hidden style="position:fixed;inset:0;z-index:99999;background:var(--bg,#101114);
@@ -6080,11 +6119,9 @@ function pjToast(m){ const n=el('pjMsg'); if(!n) return;
 function appToast(m){
   let n = el('apptoast');
   if(!n){
-    n = document.createElement('div'); n.id = 'apptoast';
-    n.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);'
-      + 'background:rgba(20,22,25,.94);color:#fff;padding:9px 16px;border-radius:10px;'
-      + 'font-size:12.5px;z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;'
-      + 'max-width:80vw;box-shadow:0 6px 24px rgba(0,0,0,.4)';
+    // Вигляд і положення — у CSS (.apptoast): на вузьких екранах тост має
+    // стояти над нижньою панеллю, а інлайновий bottom не перекрити медіа-запитом.
+    n = document.createElement('div'); n.id = 'apptoast'; n.className = 'apptoast';
     document.body.appendChild(n);
   }
   n.textContent = m; n.style.opacity = 1;
@@ -8914,8 +8951,11 @@ function slideInd(host, ind, act, both){
   ind.style.height = b.height + 'px';
   // Бічна панель рухає індикатор по обох осях, рядок періодів — лише по X
   // (його `top` задає CSS): інакше висота рядка додавалась би двічі.
-  const y = both ? (b.top - h.top + host.scrollTop) : 0;
-  ind.style.transform = `translate(${b.left - h.left + host.scrollLeft}px,${y}px)`;
+  // clientLeft/clientTop — товщина межі хоста: абсолютний індикатор
+  // позиціонується від padding-краю, а не від border-краю, тож у сегмента
+  // періодів (межа 1 px) без цього пігулка їхала б на піксель лівіше чипа.
+  const y = both ? (b.top - h.top - host.clientTop + host.scrollTop) : 0;
+  ind.style.transform = `translate(${b.left - h.left - host.clientLeft + host.scrollLeft}px,${y}px)`;
   requestAnimationFrame(()=>ind.classList.add('ready'));
 }
 function moveTabIndicator(){
