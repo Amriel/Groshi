@@ -23,8 +23,15 @@ const layout = page => page.evaluate(() => {
   const btns = [...document.querySelectorAll('#tabs button')].filter(vis).map(b => b.dataset.tab);
   const side = document.getElementById('side').getBoundingClientRect();
   const nav = document.getElementById('tabs').getBoundingClientRect();
+  const shown = [...document.querySelectorAll('#tabs button')].filter(vis);
   return {btns, sideW: Math.round(side.width), navBottom: Math.round(nav.bottom), vh: innerHeight,
+    navH: Math.round(nav.height),
     labels: [...document.querySelectorAll('#tabs .nl')].some(vis),
+    // підпис кожної видимої кнопки: видимий, непорожній і не обрізаний по висоті
+    allLabels: shown.every(b => { const n = b.querySelector('.nl');
+      return vis(n) && n.textContent.trim() !== '' && n.scrollHeight <= n.clientHeight + 1 &&
+        n.getBoundingClientRect().bottom <= b.getBoundingClientRect().bottom + 0.5; }),
+    collapsed: document.getElementById('shell').classList.contains('collapsed'),
     navFixed: getComputedStyle(document.getElementById('tabs')).position === 'fixed',
     hscroll: document.documentElement.scrollWidth > innerWidth};
 });
@@ -43,6 +50,12 @@ try {
       assert.ok(l.navFixed, `${w}px: нижня панель не fixed`);
       assert.ok(Math.abs(l.navBottom - l.vh) <= 1, `${w}px: панель не прилягає до низу`);
       assert.deepEqual(l.btns, ['overview', 'tx', 'inv', 'subs', 'settings'], `${w}px: склад нижньої панелі`);
+      // .collapsed ховає .nl і обнуляє відступи кнопок: у нижній панелі
+      // його бути не може, а підписи мусять читатися.
+      assert.ok(!l.collapsed, `${w}px: у нижніх табах #shell має клас collapsed`);
+      assert.ok(l.allLabels, `${w}px: підписи нижньої панелі сховані, порожні чи обрізані`);
+      // 56 px + безпечна зона (у Chromium на десктопі env() = 0)
+      assert.ok(Math.abs(l.navH - 56) <= 1, `${w}px: висота нижньої панелі ${l.navH}, очікувано 56`);
     } else {
       assert.ok(!l.navFixed, `${w}px: панель мусить бути в потоці`);
       assert.ok(Math.abs(l.sideW - exp.w) <= 2, `${w}px: ширина панелі ${l.sideW}, очікувано ${exp.w}`);
@@ -56,9 +69,15 @@ try {
   { const {ctx, page} = await open(1400);
     // Іконкова панель і нижні таби показують лише значок: без aria-label
     // зчитувач екрана озвучив би кнопку порожньою.
-    const noAria = await page.evaluate(() => [...document.querySelectorAll('#tabs button, .side-foot button')]
-      .filter(b => !(b.getAttribute('aria-label') || '').trim()).map(b => b.dataset.tab || b.id));
-    assert.deepEqual(noAria, [], 'кнопки навігації без aria-label: ' + noAria.join(', '));
+    const aria = await page.evaluate(() => {
+      const nav = [...document.querySelectorAll('#tabs button')], foot = [...document.querySelectorAll('.side-foot button')];
+      return {nav: nav.length, foot: foot.length,
+        missing: [...nav, ...foot].filter(b => !(b.getAttribute('aria-label') || '').trim()).map(b => b.dataset.tab || b.id)};
+    });
+    // кількість — щоб перевірка не пройшла на порожній вибірці
+    assert.equal(aria.nav, 7, `кнопок навігації ${aria.nav}, очікувано 7`);
+    assert.equal(aria.foot, 4, `кнопок підвалу ${aria.foot}, очікувано 4`);
+    assert.deepEqual(aria.missing, [], 'кнопки навігації без aria-label: ' + aria.missing.join(', '));
     for (const tab of ['overview', 'tx', 'settings']) {
       await page.evaluate(t => go(t), tab); await page.waitForTimeout(500);
       const d = await page.evaluate(() => {
@@ -68,9 +87,12 @@ try {
       });
       assert.ok(d.dy <= 1 && d.dh <= 1, `індикатор поза активним пунктом (${tab}): ${JSON.stringify(d)}`);
     }
-    // клавіші 1–7
-    await page.keyboard.press('3'); await page.waitForTimeout(200);
-    assert.equal(await page.evaluate(() => S.tab), 'tx', 'клавіша 3 → Операції');
+    // клавіші 1–7 у порядку TABKEYS
+    const keys = ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'settings'];
+    for (let i = 0; i < keys.length; i++) {
+      await page.keyboard.press(String(i + 1)); await page.waitForTimeout(150);
+      assert.equal(await page.evaluate(() => S.tab), keys[i], `клавіша ${i + 1} → ${keys[i]}`);
+    }
     // звуження зберігається після перезавантаження
     await page.click('#navToggle'); await page.waitForTimeout(300);
     assert.ok(await page.evaluate(() => shellEl.classList.contains('collapsed')), 'панель не звузилась');
@@ -81,13 +103,21 @@ try {
   // бейдж «Підписки» видно в усіх розкладках
   for (const w of [1400, 900, 390]) {
     const {ctx, page} = await open(w);
-    await page.evaluate(() => { el('tabs').querySelector('[data-tab="subs"]').dataset.badge = '3'; });
+    // той самий шлях, яким бейдж ставить renderSubs()
+    await page.evaluate(() => setSubsBadge(3));
     const shown = await page.evaluate(() => {
       const b = document.querySelector('#tabs [data-tab="subs"]');
       const c = getComputedStyle(b, '::after');
-      return {content: c.content, display: c.display};
+      return {content: c.content, display: c.display, label: b.getAttribute('aria-label')};
     });
     assert.ok(/3/.test(shown.content) && shown.display !== 'none', `${w}px: бейдж не видно (${JSON.stringify(shown)})`);
+    // aria-label перекриває ::after, тож кількість мусить бути в мітці
+    assert.equal(shown.label, 'Підписки, 3 до сплати', `${w}px: мітка «Підписок» без кількості`);
+    if (w === 390) {
+      await page.evaluate(() => setSubsBadge(0));
+      assert.equal(await page.evaluate(() => document.querySelector('#tabs [data-tab="subs"]').getAttribute('aria-label')),
+        'Підписки', 'мітка не повернулась до «Підписки» без бейджа');
+    }
     await ctx.close();
   }
 
@@ -96,7 +126,9 @@ try {
     await page.click('#tabs [data-tab="settings"]'); await page.waitForTimeout(300);
     const rows = await page.evaluate(() => [...document.querySelectorAll('#modal .pickrow')].map(r => r.dataset.v));
     assert.deepEqual(rows, ['cats', 'budget', 'settings', 'theme', 'scrn'], 'склад меню «Ще»');
-    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    await page.keyboard.press('Escape');
+    // модалка ховається з затримкою 220 мс після анімації — чекаємо стан, а не час
+    await page.waitForSelector('#modal', {state: 'hidden', timeout: 2000}).catch(() => {});
     assert.ok(await page.evaluate(() => document.getElementById('modal').hidden), 'Esc не закрив меню «Ще»');
     await page.click('#tabs [data-tab="settings"]'); await page.waitForTimeout(300);
     await page.click('#modal .pickrow[data-v="cats"]'); await page.waitForTimeout(400);

@@ -1182,13 +1182,19 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .shell{display:block}
   .side{position:static;height:auto;padding:0;border:0;background:none;overflow:visible}
   .side .brand,.side .side-foot{display:none}
+  /* Висота задана точно (height, а не min-height): з min-height вміст і
+     відступи розпирали панель до 61 px замість 56 + безпечна зона, і
+     Задача 5 не мала б надійного числа для нижнього відступу контенту.
+     Бюджет: 56 − 1 межа − 2×4 відступ = 47; у кнопці 2×3 + іконка 20 +
+     проміжок 3 + рядок підпису 14 = 40 — підпис не обрізається. */
   nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;flex-direction:row;gap:0;
-    padding:6px 4px calc(env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 6px);
-    min-height:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px));
+    align-items:stretch;box-sizing:border-box;
+    padding:4px 4px calc(env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 4px);
+    height:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px));
     background:var(--surface);border-top:1px solid var(--border)}
   nav.tabs button{flex:1;min-width:0;flex-direction:column;justify-content:center;gap:3px;
-    height:auto;padding:4px 2px;font-size:var(--fs-xs);font-weight:600}
-  nav.tabs button .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+    height:auto;padding:3px 2px;font-size:var(--fs-xs);line-height:14px;font-weight:600}
+  nav.tabs button .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;line-height:14px}
   nav.tabs button[data-tab="cats"],nav.tabs button[data-tab="budget"]{display:none}
   nav.tabs button[data-tab="settings"]{margin-top:0}
   nav.tabs button[aria-current="true"],nav.tabs button:hover{background:none}
@@ -4585,6 +4591,14 @@ function subRow(s, kind){
   </div>`;
 }
 
+/* Лічильник малює CSS ::after, але aria-label кнопки перекриває
+   доступне ім'я, і зчитувач чув би лише «Підписки» без кількості.
+   Тому число дублюється в мітці. */
+function setSubsBadge(n){
+  const b = el('tabs').querySelector('[data-tab="subs"]');
+  b.dataset.badge = n || '';
+  b.setAttribute('aria-label', n ? `Підписки, ${n} до сплати` : 'Підписки');
+}
 function renderSubs(){
   renderCal();
   const mine = subsMine(), live = mine.filter(s=>s.live), cand = subsCandidates();
@@ -4615,7 +4629,7 @@ function renderSubs(){
   : 'не увімкнено';
 
   const due = subsDue();
-  el('tabs').querySelector('[data-tab="subs"]').dataset.badge = due.length || '';
+  setSubsBadge(due.length);
 
   const banner = el('subSoon');
   if(banner){
