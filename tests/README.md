@@ -45,6 +45,7 @@ node tests/allcheck.mjs
 | `v1311.mjs` | маскування кошторису в режимі скріншоту, випадайка стану (частково дублює `scrn`, `pjstat`) | `npm test` |
 | `nostripe.mjs` | жодних кольорових бічних смуг (`border-left`, inset-тінь) на видимих елементах 7 вкладок у двох темах | `npm test` |
 | `overflow.mjs` | 390 px: без горизонтального скролу, великі суми у картці, «Інвестиції» у слоті нижньої панелі | `npm test` |
+| `shell-a11y.mjs` | системна тема без збереженого вибору (і стеження за зміною теми ОС, поки вибору немає), `prefers-reduced-motion`, модалка накриває панель, `Tab` під модалкою не йде в навігацію й контент, `inert` знімається на кожному шляху закриття | `npm test` |
 
 **Знімки, не проби.** `node tests/helpers/synthetic.mjs` пише штучний набір,
 `python app/build_app.py --data .test-artifacts/synthetic.json --out

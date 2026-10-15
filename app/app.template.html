@@ -161,21 +161,22 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 /* ── однодатне поле: та сама сітка, що й у виборі періоду ── */
 .sdfield{position:relative;display:block}
+/* Той самий вигляд, що й кнопка .cselb: поле дати — теж «вибір із переліку». */
 .sdb{display:flex;align-items:center;gap:8px;width:100%;height:var(--ctl);
   padding:0 11px;border:0;cursor:pointer;text-align:left;font:inherit;font-size:13px;
-  color:var(--text);border-radius:var(--radius-sm,12px);
-  background:rgba(255,255,255,.055);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.075), inset 0 2px 6px rgba(0,0,0,.14)}
-.sdb:hover{background:rgba(255,255,255,.085)}
-:root[data-theme="light"] .sdb{background:rgba(255,255,255,.62);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.09), inset 0 1px 3px rgba(20,23,25,.05)}
+  color:var(--text);border-radius:var(--radius-sm);
+  background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--border);
+  transition:background var(--dur) var(--ease)}
+.sdb:hover,.sdb:active{background:var(--surface-3)}
+.sdb:focus-visible{outline:2px solid var(--accent-line);outline-offset:2px}
+.sdb:disabled{opacity:.45;pointer-events:none}
 .sdb i{margin-left:auto;font-style:normal;font-size:11px;color:var(--text-mute)}
-#sdp{position:fixed;z-index:410;padding:12px;border-radius:20px;
-  background:rgba(26,30,33,.97);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 2px 6px rgba(0,0,0,.4),0 22px 50px -16px rgba(0,0,0,.7)}
+/* Усі спливні поверхні (списки, календарі, вікно, підказки, тост) —
+   одна формула: --surface + межа --border + --shadow-pop. Окремі світлі
+   перекриття з сирими rgba розходились із палітрою після зміни токенів. */
+#sdp{position:fixed;z-index:410;padding:12px;border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-pop)}
 #sdp[hidden]{display:none}
-:root[data-theme="light"] #sdp{background:rgba(247,248,249,.98);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.10),0 2px 6px rgba(20,23,25,.10),0 22px 50px -16px rgba(20,23,25,.30)}
 #sdp .dpm{width:262px}
 #sdp .dpfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
 
@@ -184,20 +185,22 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
    адресним рядком, який не піддається жодному стилю й не має нічого
    спільного з апкою. Тут своя картка з тим самим матеріалом, що й
    підказки. */
-.modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:20px}
+/* z-index 300 — вище за панель і нижні таби (40), але нижче за списки
+   .cselm (400) і календар #sdp (410): ті відкриваються З вікна й мусять
+   лягати поверх нього. Затемнення — простий --scrim, без розмиття. */
+.modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px}
 .modal[hidden]{display:none}
-.modalbd{position:absolute;inset:0;background:rgba(6,7,8,.55);
-  opacity:0;transition:opacity .18s ease}
+.modalbd{position:absolute;inset:0;background:var(--scrim);
+  opacity:0;transition:opacity var(--dur) var(--ease)}
 .modal.on .modalbd{opacity:1}
-.modalw{position:relative;width:min(420px,100%);padding:22px 22px 18px;border-radius:26px;
-  background:rgba(26,30,33,.96);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),
-             0 2px 8px rgba(0,0,0,.4), 0 30px 70px -20px rgba(0,0,0,.75);
+.modalw{position:relative;width:100%;max-width:min(420px,calc(100vw - 32px));padding:22px 22px 18px;
+  border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);
+  box-shadow:var(--shadow-pop);
   opacity:0;transform:translateY(10px) scale(.97);
-  transition:opacity .18s ease, transform .26s cubic-bezier(.32,.72,0,1)}
+  transition:opacity var(--dur) var(--ease), transform var(--dur) var(--ease)}
 .modal.on .modalw{opacity:1;transform:none}
-.modalw h3{margin:0;font-size:19px;font-weight:600;letter-spacing:-.01em}
-.modalw .modaltxt{margin:8px 0 0;font-size:13.5px;line-height:1.45}
+.modalw h3{margin:0;font-size:var(--fs-lg);font-weight:600;letter-spacing:-.01em}
+.modalw .modaltxt{margin:8px 0 0;font-size:var(--fs-sm);line-height:1.5}
 .modalf{display:block;margin:16px 0 0}
 .modalf > span{display:block;margin-bottom:7px;font-size:11px;font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
@@ -220,7 +223,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 :root:root input[type="checkbox"]:checked::after{content:'';position:absolute;
   left:6px;top:2px;width:5px;height:10px;
   border:solid var(--accent-contrast);border-width:0 2px 2px 0;transform:rotate(42deg)}
-:root:root input[type="checkbox"]:focus-visible{outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
+:root:root input[type="checkbox"]:focus-visible{outline:2px solid var(--accent-line);outline-offset:2px;
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+:root:root input[type="checkbox"]:active{transform:scale(.92)}
+:root:root input[type="checkbox"]:disabled{opacity:.45;pointer-events:none}
 
 #modalForm[hidden]{display:none}
 #modalForm{display:flex;flex-wrap:wrap;gap:0 10px}
@@ -238,12 +244,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .modalpick{display:flex;flex-direction:column;gap:6px;margin-top:16px;
   max-height:min(46vh,340px);overflow:auto}
 .modalpick[hidden]{display:none}
-.pickrow{display:flex;align-items:baseline;gap:12px;width:100%;padding:11px 13px;border:0;
-  border-radius:14px;cursor:pointer;text-align:left;font:inherit;color:var(--text);
-  background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px var(--border-soft)}
-.pickrow:hover{background:rgba(255,255,255,.10)}
-:root[data-theme="light"] .pickrow{background:rgba(20,23,25,.035)}
-:root[data-theme="light"] .pickrow:hover{background:rgba(20,23,25,.07)}
+.pickrow{display:flex;align-items:baseline;gap:12px;width:100%;min-height:40px;padding:11px 13px;
+  border:1px solid var(--border-soft);border-radius:var(--radius-sm);cursor:pointer;text-align:left;
+  font:inherit;color:var(--text);background:var(--surface-2);
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.pickrow:hover{background:var(--surface-3)}
+.pickrow:active{transform:scale(.99)}
+/* Мінусовий відступ: список гортається (overflow:auto) і зовнішню рамку різав би. */
+.pickrow:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
 .pickrow .n{font-weight:600;font-size:14px;flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pickrow .h{font-size:11.5px;color:var(--text-mute);flex:none}
@@ -254,7 +262,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
    готові поля й хрестик, памʼятати формат не треба взагалі. */
 .modalrows{margin-top:16px}
 .modalrows[hidden]{display:none}
-.modal.wide .modalw{width:min(520px,100%)}
+.modal.wide .modalw{max-width:min(520px,calc(100vw - 32px))}
 .mrhead{display:flex;gap:8px;margin-bottom:7px;padding-right:34px}
 .mrhead > span{font-size:11px;font-weight:600;letter-spacing:.06em;
   text-transform:uppercase;color:var(--text-mute)}
@@ -277,47 +285,39 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   cursor:pointer;font:inherit;font-size:13px;color:var(--text-dim);background:transparent;
   box-shadow:inset 0 0 0 1px var(--border-soft);
   transition:background .12s ease, color .12s ease}
-.mradd:hover{background:rgba(255,255,255,.07);color:var(--text)}
-:root[data-theme="light"] .mradd:hover{background:rgba(20,23,25,.05)}
+.mradd:hover{background:var(--surface-2);color:var(--text)}
+.mradd:active{transform:scale(.99)}
+.mradd:focus-visible{outline:2px solid var(--accent-line);outline-offset:2px}
 .mrbad{box-shadow:inset 0 0 0 1.5px var(--danger) !important}
 .mrerr{margin-top:9px;font-size:12.5px;color:var(--danger)}
 .mrerr[hidden]{display:none}
 .modalacts{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
 .modalacts .btn{min-width:104px;justify-content:center}
 /* :root:root — щоб перебити .btn.pri і .btn.pri:hover блоку «КОМПОНЕНТИ»
-   нижче по файлу: без цього кнопка небезпечної дії лишалась би лаймовою. */
-:root:root .modalw .btn.danger{background:linear-gradient(340deg,#FF7A7A,#E05252);
-  color:#2A0A0A;box-shadow:0 10px 24px -14px rgba(255,107,107,.55)}
-:root:root .modalw .btn.danger:hover{background:linear-gradient(340deg,#FF9090,#EC6666)}
-:root[data-theme="light"] .modalbd{background:rgba(20,23,25,.30)}
-:root[data-theme="light"] .modalw{background:rgba(250,251,251,.98);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.10),
-             0 2px 8px rgba(20,23,25,.10), 0 30px 70px -20px rgba(20,23,25,.35)}
+   нижче по файлу: без цього кнопка небезпечної дії лишалась би лаймовою.
+   Заливка --danger із текстом кольору тла: градієнт із сирих rgba не
+   мав світлого варіанта, а пара --danger/--bg тримає контраст в обох темах. */
+:root:root .modalw .btn.danger{background:var(--danger);border-color:transparent;color:var(--bg)}
+:root:root .modalw .btn.danger:hover{background:color-mix(in srgb,var(--danger) 88%,var(--text))}
 @media (max-width:520px){ .modalacts{flex-direction:column-reverse}
   .modalacts .btn{width:100%} }
 
 #kbtip{
   position:fixed; z-index:120; left:0; top:0; pointer-events:none;
   display:flex; align-items:center; gap:8px;
-  padding:7px 10px; border-radius:11px; white-space:nowrap;
-  font-size:12.5px; font-weight:600; color:var(--text);
-  background:rgba(255,255,255,.12);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.11),
-    inset 0 12px 20px -18px rgba(255,255,255,.7),
-    0 2px 6px rgba(0,0,0,.4), 0 12px 30px -8px rgba(0,0,0,.5);
+  padding:7px 10px; white-space:nowrap;
+  font-size:var(--fs-sm); font-weight:600;
+  /* тло, межа, радіус і тінь — спільне правило #tip,#kbtip у «КОМПОНЕНТАХ» */
   opacity:0; transform:translate3d(0,0,0) scale(.94);
-  transition:transform .34s cubic-bezier(.32,.72,0,1), opacity .16s ease;
+  transition:transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 #kbtip{visibility:hidden}
 #kbtip.on{opacity:1;visibility:visible}
 #kbtip kbd{
   font-family:var(--font-ui); font-size:10.5px; font-weight:700; line-height:1;
-  min-width:18px; padding:4px 5px; text-align:center; border-radius:5px;
-  color:var(--text-dim); background:rgba(255,255,255,.10);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(0,0,0,.25);
+  min-width:18px; padding:4px 5px; text-align:center; border-radius:6px;
+  color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border);
 }
-:root[data-theme="light"] #kbtip kbd{background:rgba(11,11,12,.07); color:var(--text-dim);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(11,11,12,.08)}
 
 
 
@@ -483,13 +483,10 @@ section[hidden]{display:none}
 [hidden]{display:none !important}
 
 /* ── підказка ───────────────────────────────────────────── */
-#tip{position:fixed;pointer-events:none;z-index:99;border:0;border-radius:12px;padding:10px 13px;font-size:12px;
-  background:rgba(255,255,255,.11);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),
-    inset 0 14px 22px -20px rgba(255,255,255,.7),
-    0 2px 6px rgba(0,0,0,.4), 0 14px 36px -10px rgba(0,0,0,.55);
+/* Тло, межа, радіус і тінь — спільне правило #tip,#kbtip у «КОМПОНЕНТАХ». */
+#tip{position:fixed;pointer-events:none;z-index:99;padding:10px 13px;font-size:var(--fs-xs);
   opacity:0;visibility:hidden;transition:opacity .1s, visibility .1s;max-width:250px}
-#tip b{display:block;font-family:var(--font-display);font-size:12.5px;margin-bottom:3px}
+#tip b{display:block;font-family:var(--font-display);font-size:var(--fs-sm);margin-bottom:3px}
 #tip .v{font-variant-numeric:tabular-nums;color:var(--text-dim)}
 
 /* ── операції ───────────────────────────────────────────── */
@@ -693,48 +690,46 @@ section[hidden]{display:none}
 #dpOpen{gap:8px;font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 #dpLabel{white-space:nowrap}
 /* Календар накриває контент — крізь напівпрозору панель просвічували б
-   рядки під нею. Тому тут щільна поверхня, як у підказок. */
+   рядки під нею. Тому тут щільна поверхня — та сама, що в усіх спливних. */
 .dp{position:absolute;z-index:60;top:calc(100% + 10px);left:0;
-  padding:16px;border-radius:24px;display:flex;gap:20px;flex-wrap:wrap;
+  padding:16px;border-radius:var(--radius);display:flex;gap:20px;flex-wrap:wrap;
   isolation:isolate;min-width:270px;
-  background:rgba(26,30,33,.97);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),
-    0 2px 6px rgba(0,0,0,.4), 0 22px 54px -16px rgba(0,0,0,.7)}
-:root[data-theme="light"] .dp{background:rgba(247,248,249,.98);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.10),
-    0 2px 6px rgba(20,23,25,.10), 0 22px 54px -16px rgba(20,23,25,.30)}
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-pop)}
 .dpm{width:246px;flex:none}
 .dphead{display:flex;align-items:center;justify-content:space-between;gap:8px;height:30px;margin-bottom:9px}
 .dphead b{font-family:var(--font-display);font-size:14px;font-weight:700;flex:1;text-align:center}
-.dpnav{width:28px;height:28px;border-radius:10px;flex:none;display:grid;place-items:center;
+.dpnav{width:28px;height:28px;border-radius:var(--radius-sm);flex:none;display:grid;place-items:center;
   font-size:17px;line-height:1;color:var(--text-dim);background:none;border:0;cursor:pointer}
-.dpnav:hover{color:var(--text);background:rgba(255,255,255,.09)}
+.dpnav:hover{color:var(--text);background:var(--surface-2)}
+.dpnav:active{background:var(--surface-3)}
 .dpnav[disabled]{opacity:.22;pointer-events:none}
 .dpw{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:5px}
 .dpw span{text-align:center;font-size:9.5px;font-weight:700;letter-spacing:.07em;
   text-transform:uppercase;color:var(--text-mute)}
 .dpg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.dpd{height:32px;border-radius:10px;background:none;border:0;padding:0;cursor:pointer;
+.dpd{height:32px;border-radius:var(--radius-sm);background:none;border:0;padding:0;cursor:pointer;
   font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--text-dim);
-  display:grid;place-items:center;position:relative;transition:background .12s ease,color .12s ease}
-.dpd:hover{color:var(--text);background:rgba(255,255,255,.11)}
+  display:grid;place-items:center;position:relative;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.dpd:hover{color:var(--text);background:var(--surface-2)}
+.dpd:active{background:var(--surface-3)}
 .dpd.out{visibility:hidden}
 .dpd.off{opacity:.24;pointer-events:none}
-/* Смуга між краями діапазону суцільна, тому в середині кути прибрані. */
-.dpd.in{background:rgba(255,255,255,.075);border-radius:0;color:var(--text)}
+/* Смуга між краями діапазону суцільна, тому в середині кути прибрані.
+   --accent-soft, а не сірий: діапазон читається як одне ціле з краями. */
+.dpd.in{background:var(--accent-soft);border-radius:0;color:var(--text)}
 .dpd.a{background:var(--accent);color:var(--accent-contrast);font-weight:700}
-.dpd.a.s{border-radius:10px 0 0 10px}
-.dpd.a.e{border-radius:0 10px 10px 0}
-.dpd.a.s.e{border-radius:10px}
+.dpd.a.s{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
+.dpd.a.e{border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+.dpd.a.s.e{border-radius:var(--radius-sm)}
 .dpd i{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);
   width:14px;height:2px;border-radius:1px;background:currentColor}
 .dpd.a i{background:var(--accent-contrast);opacity:.5}
+/* Мінусовий відступ: сусідні комірки стоять через 2 px і перекрили б рамку. */
+.dpd:focus-visible,.dpnav:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
 .dpfoot{flex:1 0 100%;display:flex;align-items:center;gap:12px;justify-content:space-between;
   padding-top:12px;margin-top:2px;border-top:1px solid var(--border-soft)}
 .dpfoot .btn{padding:6px 12px;height:auto;font-size:12px}
-:root[data-theme="light"] .dpd:hover{background:rgba(20,23,25,.07)}
-:root[data-theme="light"] .dpd.in{background:rgba(20,23,25,.06)}
-:root[data-theme="light"] .dpnav:hover{background:rgba(20,23,25,.07)}
 @media(max-width:639px){
   .dp{left:0;right:0;padding:14px}
   .dpm{width:100%}
@@ -956,12 +951,17 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .csel{position:relative;display:block;min-width:0}
 .csel > select{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;
   margin:-1px;padding:0;border:0;clip-path:inset(50%)}
+/* Межа — inset-тінь, а не border: ширину кнопки задає розпірка .cselz,
+   і ще 2 px рамки зʼїли б їх у тексту — довгий пункт обрізався б «…». */
 .cselb{display:flex;align-items:center;gap:8px;width:100%;min-width:0;height:var(--ctl);
   padding:0 11px;border:0;cursor:pointer;text-align:left;font:inherit;font-size:13px;
-  color:var(--text);border-radius:var(--radius-sm,12px);
-  background:rgba(255,255,255,.055);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.075), inset 0 2px 6px rgba(0,0,0,.14)}
-.cselb:hover{background:rgba(255,255,255,.085)}
+  color:var(--text);border-radius:var(--radius-sm);
+  background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--border);
+  transition:background var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+.cselb:hover{background:var(--surface-3)}
+.cselb:active{background:var(--surface-3)}
+.cselb:focus-visible{outline:2px solid var(--accent-line);outline-offset:2px}
+.cselb:disabled{opacity:.45;pointer-events:none}
 .csel.open .cselb{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent),
   0 0 0 3px var(--accent-soft)}
 .cselt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -976,25 +976,31 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .cselb i{font-style:normal;font-size:9px;color:var(--text-mute);flex:none}
 /* Вище за модальне вікно (300). Інакше підказки в полях самого вікна
    відкривались ПІД ним і виглядали як «нічого не сталося». */
-.cselm{position:fixed;z-index:400;min-width:168px;
-  max-height:min(300px, 60vh);overflow:auto;padding:6px;border-radius:16px;
-  background:rgba(26,30,33,.97);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 2px 6px rgba(0,0,0,.4),0 18px 44px -14px rgba(0,0,0,.7)}
-.cselo{display:block;width:100%;padding:8px 11px;border:0;border-radius:10px;cursor:pointer;
-  background:none;color:var(--text-dim);text-align:left;font:inherit;font-size:12.5px;
+/* width:max-content — ширину .csel-списку задає найдовший пункт (мінімум —
+   ширина кнопки, ставить place()); список підказок buildCombo задає
+   ширину інлайном і обрізає довгі назви «…», як і раніше. */
+.cselm{position:fixed;z-index:400;min-width:168px;width:max-content;max-width:calc(100vw - 16px);
+  max-height:min(300px, 60vh);overflow:auto;padding:6px;border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-pop)}
+/* Вибраний пункт — тон --surface-3 і галочка, а не лаймова заливка: у
+   списку з двадцяти пунктів лайм перетягував око з того, що шукають.
+   Галочка — абсолютний ::after праворуч, бо пункт тримає «…» для довгих
+   назв, і flex-розкладка зламала б обрізання. */
+.cselo{position:relative;display:block;width:100%;min-height:40px;padding:10px 32px 10px 11px;
+  border:0;border-radius:var(--radius-sm);cursor:pointer;line-height:20px;
+  background:none;color:var(--text-dim);text-align:left;font:inherit;font-size:var(--fs-sm);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cselo:hover{background:rgba(255,255,255,.08);color:var(--text)}
-.cselo.on{background:var(--accent);color:var(--accent-contrast);font-weight:700}
+.cselo:hover{background:var(--surface-2);color:var(--text)}
+.cselo:active{background:var(--surface-3)}
+.cselo.on{background:var(--surface-3);color:var(--text);font-weight:600}
+.cselo.on::after{content:'';position:absolute;right:14px;top:50%;width:5px;height:10px;
+  border:solid var(--accent-ink);border-width:0 2px 2px 0;transform:translateY(-65%) rotate(42deg)}
+/* Мінусовий відступ: меню гортається (overflow:auto) і зовнішню рамку різало б. */
+.cselo:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
+.cselo:disabled,.cselo[aria-disabled="true"]{opacity:.45;pointer-events:none}
 .cselo:has(.cselh){display:flex;align-items:baseline;gap:10px}
-.cselh{font-style:normal;font-size:11px;color:var(--text-mute);margin-left:auto;flex:none}
-.cselo.on .cselh{color:var(--accent-contrast);opacity:.7}
-.cselmore{padding:6px 11px 8px;font-size:11px;color:var(--text-mute)}
-:root[data-theme="light"] .cselb{background:rgba(255,255,255,.62);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.09), inset 0 1px 3px rgba(20,23,25,.05)}
-:root[data-theme="light"] .cselb:hover{background:rgba(255,255,255,.85)}
-:root[data-theme="light"] .cselm{background:rgba(247,248,249,.98);
-  box-shadow:inset 0 0 0 1px rgba(20,23,25,.10),0 2px 6px rgba(20,23,25,.10),0 18px 44px -14px rgba(20,23,25,.30)}
-:root[data-theme="light"] .cselo:hover{background:rgba(20,23,25,.06)}
+.cselh{font-style:normal;font-size:var(--fs-xs);color:var(--text-mute);margin-left:auto;flex:none}
+.cselmore{padding:6px 11px 8px;font-size:var(--fs-xs);color:var(--text-mute)}
 /* висоти під контекст */
 .pjt .cselb{height:32px;font-size:12.5px;border-radius:9px;padding:0 9px}
 .pjf .cselb{height:var(--ctl)}
@@ -1134,6 +1140,18 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
   flex:none;font-size:var(--fs-sm);font-weight:500;color:var(--text-dim);background:transparent;white-space:nowrap}
 .chip:hover{color:var(--text)}
 .chip[aria-pressed="true"]{color:var(--text);font-weight:600;background:var(--surface-3)}
+/* Стани натиску й недоступності — як у .btn (спека §6: hover/active/
+   focus-visible/disabled у кожного компонента); фокусна рамка — правило
+   .btn:focus-visible вище. */
+.iconbtn{transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.iconbtn:active{transform:scale(.96)}
+.iconbtn:active:not(.on){background:var(--surface-3)}
+/* Чип — без transform: #periodInd міряє його getBoundingClientRect одразу
+   після кліку, і стиснутий на 4 % чип дав би індикатор не тієї ширини. */
+.chip{transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.chip:active{color:var(--text);background:var(--surface-2)}
+.iconbtn[disabled],.iconbtn[aria-disabled="true"],.chip[disabled],.chip[aria-disabled="true"],
+.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
 input,select,textarea{font:inherit;color:var(--text);background:var(--surface-2);
   border:1px solid var(--border);border-radius:var(--radius-sm);height:var(--ctl);padding:0 13px;
   transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
@@ -1142,6 +1160,7 @@ input,select,textarea{font:inherit;color:var(--text);background:var(--surface-2)
 textarea{height:auto;min-height:96px;padding:10px 13px;line-height:1.5;resize:none}
 input::placeholder,textarea::placeholder{color:var(--text-mute)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft)}
+input:disabled,select:disabled,textarea:disabled{opacity:.45;cursor:not-allowed}
 /* Рядок «мітка + поля» (налаштування, свій період). */
 .fieldrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0}
 .fieldrow label{font-size:var(--fs-sm);color:var(--text-dim);min-width:135px}
@@ -1245,11 +1264,21 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .wrap>*{min-width:0}
 /* Плитка KPI (кегль суми від ширини плитки, nowrap) — у блоці «КОМПОНЕНТИ». */
 /* Плаваючі підписи: положення тут, а не інлайном, щоб медіа-запит міг їх підняти. */
-.scrnbadge{bottom:14px}
+/* Бейдж режиму скріншоту. Вигляд перенесено сюди з інлайнового style:
+   там стояла сира тінь rgba без світлого варіанта, а тепер бейдж і тост
+   беруть ту саму --shadow-pop і живуть поруч. */
+.scrnbadge{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;
+  padding:5px 13px;border-radius:var(--radius-pill);font-size:var(--fs-xs);font-weight:600;
+  pointer-events:none;background:var(--warn);color:#101114;box-shadow:var(--shadow-pop)}
+/* Тост — та сама спливна поверхня, що й підказки (#tip/#kbtip): раніше
+   він був чорним прямокутником із білим текстом і в світлій темі
+   виглядав чужим. Показ — класом .on, не інлайновою прозорістю. */
 .apptoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
-  background:rgba(20,22,25,.94);color:#fff;padding:9px 16px;border-radius:10px;
-  font-size:12.5px;z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;
-  max-width:80vw;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+  background:var(--surface-3);color:var(--text);border:1px solid var(--border);
+  padding:9px 16px;border-radius:var(--radius-sm);
+  font-size:var(--fs-sm);z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;
+  max-width:80vw;box-shadow:var(--shadow-pop)}
+.apptoast.on{opacity:1}
 @media (max-width:759px){
   /* Верх — безпечна зона (вирізи / рамка phone-inner), низ — нижня панель:
      без цього останні картки ховаються під фіксованими табами. */
@@ -1299,9 +1328,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10.5 18.5h3"/></symbol>
   </defs>
 </svg>
-<div id="scrnBadge" class="scrnbadge" hidden style="position:fixed;left:50%;transform:translateX(-50%);z-index:9999;
-  padding:5px 13px;border-radius:999px;font-size:11.5px;font-weight:600;pointer-events:none;
-  background:var(--warn);color:#101114;box-shadow:0 4px 18px rgba(0,0,0,.35)">режим скріншоту — суми сховані</div>
+<div id="scrnBadge" class="scrnbadge" hidden>режим скріншоту — суми сховані</div>
 <div id="lockScreen" hidden style="position:fixed;inset:0;z-index:99999;background:var(--bg,#101114);
   display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px">
   <div style="font-family:var(--font-display);font-size:20px">Гроші</div>
@@ -5884,6 +5911,14 @@ function pjCopy(p){
    Esc — скасувати, клік по тлу — теж скасувати; фокус повертається
    туди, звідки вікно відкрили. */
 let uiBusy = null;
+/* Вмикає/знімає inert на всьому, що під вікном. Знімається лише з done():
+   відмова другому вікну поверх першого (uiBusy) сюди не доходить, тож
+   inert першого вікна вона не чіпає. */
+function uiInert(on){
+  const side = el('side'), wrap = document.querySelector('#shell > .wrap');
+  if(side) side.inert = on;
+  if(wrap) wrap.inert = on;
+}
 function uiAsk(o){
   o = o || {};
   if(uiBusy) return Promise.resolve(null);       // друге вікно поверх першого не відкриваємо
@@ -6043,6 +6078,11 @@ function uiAsk(o){
        uiBusy назавжди (реальний випадок). */
     clearTimeout(box._hideT);
     box.hidden = false;
+    /* Під вікном панель і контент — inert: інакше Tab з «Гаразд» ішов
+       у <body>, а звідти в навігацію, і людина з клавіатурою «губилась»
+       під затемненням. Ставиться синхронно, щоб вікно слідом за вікном
+       (done() → наступний uiAsk у мікрозадачі) не лишало проміжку. */
+    uiInert(true);
     requestAnimationFrame(()=>{ box.classList.add('on');
       /* cselScan проходить УСІ селекти документа — з відкритим кошторисом
          на десятки рядків це сотні мілісекунд блокування (чорніло скло).
@@ -6105,6 +6145,9 @@ function uiAsk(o){
       fm.hidden = true; fm.innerHTML = ''; fm.oninput = null; ck.hidden = true;
       rw.hidden = true; rw.innerHTML = ''; box.classList.remove('wide');
       uiBusy = null;
+      /* Зняти inert ДО повернення фокуса: focus() на елементі в inert-
+         піддереві мовчки нічого не робить, і фокус губився б у <body>. */
+      uiInert(false);
       if(prev && prev.focus){ try{ prev.focus(); }catch(_){} }
       res(v);
     };
@@ -6129,6 +6172,29 @@ function uiAsk(o){
           return;
         }
         e.preventDefault(); e.stopPropagation(); submit(); }
+      else if(e.key === 'Tab' && el('lockScreen').hidden){
+        /* Пастка фокуса: по колу лише між видимими елементами вікна.
+           Рідний Tab лишаємо всередині, перехоплюємо тільки краї й випадок,
+           коли фокус уже поза вікном. select[data-csel] — схований носій
+           значення .csel: offsetParent у нього є, але фокус на ньому
+           невидимий. Екран блокування накриває вікно — тоді Tab його. */
+        e.stopPropagation();
+        const f = [...box.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+          .filter(n => n.offsetParent !== null && !n.disabled && !n.matches('select[data-csel]'));
+        if(!f.length) return;
+        const a = document.activeElement, i = f.indexOf(a);
+        /* Фокус у вікні, але не на «видимому» елементі (невидимий носій
+           значення тощо): іти до сусіда за порядком у документі, а не на
+           початок вікна — інакше Tab у редакторі рядків відкидав на рядок 1. */
+        const near = () => { const P = Node.DOCUMENT_POSITION_PRECEDING, F = Node.DOCUMENT_POSITION_FOLLOWING;
+          return e.shiftKey ? (f.filter(n => a.compareDocumentPosition(n) & P).pop() || f[f.length-1])
+                            : (f.find(n => a.compareDocumentPosition(n) & F) || f[0]); };
+        const to = !box.contains(a) ? (e.shiftKey ? f[f.length-1] : f[0])
+          : i < 0 ? near()
+          : e.shiftKey && i === 0 ? f[f.length-1]
+          : !e.shiftKey && i === f.length-1 ? f[0] : null;
+        if(to){ e.preventDefault(); to.focus(); }
+      }
       else e.stopPropagation();          // гарячі клавіші апки не працюють крізь вікно
     };
     document.addEventListener('keydown', onKey, true);
@@ -6160,8 +6226,8 @@ function appToast(m){
     n = document.createElement('div'); n.id = 'apptoast'; n.className = 'apptoast';
     document.body.appendChild(n);
   }
-  n.textContent = m; n.style.opacity = 1;
-  clearTimeout(n._t); n._t = setTimeout(()=>{ n.style.opacity = 0; }, 4500);
+  n.textContent = m; n.classList.add('on');
+  clearTimeout(n._t); n._t = setTimeout(()=>{ n.classList.remove('on'); }, 4500);
 }
 
 
@@ -6196,6 +6262,10 @@ addEventListener('focusin', e=>{
     wrap.className = 'csel' + (sel.className ? ' ' + sel.className : '');
     sel.parentNode.insertBefore(wrap, sel);
     wrap.appendChild(sel);
+    /* Схований <select> лишався зупинкою Tab: фокус зникав на невидимому
+       елементі між полем і кнопкою .cselb. Клавіатуру (стрілки, Enter,
+       пробіл) і так веде кнопка, тож носій значення з порядку виключено. */
+    sel.tabIndex = -1;
 
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'cselb'; btn.setAttribute('aria-haspopup','listbox');
@@ -6237,9 +6307,14 @@ addEventListener('focusin', e=>{
     const close = ()=>{ menu.hidden = true; wrap.classList.remove('open'); };
     const place = ()=>{
       const r = btn.getBoundingClientRect();
-      menu.style.left  = Math.round(r.left) + 'px';
-      menu.style.width = Math.round(Math.max(r.width, 168)) + 'px';
+      /* Не менше за кнопку, але й не вужче за найдовший пункт: пункт тепер
+         тримає праворуч місце під галочку вибраного, і за точної ширини
+         кнопки «Виконано, чекає оплати» в кошторисі обрізалось «…». */
+      menu.style.minWidth = Math.round(Math.max(r.width, 168)) + 'px';
+      menu.style.left = '0px';
       menu.style.top = '0px'; menu.style.visibility = 'hidden'; menu.hidden = false;
+      const mw = menu.offsetWidth;
+      menu.style.left = Math.round(Math.max(8, Math.min(r.left, innerWidth - mw - 8))) + 'px';
       const mh = menu.offsetHeight;
       /* донизу, якщо влазить; інакше вгору; якщо не влазить ніде —
          притискаємо до краю вікна, щоб список не зникав за екраном. */
@@ -8355,7 +8430,17 @@ el('themeBtn').onclick = ()=>{
   const next = document.documentElement.dataset.theme==='dark' ? 'light':'dark';
   document.documentElement.dataset.theme = next; store.set('theme',next); render();
 };
-document.documentElement.dataset.theme = store.get('theme','dark');
+/* Без збереженого вибору слідуємо системі; явний вибір (кнопка, T) перебиває її.
+   Раніше стояв жорсткий 'dark': людина зі світлою Windows першим екраном
+   бачила темну апку й мусила шукати кнопку. Стеження за ОС нічого не
+   пише в store — інакше перша ж зміна теми системи «зафіксувала» б вибір,
+   якого людина не робила, і стеження вимкнулося б саме. */
+const THEME_OS = matchMedia('(prefers-color-scheme: light)');
+document.documentElement.dataset.theme = store.get('theme', THEME_OS.matches ? 'light' : 'dark');
+THEME_OS.addEventListener('change', e=>{
+  if(store.get('theme', null) !== null) return;
+  document.documentElement.dataset.theme = e.matches ? 'light' : 'dark'; render();
+});
 /* ── збережені фільтри ─────────────────────────────────────────────
    «Усе по ФОП», «за кордоном», «Оля» — питання, які ставлять щомісяця,
    а набирати їх доводиться щоразу. Чіп зберігає весь стан фільтрів
