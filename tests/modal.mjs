@@ -112,7 +112,7 @@ try {
     assert.deepEqual(violators, [], `${mode}: системний title/date/list у вкладках: ${violators.join('; ')}`);
     // Охоронна перевірка самої проби: без цих елементів сторож нічого не бачив би.
     await page.evaluate(() => go('overview'));
-    assert.ok(await page.locator('#yearSum div[style*="flex:1"]').count() > 0,
+    assert.ok(await page.locator('#yearSum .ybars > div[data-tip]').count() > 0,
       `${mode}: стовпчики року справді намальовані — сторож їх бачить`);
     await page.evaluate(() => go('inv'));
     assert.equal(await page.locator('[data-bench]').count(), 1,

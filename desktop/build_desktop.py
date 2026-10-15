@@ -108,7 +108,7 @@ NOTICE = """/* У браузерній версії тут пояснювало�
       Підключіть Monobank у «Ще» — токен читає лише виписку, платежі ним неможливі.
       Перше завантаження бере рік історії; банк віддає один запит на 60 секунд,
       тож це триває приблизно чверть години. Апку можна згорнути в трей.
-      <button class="btn pri" id="goMono" style="margin-top:10px">Підключити банк</button>
+      <button class="btn pri" id="goMono">Підключити банк</button>
     </div>`;
   const gm = el('goMono'); if(gm) gm.onclick = ()=>go2set('src');"""
 tpl = tpl[:i] + NOTICE + tpl[j:]
@@ -127,10 +127,10 @@ tpl = sub(tpl, 'id="phoneBtn" aria-label="Перегляд на телефоні
 # Баланси приходять із client-info, у браузерній версії їх немає взагалі.
 tpl = sub(tpl, '    <div id="ovBalSlot"></div>',
 """    <div class="card" id="balCard" hidden>
-    <div class="cardhead" id="balHead" style="cursor:pointer">
+    <div class="cardhead" id="balHead">
       <span class="tw-arrow" id="balArrow">▾</span>
       <h2>Рахунки</h2><span class="hint" id="balFx"></span>
-      <span class="hint" id="balSum" style="margin-left:auto"></span>
+      <span class="hint" id="balSum"></span>
     </div>
     <div id="balList"></div>
   </div>""", 'balCard')
@@ -749,11 +749,11 @@ async function balRender(){
       <span class="val">${fmt2(a.balance)} ${esc(CCYSIGN[c] || '₴')}</span>
     </div>`
     /* банка з ціллю: тонкий прогрес просто під рядком — Monobank ціль
-       віддає, гріх її не показати */
+       віддає, гріх її не показати. Ширина смуги — частка цілі, відома
+       лише тут (єдиний інлайн); заливка й відступи — у #balList. */
     + (a.kind==='jar' && a.goal > 0 ? `
-    <div class="meter" style="height:4px;margin:-4px 0 6px">
-      <i style="width:${Math.min(100, a.balance/a.goal*100).toFixed(1)}%;background:var(--accent)"></i></div>
-    <div class="muted" style="font-size:10.5px;margin:-2px 0 4px">${(a.balance/a.goal*100).toFixed(0)}% з ${fmt2(a.goal)} ${esc(CCYSIGN[c] || '₴')}</div>` : '');
+    <div class="meter"><i style="width:${Math.min(100, a.balance/a.goal*100).toFixed(1)}%"></i></div>
+    <div class="ovnote xs">${(a.balance/a.goal*100).toFixed(0)}% з ${fmt2(a.goal)} ${esc(CCYSIGN[c] || '₴')}</div>` : '');
   const GROUPS = [
     ['ФОП',     x => x.a.kind === 'fop'],
     ['Картки',  x => x.a.kind !== 'fop' && x.a.kind !== 'jar'],
