@@ -29,7 +29,7 @@
   --accent-contrast:#16200A; --accent-ink:#C9F24B;
   --accent-line:color-mix(in srgb,var(--accent) 45%,var(--border));
   --success:#34D399; --warn:#FBBF3C; --danger:#FF6B6B; --info:#7AA2FF;
-  --radius:18px; --radius-sm:12px; --radius-lg:24px; --radius-pill:999px; --ctl:40px;
+  --radius:18px; --radius-sm:12px; --radius-lg:24px; --radius-pill:999px; --ctl:40px; --ctl-sm:32px;
   --shadow:none; --shadow-pop:0 12px 40px rgba(0,0,0,.55); --scrim:rgba(0,0,0,.55);
   --ease:cubic-bezier(.2,.8,.2,1); --dur:180ms;
   --nav-w:220px; --nav-w-collapsed:64px; --tabbar-h:56px;
@@ -339,15 +339,10 @@ code{font-family:var(--font-mono);font-size:.92em;background:var(--surface-2);
    екран, який щоразу перезбирається на очах. Перемикання миттєве. */
 /* Позиція, розмір, фон і рух — у спільному правилі .tab-ind,.chip-ind
    (блок «КАРКАС» унизу); тут лишається тільки те, що специфічне для чипів. */
-.periodbar .chip{position:relative;z-index:1}
 .periodbar::-webkit-scrollbar{display:none}
 .chip{display:inline-flex;align-items:center;height:var(--ctl);white-space:nowrap;padding:0 16px;
   border-radius:var(--radius-pill);font-size:12.5px;font-weight:600;color:var(--text-dim);flex:none}
 .chip:hover{color:var(--text)}
-/* Тло активного періоду малює рухомий індикатор #periodInd. Власна
-   заливка чіпа зʼявлялась би миттєво, ще до того, як індикатор доїхав. */
-.periodbar .chip[aria-pressed="true"]{background:none}
-
 
 /* ── картки ─────────────────────────────────────────────── */
 .card{position:relative;isolation:isolate}
@@ -1107,7 +1102,7 @@ body{background:var(--bg);color:var(--text);font:var(--fs-md)/1.5 var(--font-ui)
 .iconbtn{width:var(--ctl);height:var(--ctl);border-radius:var(--radius-sm);display:grid;place-items:center;
   color:var(--text-dim);background:transparent}
 .iconbtn:hover{color:var(--text);background:var(--surface-2)}
-.chip{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:var(--radius-pill);
+.chip{display:inline-flex;align-items:center;height:var(--ctl-sm);padding:0 14px;border-radius:var(--radius-pill);
   font-size:var(--fs-sm);font-weight:500;color:var(--text-dim);background:transparent}
 .chip:hover{color:var(--text)}
 .chip[aria-pressed="true"]{color:var(--text);font-weight:600;background:var(--surface-3)}
@@ -1200,7 +1195,6 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     padding:0 3px;font-size:10px}
 }
 /* ══════════════════ Контентна область і період ══════════════════ */
-body{overscroll-behavior-y:contain}
 /* width:100% потрібна, бо в гріді .shell auto-поля (margin:0 auto) вимикають
    розтягування: колонка стискалась би до ширини вмісту, і на кожній вкладці
    мала б іншу ширину. */
@@ -1216,6 +1210,9 @@ body{overscroll-behavior-y:contain}
    у обох випадках переповнював би внутрішню ширину ~135 px. */
 .kpi{container-type:inline-size}
 .kpi .val{white-space:nowrap;font-size:clamp(18px,13.5cqw,28px)}
+/* У .val бувають вкладені підписи (Підписки: «найближче», «активних»):
+   вони мусять переноситись, інакше довгий продавець розпирає плитку. */
+.kpi .val .sub,.kpi .val .muted{white-space:normal}
 /* Плаваючі підписи: положення тут, а не інлайном, щоб медіа-запит міг їх підняти. */
 .scrnbadge{bottom:14px}
 .apptoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
@@ -1234,13 +1231,21 @@ body{overscroll-behavior-y:contain}
   /* Бейдж режиму скріншоту й тост — над нижньою панеллю. */
   .scrnbadge,.apptoast{bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 14px)}
 }
+/* #customRange живе всередині #periodWrap, тож проміжок між сегментом і
+   рядком власного періоду задає тут, а не .wrap (його gap діє лише між
+   прямими дітьми); власний нижній відступ рядка обнулено, щоб до наступної
+   секції лишався один gap .wrap, а не подвоєний. */
+#periodWrap{display:flex;flex-direction:column;gap:10px}
+#customRange .fieldrow{margin:0}
 /* Період — сегмент у стилі iOS: пігулку під активним чипом малює рухомий
    індикатор (#periodInd). top = padding сегмента: індикатор позиціонується
    від padding-краю, тож 3 px рівно вирівнюють його з чипом. */
 .periodbar{position:relative;display:flex;gap:2px;width:max-content;max-width:100%;overflow-x:auto;
   padding:3px;margin:0;background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius-pill);scrollbar-width:none}
-.periodbar .chip{position:relative;z-index:1;height:32px}
+.periodbar .chip{position:relative;z-index:1;height:var(--ctl-sm)}
+/* Тло активного періоду малює рухомий індикатор #periodInd. Власна
+   заливка чіпа зʼявлялась би миттєво, ще до того, як індикатор доїхав. */
 .periodbar .chip[aria-pressed="true"]{background:none}
 .periodbar .chip-ind{top:3px;border-radius:var(--radius-pill)}
 </style>
@@ -1301,7 +1306,7 @@ body{overscroll-behavior-y:contain}
 <div id="periodWrap">
 <div class="periodbar" id="periods"><span class="chip-ind" id="periodInd" aria-hidden="true"></span></div>
 <div id="customRange" hidden>
-  <div class="fieldrow dpwrap" style="margin:0 0 10px">
+  <div class="fieldrow dpwrap">
     <button class="btn" id="dpOpen" aria-haspopup="dialog">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/>
