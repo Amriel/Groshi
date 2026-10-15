@@ -119,9 +119,11 @@ tpl = tpl[:i] + NOTICE + tpl[j:]
 # лишала по собі привидів у скляному шарі.
 tpl = sub(tpl, "if(!INNER && innerWidth >= 860){\n  const btn = el('phoneBtn'); btn.hidden = false;",
           "if(false){\n  const btn = el('phoneBtn'); btn.hidden = false;", 'phone off')
-# сам елемент лишається в розмітці (його читає phRender), але назавжди прихований
+# сам елемент лишається в розмітці (його читає phRender), але назавжди прихований;
+# досить атрибута hidden — глобальне [hidden]{display:none !important} шаблону
+# перебиває будь-який display, тож інлайнового display:none не треба
 tpl = sub(tpl, 'id="phoneBtn" aria-label="Перегляд на телефоні" data-tip="Перегляд на телефоні" data-key="P" hidden',
-          'id="phoneBtn" aria-hidden="true" hidden style="display:none"', 'phone btn')
+          'id="phoneBtn" aria-hidden="true" hidden', 'phone btn')
 
 # ── 3d. картка «Рахунки» на Огляді ───────────────────────────────────
 # Баланси приходять із client-info, у браузерній версії їх немає взагалі.
@@ -203,9 +205,13 @@ tpl = sub(tpl, """<span class="hint">Зберігається у браузер�
    'note hint')
 
 # ── 4. екран Monobank у налаштуваннях ─────────────────────────────────
-MONO_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
-    <div class="cardhead"><h2>Monobank</h2><span class="hint" id="monoState"></span></div>
-    <p class="muted" style="margin:0 0 12px">Токен читає лише виписку — платежі ним неможливі.
+# Розмітка — словником екрана «Ще» (.setlead, .setgap, .setfine, .stat…,
+# блок «ЕКРАНИ» шаблону); проміжки між картками дає gap #tab-settings,
+# тож власних margin-bottom у вставок немає. Стан підключення — крапка
+# (.dot.ok / .dot.off) і текст, а не кольорова картка.
+MONO_HTML = """  <div class="card" data-sec="src">
+    <div class="cardhead"><h2>Monobank</h2><span class="hint stat"><span class="dot off" id="monoDot" aria-hidden="true"></span><span id="monoState"></span></span></div>
+    <p class="muted setlead">Токен читає лише виписку — платежі ним неможливі.
       Кнопка «Де взяти токен» відкриє <b>api.monobank.ua</b> — там вхід через застосунок Monobank
       і кнопка «Отримати токен». Зберігається в Диспетчері облікових даних Windows, а не у файлі.</p>
     <div class="mfields">
@@ -218,21 +224,21 @@ MONO_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf"><span>&nbsp;</span>
         <button class="btn" id="monoForget">Забути токен</button></label>
     </div>
-    <div id="monoAccs" style="margin-top:14px"></div>
-    <div class="fieldrow" style="margin-top:14px">
+    <div id="monoAccs" class="setgap"></div>
+    <div class="fieldrow setgap">
       <button class="btn pri" id="monoSync">Оновити</button>
       <button class="btn" id="monoFull">Завантажити історію</button>
       <button class="btn" id="monoStop" hidden>Зупинити</button>
       <span class="muted" id="monoProg"></span>
     </div>
-    <p class="muted" style="margin:10px 0 0;font-size:11.5px">Банк віддає один запит на 60 секунд,
+    <p class="muted setfine">Банк віддає один запит на 60 секунд,
       а виписка приходить вікнами по 31 добі — тому історія набирається довго. Спершу приходить
       останній місяць по всіх рахунках, далі глибина; зупинити можна будь-коли, завантажене лишиться.</p>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Оновлення</h2><span class="hint" id="updVer"></span></div>
-    <p class="muted" style="margin:0 0 12px">Апка дивиться в Релізи GitHub — там лежать
+    <p class="muted setlead">Апка дивиться в Релізи GitHub — там лежать
       збірки. Замість репозиторію можна вказати теку (локальну чи мережеву) або адресу
       з <code>latest.json</code>: тоді оновлення працюватиме й без інтернету.</p>
     <div class="mfields">
@@ -243,39 +249,39 @@ MONO_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf"><span>&nbsp;</span>
         <button class="btn pri" id="updCheck">Перевірити</button></label>
     </div>
-    <div id="updBox" style="margin-top:14px"></div>
+    <div id="updBox" class="setgap"></div>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Застосунок</h2></div>
     <div class="fieldrow">
-      <label class="muted" style="display:flex;gap:7px;align-items:center;cursor:pointer">
+      <label class="muted optlabel">
         <input type="checkbox" id="autoStart"> Запускати разом із Windows</label>
     </div>
-    <div class="mfields" style="margin-top:12px">
+    <div class="mfields setgap">
       <label class="mf w160"><span>Оновлювати самому</span>
         <select id="autoSync"></select></label>
       <label class="mf w160"><span>Брокер IBKR</span>
         <select id="autoIbkr"></select></label>
       <label class="mf"><span>&nbsp;</span>
-        <span class="muted" id="autoSyncInfo" style="line-height:var(--ctl)"></span></label>
+        <span class="muted mfval" id="autoSyncInfo"></span></label>
     </div>
-    <div class="mfields" style="margin-top:8px">
+    <div class="mfields setgap-s">
       <label class="mf w130"><span>Тиша з (година)</span>
         <input id="quietFrom" type="number" min="0" max="23" step="1"></label>
       <label class="mf w130"><span>до (година)</span>
         <input id="quietTo" type="number" min="0" max="23" step="1"></label>
       <label class="mf"><span>&nbsp;</span>
-        <span class="muted" style="line-height:var(--ctl);font-size:11.5px">уночі банк не смикаємо; однакові години — без паузи</span></label>
+        <span class="muted mfval xs">уночі банк не смикаємо; однакові години — без паузи</span></label>
     </div>
-    <div class="fieldrow" style="margin-top:12px">
+    <div class="fieldrow setgap">
       <button class="btn" id="openDir">Показати теку з даними</button>
       <button class="btn" id="dirPick">Змінити теку</button>
       <button class="btn" id="dirReset">Стандартна</button>
     </div>
-    <p class="muted" id="dirPath" style="margin:10px 0 0;font-size:12px"></p>
-    <div id="dirFiles" style="margin-top:12px"></div>
-    <p class="muted" style="margin:8px 0 0;font-size:11.5px">При зміні теки дані <b>переносяться</b>,
+    <p class="muted setfine" id="dirPath"></p>
+    <div id="dirFiles" class="setgap"></div>
+    <p class="muted setfine">При зміні теки дані <b>переносяться</b>,
       а не копіюються — двох однакових копій не лишається. Тека переживає перевстановлення апки;
       якщо покласти її в OneDrive, Google Drive чи Dropbox, дані синхронізуються між комп'ютерами.
       Тільки не тримайте апку відкритою одночасно на двох машинах: хмара не вміє зливати зміни
@@ -283,16 +289,16 @@ MONO_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
   </div>
 
 """
-tpl = sub(tpl, '  <div class="card" data-sec="app" style="margin-bottom:12px">\n    <div class="cardhead"><h2>Дані</h2></div>',
-          MONO_HTML + '  <div class="card" data-sec="app" style="margin-bottom:12px">\n    <div class="cardhead"><h2>Дані</h2></div>',
+tpl = sub(tpl, '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Дані</h2></div>',
+          MONO_HTML + '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Дані</h2></div>',
           'settings')
 
 # ── 4б. екрани брокерів (тільки читання) ──────────────────────────────
-INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
-    <div class="cardhead"><h2>Interactive Brokers</h2><span class="hint" id="ibkrState"></span></div>
-    <p class="muted" style="margin:0 0 10px">Підключення через Flex Web Service — звітний сервіс,
+INV_HTML = """  <div class="card" data-sec="src">
+    <div class="cardhead"><h2>Interactive Brokers</h2><span class="hint stat"><span class="dot off" id="ibkrDot" aria-hidden="true"></span><span id="ibkrState"></span></span></div>
+    <p class="muted setlead">Підключення через Flex Web Service — звітний сервіс,
       який фізично не вміє торгувати чи виводити гроші. Налаштовується один раз, хвилин за пʼять:</p>
-    <ol class="muted" style="margin:0 0 12px;padding-left:20px;line-height:1.55">
+    <ol class="muted setsteps">
       <li>У Client Portal: <b>Performance &amp; Reports → Flex Queries</b> →
         плюсик біля <b>Activity Flex Query</b>. Назва — будь-яка, напр. <code>Groshi</code>.</li>
       <li>У <b>Sections</b> клацніть <b>пʼять</b> розділів: <b>Open Positions</b>, <b>Trades</b>,
@@ -308,7 +314,7 @@ INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <li>На тій же сторінці знайдіть <b>Flex Web Service Configuration</b> →
         увімкніть → <b>Generate New Token</b>, термін — рік. Токен — у поле нижче.</li>
     </ol>
-    <p class="muted" style="margin:0 0 12px">Токен і Query ID зберігаються в Диспетчері
+    <p class="muted setlead">Токен і Query ID зберігаються в Диспетчері
       облікових даних Windows, а не у файлі. Перший звіт IBKR формує до двох хвилин —
       апка почекає сама.</p>
     <div class="mfields">
@@ -327,21 +333,21 @@ INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf"><span>&nbsp;</span>
         <button class="btn" id="ibkrForget">Забути</button></label>
     </div>
-    <p class="muted" id="ibkrMsg" style="margin:10px 0 0;font-size:12px"></p>
-    <p class="muted" style="margin:6px 0 0;font-size:11.5px">«Імпортувати XML» — два призначення.
+    <p class="muted setmsg" id="ibkrMsg" role="status"></p>
+    <p class="muted setfine">«Імпортувати XML» — два призначення.
       <b>Запасний хід</b>, коли веб-сервіс вередує: Run біля свого query → зберегти XML → вибрати тут.
       І <b>глибока історія</b>: Flex-звіт віддає щонайбільше 365 днів, тож за старші роки зробіть у
       порталі окремий запит (Custom date range, до 365 днів на запит), збережіть XML і імпортуйте —
       файли <b>склеюються</b>, дублікати відкидаються, і динаміка з угодами стає на всю глибину.
       <span id="ibkrExtraInfo"></span></p>
-    <div class="fieldrow" id="ibkrExtraRow" hidden style="margin-top:8px">
+    <div class="fieldrow setgap-s" id="ibkrExtraRow" hidden>
       <button class="btn" id="ibkrExtraClear">Прибрати імпортовані XML</button>
     </div>
   </div>
 
-  <div class="card" data-sec="src" style="margin-bottom:12px">
-    <div class="cardhead"><h2>Binance</h2><span class="hint" id="binState"></span></div>
-    <ol class="muted" style="margin:0 0 12px;padding-left:20px;line-height:1.55">
+  <div class="card" data-sec="src">
+    <div class="cardhead"><h2>Binance</h2><span class="hint stat"><span class="dot off" id="binDot" aria-hidden="true"></span><span id="binState"></span></span></div>
+    <ol class="muted setsteps">
       <li>На сайті Binance: іконка профілю → <b>Account → API Management</b> →
         <b>Create API</b> → System generated. Назва — будь-яка, напр. <code>Groshi</code>.</li>
       <li>Після створення відкрийте <b>Edit restrictions</b>: має стояти <b>лише</b>
@@ -350,7 +356,7 @@ INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <li>Скопіюйте <b>API Key</b> і <b>Secret Key</b> у поля нижче.
         Секрет Binance показує лише раз — якщо загубили, створіть ключ заново.</li>
     </ol>
-    <p class="muted" style="margin:0 0 12px">Апка перевіряє права ключа і відмовиться від
+    <p class="muted setlead">Апка перевіряє права ключа і відмовиться від
       ключа, яким можна щось, крім читання. Ключ і секрет зберігаються в Диспетчері
       облікових даних Windows, а не у файлі.</p>
     <div class="mfields">
@@ -367,12 +373,12 @@ INV_HTML = """  <div class="card" data-sec="src" style="margin-bottom:12px">
       <label class="mf"><span>&nbsp;</span>
         <button class="btn" id="binForget">Забути</button></label>
     </div>
-    <p class="muted" id="binMsg" style="margin:10px 0 0;font-size:12px"></p>
+    <p class="muted setmsg" id="binMsg" role="status"></p>
   </div>
 
 """
-tpl = sub(tpl, '  <div class="card" data-sec="app" style="margin-bottom:12px">\n    <div class="cardhead"><h2>Оновлення</h2>',
-          INV_HTML + '  <div class="card" data-sec="app" style="margin-bottom:12px">\n    <div class="cardhead"><h2>Оновлення</h2>',
+tpl = sub(tpl, '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Оновлення</h2>',
+          INV_HTML + '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Оновлення</h2>',
           'brokers html')
 
 # ── 5. логіка екрана Monobank ─────────────────────────────────────────
@@ -390,12 +396,12 @@ function monoRenderAccs(){
   if(!MONO_ACCS.length){ host.innerHTML = ''; return; }
   const picked = new Set(store.get('monoAccounts', []));
   const auto = picked.size === 0;
-  host.innerHTML = `<div class="muted" style="margin-bottom:8px;font-size:12px">
+  host.innerHTML = `<div class="muted setcap">
       Які рахунки тягнути${auto ? ' <b>· зараз усі гривневі картки</b>' : ''}.
       Валютні можна брати теж: суми перераховуються в гривню за курсом банку на день операції.</div>`
     + MONO_ACCS.map(a=>`
       <label class="mtx${(auto ? (a.kind!=='jar' && a.currency===980) : picked.has(a.id)) ? ' on' : ' off'}"
-             data-acc="${esc(a.id)}" style="cursor:pointer">
+             data-acc="${esc(a.id)}">
         <span class="tick"></span>
         <span class="c">${esc(a.title)}${a.masked && a.masked[0] ? ' · '+esc(a.masked[0]) : ''}</span>
         <span class="a">${fmt2(a.balance)} ${esc(CCYSIGN[MONO_CCY[a.currency]] || '₴')}</span>
@@ -418,7 +424,13 @@ function monoRenderState(){
   n.textContent = !has ? 'не підключено'
     : when ? `оновлено ${when.toLocaleString('uk-UA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`
            : 'підключено, даних ще немає';
+  /* Крапка поруч із текстом — клас на наявному елементі, не нова розмітка. */
+  const dt = el('monoDot'); if(dt) dt.className = 'dot ' + (has ? 'ok' : 'off');
   el('monoForget').hidden = !has;
+  /* Лайм — лише на одній головній дії: до підключення це «Підключити»,
+     після — «Оновити». Два лаймові поруч не кажуть, куди тиснути. */
+  el('monoSave').classList.toggle('pri', !has);
+  el('monoSync').classList.toggle('pri', has);
   el('monoSync').disabled = !has;
   el('monoFull').disabled = !has;
 }
@@ -544,18 +556,21 @@ async function updRun(){
   box.innerHTML = '<span class="muted">Дивлюсь…</span>';
   try{
     const r = await D.updCheck(src);
+    /* Результат — плоска вставка .mfound зі словника «Підписок»; стан —
+       крапка біля заголовка, а «Встановити» — компактна .btn.sm.pri, щоб
+       не переростала рядок заголовка вставки. */
     if(!r.available){
-      box.innerHTML = `<div class="mfound" style="margin:0"><div class="mfhead">
-        <b>Уже найновіша</b><span class="muted">у вас ${esc(r.current)}, у джерелі ${esc(r.version)}</span>
+      box.innerHTML = `<div class="mfound"><div class="mfhead">
+        <b class="stat"><span class="dot ok" aria-hidden="true"></span>Уже найновіша</b><span class="muted">у вас ${esc(r.current)}, у джерелі ${esc(r.version)}</span>
       </div></div>`;
       return;
     }
-    box.innerHTML = `<div class="mfound" style="margin:0">
-      <div class="mfhead"><b>Є оновлення ${esc(r.version)}</b>
+    box.innerHTML = `<div class="mfound">
+      <div class="mfhead"><b class="stat"><span class="dot info" aria-hidden="true"></span>Є оновлення ${esc(r.version)}</b>
         <span class="muted">зараз ${esc(r.current)} · ${esc(r.file)}</span>
-        <button class="btn pri" id="updGo">Встановити</button></div>
-      ${r.notes ? `<p class="muted" style="margin:4px 0 0;font-size:12.5px">${esc(r.notes)}</p>` : ''}
-      <p class="muted" style="margin:8px 0 0;font-size:11.5px">
+        <button class="btn sm pri" id="updGo">Встановити</button></div>
+      ${r.notes ? `<p class="muted mfnote">${esc(r.notes)}</p>` : ''}
+      <p class="muted mfnote">
         Апка закриється, запуститься інсталятор. Дані, підписки й токен лишаться на місці —
         оновлюється тільки програма.</p></div>`;
     el('updGo').onclick = async ()=>{
@@ -567,11 +582,13 @@ async function updRun(){
       el('updGo').textContent = 'Готую…';
       try{ await D.updInstall(src, r.file); }
       catch(e){ el('updGo').disabled = false; el('updGo').textContent = 'Встановити';
+                /* Помилка — крапка й звичайний текст: дрібний --warn на
+                   --surface-2 світлої теми не тримає 4,5:1. */
                 box.insertAdjacentHTML('beforeend',
-                  `<p class="muted" style="margin:8px 0 0;color:var(--warn)">${esc(String(e))}</p>`); }
+                  `<p class="muted mfnote stat"><span class="dot warn" aria-hidden="true"></span>${esc(String(e))}</p>`); }
     };
   }catch(e){
-    box.innerHTML = `<span class="muted" style="color:var(--warn)">${esc(String(e))}</span>`;
+    box.innerHTML = `<span class="muted stat"><span class="dot warn" aria-hidden="true"></span>${esc(String(e))}</span>`;
   }
 }
 
@@ -667,15 +684,17 @@ function autoInfo(){
   const err   = store.get('autoSyncErr', '');
   /* Банк вимкнено — це ще не «нічого не оновлюється»: брокер може
      мати свій розклад, і мовчати про нього не можна. */
+  /* Збій позначає крапка (.mfval.bad::before), а не колір тексту: дрібний
+     --warn на картці світлої теми не тримає 4,5:1. */
   if(!every){
     const ih = store.get('autoIbkrH', 0);
-    n.style.color = '';
+    n.classList.remove('bad');
     n.textContent = ih ? `банк — тільки кнопкою · IBKR раз на ${ih} год`
                        : 'оновлення тільки кнопкою';
     return;
   }
-  if(err){ n.textContent = 'остання спроба: ' + err; n.style.color = 'var(--warn)'; return; }
-  n.style.color = '';
+  if(err){ n.textContent = 'остання спроба: ' + err; n.classList.add('bad'); return; }
+  n.classList.remove('bad');
   const ibh = store.get('autoIbkrH', 0);
   const ibl = store.get('autoIbkrLast', 0);
   const qf = store.get('autoQuietFrom', 23), qt = store.get('autoQuietTo', 8);
@@ -806,11 +825,11 @@ async function dirShow(){
     + (store.get('migrationError','') ? `<p class="warnbox">${esc(store.get('migrationError',''))}</p>` : '');
   el('dirReset').hidden = cur === def;
   el('dirFiles').innerHTML =
-    `<div class="muted" style="font-size:12px;margin-bottom:8px">Що саме там лежить</div>`
+    `<div class="muted setcap">Що саме там лежить</div>`
     + DIR_FILES.map(([f, d])=>`
-        <div class="row"><span class="nm"><code>${esc(f)}</code></span>
-          <span class="cnt" style="flex:2;text-align:left;white-space:normal">${esc(d)}</span></div>`).join('')
-    + `<p class="muted" style="margin:10px 0 0;font-size:11.5px">
+        <div class="row dirrow"><span class="nm"><code>${esc(f)}</code></span>
+          <span class="cnt">${esc(d)}</span></div>`).join('')
+    + `<p class="muted setfine">
          Токена серед них немає — він у Диспетчері облікових даних Windows.
          Скопіювати теку = зробити повний бекап; повернути на місце — і все на місці.</p>`;
 }
@@ -909,12 +928,18 @@ function brokerStates(){
   const i = el('ibkrState'), b = el('binState');
   if(i) i.textContent = window.__BOOT__.hasIbkr ? 'підключено' : 'не підключено';
   if(b) b.textContent = window.__BOOT__.hasBin ? 'підключено' : 'не підключено';
+  const di = el('ibkrDot'); if(di) di.className = 'dot ' + (window.__BOOT__.hasIbkr ? 'ok' : 'off');
+  const db = el('binDot');  if(db) db.className = 'dot ' + (window.__BOOT__.hasBin ? 'ok' : 'off');
   /* Ключ уже збережено — головна дія тепер «Оновити зараз», а не поля
      токена: вдруге його вбивати не треба. */
   const fi = el('ibkrForget'); if(fi) fi.hidden = !window.__BOOT__.hasIbkr;
   const fb = el('binForget');  if(fb) fb.hidden = !window.__BOOT__.hasBin;
   const si = el('ibkrSync');   if(si) si.hidden = !window.__BOOT__.hasIbkr;
   const sb = el('binSync');    if(sb) sb.hidden = !window.__BOOT__.hasBin;
+  /* Лайм лише на головній дії: з ключем це «Оновити зараз», тож
+     «Підключити» (заміна ключа) стає звичайною кнопкою. */
+  const vi = el('ibkrSave');   if(vi) vi.classList.toggle('pri', !window.__BOOT__.hasIbkr);
+  const vb = el('binSave');    if(vb) vb.classList.toggle('pri', !window.__BOOT__.hasBin);
 }
 function brokerWire(){
   if(!el('ibkrSave')) return;

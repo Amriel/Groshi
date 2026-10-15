@@ -456,20 +456,27 @@ section[hidden]{display:none}
 }
 
 /* ── перегляд на телефоні ───────────────────────────────── */
-#phoneOverlay{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column;align-items:center}
+/* Тло — простий --scrim поверх апки (як у модалки), панель і рамка —
+   плоскі поверхні з токенів: сирі rgba панелі й чорна рамка не мали
+   світлого варіанта й у світлій темі виглядали дірою в екрані. */
+#phoneOverlay{position:fixed;inset:0;z-index:200;background:var(--scrim);display:flex;flex-direction:column;align-items:center}
 #phoneOverlay[hidden]{display:none}
 .ph-bar{width:100%;display:flex;gap:12px;align-items:center;flex-wrap:wrap;
-  padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.07);
-  background:rgba(255,255,255,.05)}
+  padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface)}
+.ph-bar strong{font-size:var(--fs-md);font-weight:600}
+#phSize{font-variant-numeric:tabular-nums}
 .ph-stage{flex:1;width:100%;display:grid;place-items:center;overflow:auto;padding:22px}
-.ph-frame{position:relative;background:#000;border-radius:44px;padding:12px;
-  box-shadow:0 0 0 2px #2e2e2e, 0 24px 60px rgba(0,0,0,.6);transform-origin:center center;flex:none}
-.ph-frame iframe{display:block;border:0;border-radius:32px;background:var(--bg)}
-.ph-notch{position:absolute;top:20px;left:50%;transform:translateX(-50%);
-  width:34%;height:26px;background:#000;border-radius:0 0 16px 16px;z-index:2;pointer-events:none}
+.ph-frame{position:relative;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:12px;
+  box-shadow:var(--shadow-pop);transform-origin:center center;flex:none}
+/* Радіус екрана — радіус рамки мінус її товщина: тоді край екрана йде
+   паралельно краю рамки, без клинця в кутах. */
+.ph-frame iframe{display:block;border:0;border-radius:calc(var(--radius-lg) - 12px);background:var(--bg)}
+.ph-notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:34%;height:22px;background:var(--surface);border-radius:0 0 14px 14px;z-index:2;pointer-events:none}
 .ph-home{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
-  width:36%;height:5px;background:rgba(255,255,255,.45);border-radius:3px;z-index:2;pointer-events:none}
-.ph-frame.landscape .ph-notch{top:50%;left:20px;transform:translateY(-50%);width:26px;height:34%;border-radius:0 16px 16px 0}
+  width:36%;height:5px;background:var(--text-mute);border-radius:3px;z-index:2;pointer-events:none}
+.ph-frame.landscape .ph-notch{top:50%;left:12px;transform:translateY(-50%);width:22px;height:34%;border-radius:0 14px 14px 0}
 .ph-frame.landscape .ph-home{bottom:50%;left:auto;right:20px;transform:translateY(50%);width:5px;height:36%}
 
 /* ── дрібне ─────────────────────────────────────────────── */
@@ -1564,6 +1571,102 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .lgrow .txt{grid-column:1;grid-row:2} .lgrow .chg{grid-column:2;grid-row:2}
   .pjspark{margin-left:0;margin-top:12px}
 }
+
+/* ── Ще (налаштування) ── */
+/* Проміжок між картками — gap колонки, а не margin-bottom кожної: картки
+   розділу ховаються атрибутом hidden ([hidden] display:none !important),
+   і схована картка в gap не бере участі — інакше між розділами лишались
+   би «дірки» від прихованих сусідів. Те саме для десктопних вставок. */
+#tab-settings{display:flex;flex-direction:column;gap:12px}
+/* Навігатор розділів — той самий сегмент, що й період. Рухомого
+   індикатора тут немає (три пункти, перемикання миттєве), тож активний
+   чип малює власну заливку, як на «Інвестиціях». */
+#tab-settings .periodbar .chip[aria-pressed="true"]{background:var(--surface-3)}
+/* На 390 px три назви з типовим відступом чипа (14 px) ширші за колонку
+   на ~17 px, і сегмент гортався вбік, ховаючи край «Апки і даних».
+   Сегмент на всю ширину, чипи ділять її, відступ менший. */
+@media (max-width:759px){
+  #setSeg{width:100%}
+  #setSeg .chip{flex:1 1 auto;justify-content:center;padding:0 10px}
+}
+#rHead{cursor:pointer}
+/* Вступний абзац картки й рядок стану під діями. min-height у стану:
+   повідомлення («Готово…», помилка) зʼявляється після дії, і без
+   зарезервованого рядка все нижче в картці підскакувало б. */
+.setlead{margin:0 0 12px}
+.setlead:last-child{margin-bottom:0}
+.setmsg{margin:10px 0 0;min-height:1.5em}
+.setfine{margin:10px 0 0;font-size:var(--fs-xs);line-height:1.5}
+.setcap{margin:0 0 8px;font-size:var(--fs-xs)}
+.setgap{margin-top:14px}
+.setgap-s{margin-top:8px}
+.setsteps{margin:0 0 12px;padding-left:20px;line-height:1.55}
+.setsteps li+li{margin-top:2px}
+/* Поля правила тягнуться порівну й переносяться, коли не влазять. */
+.setin{flex:1 1 130px;min-width:120px}
+/* Мітка з контролем у рядку (число, галочка): контрол стоїть у тексті. */
+/* flex-wrap: на 390 px «Блокувати після [0] хв. без дій (…)» ширший за
+   картку, і без переносу текст стискався в стовпчики по слову. */
+.optlabel{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.optlabel:has(input[type="checkbox"]){cursor:pointer}
+.setnum{width:64px}
+.setnote{font-size:var(--fs-xs)}
+.fieldrow.loose{gap:10px 14px}
+/* Значення в рядку .mfields на висоті поля (поруч із випадайками). */
+/* .mf > span — це підпис поля (капітель, трекінг); значення теж пряма
+   дитина .mf, тож без скидання «оновлення тільки кнопкою» читалось як
+   ще один заголовок поля. */
+.mf > .mfval{line-height:var(--ctl);font-size:var(--fs-sm);font-weight:400;
+  letter-spacing:normal;text-transform:none;color:var(--text-mute)}
+.mf > .mfval.xs{font-size:var(--fs-xs)}
+/* Стан підключення — крапка й текст; колір лише в крапці: дрібний
+   --success/--warn на картці світлої теми не тримає 4,5:1. */
+.stat{display:inline-flex;align-items:center;gap:7px}
+.stat .dot{width:8px;height:8px}
+.dot.ok{background:var(--success)}
+.dot.off{background:var(--text-mute)}
+.dot.warn{background:var(--warn)}
+.dot.info{background:var(--info)}
+.mfval.bad::before{content:'';display:inline-block;width:8px;height:8px;margin-right:7px;
+  border-radius:50%;background:var(--warn);vertical-align:1px}
+/* Правила і виключення — рядки .row; лічильник збігів одразу за текстом. */
+#rules .nm .cnt{margin-left:8px}
+.row.rsum{margin-top:8px}
+.exk{min-width:96px}
+#excl .amt{color:var(--text-mute)}
+/* Якість даних: пояснення між групами рядків. */
+.qnote{margin:14px 0 8px}
+.qnote:first-child{margin:0 0 10px}
+#quality .warnbox{margin:10px 0 0}
+#quality .warnbox>.btn{margin-top:10px}
+.qmore{margin-top:8px}
+/* Дозволи: кнопка фіксованої ширини — «Увімкнути»/«Вимкнути» різної
+   довжини, і без неї рядок смикався б при кожному перемиканні. */
+.privd{font-size:var(--fs-xs)}
+.privbtn{flex:0 0 125px}
+/* Десктоп: тека з даними й оновлення. */
+.dirrow .cnt{flex:2;text-align:left;white-space:normal}
+/* На вузькому екрані назва файлу не ріжеться «…»: опис переноситься під неї. */
+@media (max-width:759px){
+  .dirrow{flex-wrap:wrap;gap:4px 12px}
+  .dirrow .nm{flex:none;max-width:100%}
+  .dirrow .cnt{flex:1 1 100%}
+}
+#updBox .mfound{margin-top:0}
+
+/* ── Екран блокування ──
+   Над усім (модалка 300, списки 400, календар 410): поки він є, під
+   ним нічого не можна ні побачити, ні натиснути. Плоска картка на тлі. */
+#lockScreen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;
+  padding:16px;background:var(--bg)}
+.lockcard{display:flex;flex-direction:column;align-items:center;gap:14px;
+  width:min(320px,100%);padding:28px 24px;text-align:center}
+.lockcard .logo{width:44px;height:44px;border-radius:14px;background:var(--accent);
+  color:var(--accent-contrast);display:grid;place-items:center;font-weight:700;font-size:var(--fs-lg)}
+.lockcard h2{font-size:var(--fs-xl)}
+#lockMsg{min-height:1.5em;font-size:var(--fs-sm)}
+#lockPin{width:180px;text-align:center;font-size:var(--fs-xl);letter-spacing:6px}
+.lockcard .btn{width:180px}
 </style>
 </head>
 <body>
@@ -1585,13 +1688,15 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   </defs>
 </svg>
 <div id="scrnBadge" class="scrnbadge" hidden>режим скріншоту — суми сховані</div>
-<div id="lockScreen" hidden style="position:fixed;inset:0;z-index:99999;background:var(--bg,#101114);
-  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px">
-  <div style="font-family:var(--font-display);font-size:20px">Гроші</div>
-  <div class="muted" id="lockMsg" style="font-size:13px">Введіть код</div>
-  <input id="lockPin" type="password" inputmode="numeric" maxlength="12" autocomplete="off"
-    style="width:150px;text-align:center;font-size:20px;letter-spacing:6px;padding:8px 10px">
-  <button class="btn pri" id="lockGo">Відкрити</button>
+<div id="lockScreen" hidden>
+  <div class="card lockcard" role="dialog" aria-modal="true" aria-labelledby="lockT">
+    <span class="logo" aria-hidden="true">₴</span>
+    <h2 id="lockT">Гроші</h2>
+    <div class="muted" id="lockMsg" role="status">Введіть код</div>
+    <input id="lockPin" type="password" inputmode="numeric" maxlength="12" autocomplete="off"
+      aria-label="Код">
+    <button class="btn pri" id="lockGo">Відкрити</button>
+  </div>
 </div>
 <div class="shell" id="shell">
 <aside class="side" id="side">
@@ -2050,63 +2155,65 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 <section id="tab-settings" hidden>
   <!-- Розділи замість купи карток підряд: сім-десять карток однією
        колоною змушували гортати і шукати очима. Кожна картка несе
-       data-sec, перемикач показує один розділ. -->
-  <div class="seg" id="setSeg" style="margin-bottom:12px">
-    <button data-sec="src">Підключення</button>
-    <button data-sec="rules">Категорії і правила</button>
-    <button data-sec="app">Апка і дані</button>
+       data-sec, перемикач показує один розділ. Перемикач — той самий
+       сегмент, що й період (.periodbar .chip), з aria-pressed замість
+       класу .on: глобальне button.on фарбує лаймом, а лайм — за основною дією. -->
+  <div class="periodbar" id="setSeg" role="group" aria-label="Розділ налаштувань">
+    <button class="chip" data-sec="src" aria-pressed="false">Підключення</button>
+    <button class="chip" data-sec="rules" aria-pressed="false">Категорії і правила</button>
+    <button class="chip" data-sec="app" aria-pressed="false">Апка і дані</button>
   </div>
 
-  <div class="card" data-sec="src" id="srcNote" style="margin-bottom:12px" hidden>
+  <div class="card" data-sec="src" id="srcNote" hidden>
     <div class="cardhead"><h2>Банки і брокери</h2></div>
-    <p class="muted" style="margin:0">Monobank, Interactive Brokers і Binance підключаються
+    <p class="muted setlead">Monobank, Interactive Brokers і Binance підключаються
       в десктопному застосунку — браузерний файл не має ні сховища ключів, ні дозволу
       ходити на їхні домени. Тут працює лише імпорт виписки ПриватБанку нижче.</p>
   </div>
 
-  <div class="card" data-sec="rules" style="margin-bottom:12px">
-    <div class="cardhead" id="rHead" style="cursor:pointer">
+  <div class="card" data-sec="rules">
+    <div class="cardhead" id="rHead">
       <span class="tw-arrow" id="rArrow">▾</span>
       <h2>Власні категорії</h2>
-      <span class="hint" id="rCount" style="margin-left:auto"></span>
+      <span class="hint" id="rCount"></span>
     </div>
     <div id="rBody">
-    <p class="muted" style="margin:0 0 12px">Правило: якщо операція підпадає під умови — призначити категорію.
+    <p class="muted setlead">Правило: якщо операція підпадає під умови — призначити категорію.
       Умови необовʼязкові й діють разом. Сума розуміє <code>5919</code>, <code>&gt;2000</code>,
       <code>5000-6500</code>, <code>~5900</code> (±10%). Правила мають вищий пріоритет за MCC.</p>
     <div class="fieldrow">
-      <input id="rMatch" placeholder="містить, напр. glovo" list="rmerchlist" style="flex:1;min-width:150px">
-      <input id="rAcc" placeholder="рахунок — будь-який" list="racclist" style="flex:1;min-width:130px">
-      <input id="rAmt" placeholder="сума — будь-яка" style="flex:1;min-width:120px">
-      <input id="rCat" placeholder="категорія" list="catlist" style="flex:1;min-width:130px">
-      <input id="rSub" placeholder="підкатегорія" list="rsublist" style="flex:1;min-width:130px">
+      <input id="rMatch" class="setin" placeholder="містить, напр. glovo" list="rmerchlist">
+      <input id="rAcc" class="setin" placeholder="рахунок — будь-який" list="racclist">
+      <input id="rAmt" class="setin" placeholder="сума — будь-яка">
+      <input id="rCat" class="setin" placeholder="категорія" list="catlist">
+      <input id="rSub" class="setin" placeholder="підкатегорія" list="rsublist">
       <datalist id="rmerchlist"></datalist>
       <datalist id="racclist"></datalist>
       <datalist id="catlist"></datalist>
       <datalist id="rsublist"></datalist>
       <button class="btn pri" id="rAdd">Додати</button>
     </div>
-    <span class="mfhint" id="rHint" style="display:block;margin:8px 0 2px"></span>
+    <span class="mfhint setcap" id="rHint"></span>
     <div id="rules"></div>
     </div><!-- /rBody -->
   </div>
-  <div class="card" data-sec="rules" style="margin-bottom:12px">
+  <div class="card" data-sec="rules">
     <div class="cardhead"><h2>Не рахується як витрати</h2></div>
-    <p class="muted" style="margin:0 0 12px">У «Категоріях» натисніть ⊗ на будь-якому рядку —
+    <p class="muted setlead">У «Категоріях» натисніть ⊗ на будь-якому рядку —
       категорії, підкатегорії чи мерчанті — і він перестане потрапляти в суму витрат.
       Операції нікуди не зникають, лише не рахуються.</p>
     <div id="excl"></div>
   </div>
 
-  <div class="card" data-sec="rules" style="margin-bottom:12px">
+  <div class="card" data-sec="rules">
     <div class="cardhead"><h2>Перекази між своїми рахунками</h2><span class="hint" id="moveHint"></span></div>
-    <p class="muted" style="margin:0 0 12px">Переказ самому собі — не заробіток і не витрата.
+    <p class="muted setlead">Переказ самому собі — не заробіток і не витрата.
       «Сховати повністю» прибирає зі списків <b>лише перекази між власними рахунками</b> —
       зняття готівки й поповнення банок залишаються на видноті.
       «Не рахувати» тримає поза підсумками, як і раніше, все разом:
       перекази, готівку і банки.</p>
     <div class="fieldrow">
-      <select id="moveMode" style="min-width:290px">
+      <select id="moveMode">
         <option value="skip">Показувати, але не рахувати</option>
         <option value="hide">Сховати повністю</option>
         <option value="count">Рахувати як звичайні операції</option>
@@ -2114,13 +2221,13 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     </div>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Валюта</h2><span class="hint" id="ccyHint"></span></div>
-    <p class="muted" style="margin:0 0 12px">Усе зберігається в гривні — валюта тут лише для показу.
+    <p class="muted setlead">Усе зберігається в гривні — валюта тут лише для показу.
       Перемикання нічого не змінює в даних: суми діляться на курс під час малювання.
       Поруч із головними сумами дрібним видно другу валюту.</p>
     <div class="fieldrow">
-      <select id="baseCcy" style="min-width:190px">
+      <select id="baseCcy">
         <option value="UAH">₴ гривня</option>
         <option value="USD">$ долар</option>
         <option value="EUR">€ євро</option>
@@ -2128,18 +2235,18 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     </div>
   </div>
 
-  <div class="card" data-sec="src" style="margin-bottom:12px" id="privacyCard">
+  <div class="card" data-sec="src" id="privacyCard">
     <div class="cardhead"><h2>Приватність і зовнішні сервіси</h2></div>
-    <p class="muted" style="margin:0 0 12px">Необов’язкові запити вимкнені, доки ви їх не дозволите.
+    <p class="muted setlead">Необов’язкові запити вимкнені, доки ви їх не дозволите.
       Банк і брокери працюють окремо за вашими підключеннями. Зовнішній сервіс бачить вашу IP-адресу та запит.
       Збережені дані можна переглядати без цих дозволів.</p>
     <div id="privacyOptions"></div>
-    <p class="muted" id="privacyStatus" role="status" style="min-height:18px;margin:8px 0 0;font-size:12px"></p>
+    <p class="muted setmsg" id="privacyStatus" role="status"></p>
   </div>
 
-  <div class="card" data-sec="src" style="margin-bottom:12px">
+  <div class="card" data-sec="src">
     <div class="cardhead"><h2>ПриватБанк — виписка</h2><span class="hint" id="pvHint"></span></div>
-    <p class="muted" style="margin:0 0 12px">Приват API для фізосіб не дає, але виписку віддає файлом:
+    <p class="muted setlead">Приват API для фізосіб не дає, але виписку віддає файлом:
       <b>Приват24 → Мої рахунки → Виписка → Експорт → CSV</b>. Імпортуйте її сюди — операції
       стануть поруч із Monobank, правила категорій діятимуть і на них.
       Повторний імпорт того ж періоду безпечний: однакові операції не дублюються.</p>
@@ -2148,79 +2255,79 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
       <button class="btn" id="pvClear" hidden>Прибрати імпортоване</button>
       <input type="file" id="pvFile" accept=".csv" hidden>
     </div>
-    <p class="muted" id="pvMsg" style="margin-top:10px"></p>
+    <p class="muted setmsg" id="pvMsg"></p>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Замок на вхід</h2><span class="hint" id="pinHint"></span></div>
-    <p class="muted" style="margin:0 0 12px">Необовʼязково. Коли ввімкнено, апка при запуску питає код —
+    <p class="muted setlead">Необовʼязково. Коли ввімкнено, апка при запуску питає код —
       щоб той, хто сів за компʼютер, не побачив ваші операції одним кліком.
       Це <b>не шифрування</b>: файли з даними лишаються на диску як були, і той, хто знає, де вони,
       прочитає їх повз апку. Забутий код скидається видаленням <code>pinHash</code> у файлі стану.</p>
     <div class="fieldrow">
       <button class="btn" id="pinBtn">Увімкнути код</button>
-      <label class="muted" style="display:flex;gap:7px;align-items:center">
-        Блокувати після <input id="pinIdle" type="number" min="0" max="240" step="5" style="width:64px">
-        хв. без дій <span style="font-size:11px">(0 — тільки при запуску)</span></label>
+      <label class="muted optlabel">
+        Блокувати після <input id="pinIdle" class="setnum" type="number" min="0" max="240" step="5">
+        хв. без дій <span class="setnote">(0 — тільки при запуску)</span></label>
     </div>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Рахунки клієнтам</h2></div>
-    <p class="muted" style="margin:0 0 12px">Через скільки днів неоплачений рахунок вважати простроченим —
+    <p class="muted setlead">Через скільки днів неоплачений рахунок вважати простроченим —
       такий випливе на Огляді з готовим текстом нагадування.</p>
     <div class="fieldrow">
-      <label class="muted" style="display:flex;gap:7px;align-items:center">
-        Нагадувати після <input id="invcDueDays" type="number" min="1" max="180" step="1" style="width:64px"> днів</label>
+      <label class="muted optlabel">
+        Нагадувати після <input id="invcDueDays" class="setnum" type="number" min="1" max="180" step="1"> днів</label>
     </div>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Сповіщення інвестицій</h2></div>
-    <p class="muted" style="margin:0 0 12px">Системні повідомлення від застосунку: різкий рух
+    <p class="muted setlead">Системні повідомлення від застосунку: різкий рух
       позиції за день і день виплати дивідендів. Watchlist-цілі сповіщаються завжди.</p>
-    <div class="fieldrow" style="align-items:center;gap:14px">
-      <label class="muted" style="display:flex;gap:7px;align-items:center">
-        Рух позиції від ±<input id="alertPct" type="number" min="0" step="0.5" style="width:64px">%
-        <span style="font-size:11px">(0 — вимкнено)</span></label>
-      <label class="muted" style="display:flex;gap:7px;align-items:center;cursor:pointer">
+    <div class="fieldrow loose">
+      <label class="muted optlabel">
+        Рух позиції від ±<input id="alertPct" class="setnum" type="number" min="0" step="0.5">%
+        <span class="setnote">(0 — вимкнено)</span></label>
+      <label class="muted optlabel">
         <input type="checkbox" id="divNotifyCk"> День виплати дивідендів</label>
     </div>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Мова</h2></div>
-    <p class="muted" style="margin:0 0 12px">Застосунок — українською. Новини по акціях приходять
+    <p class="muted setlead">Застосунок — українською. Новини по акціях приходять
       англійською з Yahoo; заголовки можна автоматично перекладати.</p>
     <div class="fieldrow">
-      <label class="muted" style="display:flex;gap:7px;align-items:center;cursor:pointer">
+      <label class="muted optlabel">
         <input type="checkbox" id="newsUk"> Перекладати заголовки новин українською</label>
     </div>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px" id="bkCard">
+  <div class="card" data-sec="app" id="bkCard">
     <div class="cardhead"><h2>Бекап</h2><span class="hint" id="bkHint"></span></div>
-    <p class="muted" style="margin:0 0 12px">Банк віддає лише 31 добу історії — все старше,
+    <p class="muted setlead">Банк віддає лише 31 добу історії — все старше,
       разом із категоріями, правилами, примітками і знімками крипти, живе тільки у файлах апки.
       Бекап — копія цих файлів у вибрану теку; найкраще обрати теку на іншому диску або в
       хмарній папці. Тримається 8 останніх копій, старші прибираються самі.</p>
     <div class="fieldrow">
       <button class="btn pri" id="bkNow">Зробити бекап зараз</button>
       <button class="btn" id="bkDir">Обрати теку</button>
-      <label class="muted" style="display:flex;gap:7px;align-items:center;cursor:pointer">
+      <label class="muted optlabel">
         <input type="checkbox" id="bkAuto"> Щотижня автоматично</label>
     </div>
-    <p class="muted" id="bkMsg" style="margin-top:10px"></p>
+    <p class="muted setmsg" id="bkMsg"></p>
   </div>
 
-  <div class="card" data-sec="app" style="margin-bottom:12px">
+  <div class="card" data-sec="app">
     <div class="cardhead"><h2>Дані</h2></div>
     <div class="fieldrow">
       <button class="btn" id="expCsv">Експорт CSV</button>
       <button class="btn" id="expJson">Експорт JSON</button>
       <button class="btn" id="reset">Скинути налаштування</button>
     </div>
-    <p class="muted" id="dataInfo" style="margin-top:10px"></p>
+    <p class="muted setmsg" id="dataInfo"></p>
   </div>
   <div class="card" data-sec="app">
     <div class="cardhead"><h2>Якість даних</h2></div>
@@ -2259,12 +2366,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     <strong>Перегляд на телефоні</strong>
     <select id="phDevice"></select>
     <button class="btn" id="phRotate">⟳ Повернути</button>
-    <label class="muted" style="display:flex;gap:6px;align-items:center;cursor:pointer">
+    <label class="muted optlabel">
       <input type="checkbox" id="phFit" checked>
       Вмістити у вікно
     </label>
     <span class="muted" id="phSize"></span>
-    <span style="flex:1"></span>
+    <span class="spacer"></span>
     <button class="btn" id="phClose">Закрити ✕</button>
   </div>
   <div class="ph-stage">
@@ -4463,8 +4570,8 @@ function renderRules(){
   el('rules').innerHTML = RULES.length ? RULES.map((r,i)=>
     `<div class="row"><span class="nm">${cond(r)} → <b>${esc(r.cat)}</b>${
         r.sub && r.sub !== r.cat ? ` <span class="muted">→ ${esc(r.sub)}</span>` : ''}
-      <span class="cnt" style="margin-left:8px">${hitsOf(r).length}×</span></span>
-      <button class="btn" data-del="${i}" style="padding:4px 10px">✕</button></div>`).join('')
+      <span class="cnt">${hitsOf(r).length}×</span></span>
+      <button class="btn sm" data-del="${i}" aria-label="Видалити правило" data-tip="Видалити правило">✕</button></div>`).join('')
     : '<p class="muted">Правил ще немає.</p>';
   el('rules').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
     RULES.splice(+b.dataset.del,1); store.set('rules',RULES); invalidate(); invalidateSubs(); render(); });
@@ -4473,10 +4580,10 @@ function renderRules(){
      теж треба десь бачити, інакше вони стають невидимою магією. */
   const n = Object.keys(TXCAT).length;
   el('rules').insertAdjacentHTML('beforeend', !n ? '' :
-    `<div class="row" style="margin-top:8px"><span class="nm muted">
+    `<div class="row rsum"><span class="nm muted">
        Окремих операцій із власною категорією: <b>${n}</b>
        <span class="muted">· у картці операції «Категорія → змінити»</span></span>
-     <button class="btn" id="txcatClear" style="padding:4px 10px">Скинути всі</button></div>`);
+     <button class="btn sm" id="txcatClear">Скинути всі</button></div>`);
   const cl = el('txcatClear');
   if(cl) cl.onclick = async ()=>{
     const ok = await uiConfirm({title:'Скинути власні категорії?',
@@ -4494,10 +4601,10 @@ function renderExcl(){
     const [type, rest] = [k.slice(0,k.indexOf(':')), k.slice(k.indexOf(':')+1)];
     const sum = TX.filter(t=>t.dir==='expense' && exKeys(t).includes(k))
                   .reduce((s,t)=>s+t.amount,0);
-    return `<div class="row"><span class="muted" style="min-width:96px">${LBL[type]||type}</span>
+    return `<div class="row"><span class="muted exk">${LBL[type]||type}</span>
       <span class="nm">${esc(rest.replace('|',' → '))}</span>
-      <span class="amt" style="opacity:.6">${money(sum)}</span>
-      <button class="btn" data-unex="${esc(k)}" style="padding:5px 11px;height:auto;font-size:12px">Повернути</button></div>`;
+      <span class="amt">${money(sum)}</span>
+      <button class="btn sm" data-unex="${esc(k)}">Повернути</button></div>`;
   }).join('') : '<p class="muted">Поки нічого не виключено.</p>';
   el('excl').querySelectorAll('[data-unex]').forEach(b=>b.onclick=()=>{
     EXCL.delete(b.dataset.unex); saveExcl(); dpInvalidate(); render(); });
@@ -4508,7 +4615,7 @@ function renderQuality(){
   TX.forEach(t=>{ c[t.conf]=(c[t.conf]||0)+1; });
   const names = {balance:'визначено за ланцюжком балансів', assumed:'припущено (витрата)', ambiguous:'неоднозначно'};
   el('quality').innerHTML =
-    `<p class="muted" style="margin:0 0 10px">Напрямок операції (витрата/надходження) не зберігався у Notion — його відновлено з поля Balance.</p>`
+    `<p class="muted qnote">Напрямок операції (витрата/надходження) не зберігався у Notion — його відновлено з поля Balance.</p>`
     + Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
       `<div class="row"><span class="nm">${names[k]||k}</span><span class="amt">${v}</span>
        <span class="cnt">${(v/TX.length*100).toFixed(0)}%</span></div>`).join('');
@@ -4525,17 +4632,17 @@ function renderQuality(){
     const lone   = mv.filter(t => t.dir === 'income' && (!t.moveWhy || t.moveWhy === 'guess'));
     const loneSum = lone.reduce((a,t) => a + t.amount, 0);
     el('quality').insertAdjacentHTML('beforeend',
-      `<p class="muted" style="margin:14px 0 8px">Перекази між власними рахунками не рахуються
+      `<p class="muted qnote">Перекази між власними рахунками не рахуються
          ані як витрата, ані як дохід — інакше та сама тисяча гривень зʼявилась би двічі.</p>
        <div class="row"><span class="nm">рух коштів — операцій</span>
          <span class="amt">${mv.length}</span><span class="cnt">доведених ${proved}</span></div>`
-      + (lone.length ? `<div class="warnbox" style="margin-top:10px">
+      + (lone.length ? `<div class="warnbox">
           <b>${lone.length} зарахувань віднесено до переказів за здогадом — на ${money(loneSum)}.</b><br>
           Доказу немає: ні пари-списання, ні власного IBAN, ні вашого імені — лише текст опису.
           Перевірте їх. Якщо це справді дохід ззовні — змініть категорію, і сума почне рахуватись.
           Якщо це переказ між своїми рахунками, а пари немає — позначте всі свої рахунки
           в «Ще → Monobank» і оновіть.
-          <button class="btn" id="showLone" style="margin-top:10px">Показати ці ${lone.length}</button>
+          <button class="btn" id="showLone">Показати ці ${lone.length}</button>
         </div>` : ''));
     const sl = el('showLone');
     if(sl) sl.onclick = ()=> openTx({ids: lone.map(t=>t.id), label:'Зарахування без пари'});
@@ -4551,14 +4658,14 @@ function renderQuality(){
     const rs = refs.reduce((a,t)=>a+t.amount, 0);
     const lost = refs.filter(t => !TX.some(x => x.id === rfnOf(t))).length;
     el('quality').insertAdjacentHTML('beforeend',
-      `<p class="muted" style="margin:14px 0 8px">Повернення (скасоване замовлення, повернений
+      `<p class="muted qnote">Повернення (скасоване замовлення, повернений
          товар) не рахується як дохід — воно зменшує витрати тієї ж категорії, куди пішла покупка.</p>
        <div class="row"><span class="nm">повернень</span>
          <span class="amt">${money(rs)}</span><span class="cnt">${refs.length} оп.</span></div>`
       + (lost ? `<div class="row"><span class="nm muted">із них покупка поза періодом</span>
          <span class="amt">${lost}</span><span class="cnt">категорію взято з назви</span></div>` : ''));
     const rb = document.createElement('div');
-    rb.innerHTML = `<button class="btn" id="showRefs" style="margin-top:8px">Показати повернення</button>`;
+    rb.innerHTML = `<button class="btn qmore" id="showRefs">Показати повернення</button>`;
     el('quality').appendChild(rb);
     el('showRefs').onclick = ()=> openTx({ids: refs.map(t=>t.id), label:'Повернення коштів'});
   }
@@ -4570,13 +4677,13 @@ function renderQuality(){
   const noRate = TX.filter(t=>t.noRate).length;
   if(Object.keys(ccy).length){
     el('quality').insertAdjacentHTML('beforeend',
-      `<p class="muted" style="margin:14px 0 8px">Операції з валютних рахунків переводяться
+      `<p class="muted qnote">Операції з валютних рахунків переводяться
         в гривню за курсом банку на день операції. Курс апка бере з ваших же гривневих
         покупок у валюті — власного джерела курсів їй не треба.</p>`
       + Object.entries(ccy).map(([k,v])=>
         `<div class="row"><span class="nm">${esc(k)} — операцій</span><span class="amt">${v}</span>
          <span class="cnt">${RATE_NOW[k] ? 'курс ' + fmt2(RATE_NOW[k]) : '—'}</span></div>`).join('')
-      + (noRate ? `<div class="warnbox" style="margin-top:10px"><b>${noRate} операцій без курсу.</b><br>
+      + (noRate ? `<div class="warnbox"><b>${noRate} операцій без курсу.</b><br>
           У виписці немає жодної гривневої покупки в цій валюті, тож перерахувати нема з чого —
           суми показані як є, у валюті рахунку. Щойно зʼявиться така покупка, все перерахується саме.</div>` : ''));
   }
@@ -6466,6 +6573,10 @@ function uiAsk(o){
     };
     const submit = ()=>{ const v = val(); if(v !== RFAIL) done(v); };
     const onKey = e=>{
+      /* Поверх вікна — екран блокування: клавіші належать полю коду.
+         Інакше Enter після коду «підтверджував» вікно під замком, а Esc
+         його закривав — дія, якої людина не бачила. */
+      if(!el('lockScreen').hidden) return;
       if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); done(null); }
       else if(e.key === 'Enter' && !e.shiftKey && !o.pick){
         if(document.querySelector('.cmbi.open')) return;   // спершу вибір у підказці
@@ -9031,7 +9142,7 @@ function setSecApply(){
   const seg = el('setSeg');
   if(!seg) return;
   seg.querySelectorAll('[data-sec]').forEach(b=>{
-    b.classList.toggle('on', b.dataset.sec===SETSEC);
+    b.setAttribute('aria-pressed', String(b.dataset.sec===SETSEC));
     b.onclick = ()=>{ SETSEC = b.dataset.sec; store.set('setSec', SETSEC);
       render(); };
   });
@@ -9111,10 +9222,20 @@ function pinUi(){
   h.textContent = on ? 'увімкнено' : 'вимкнено';
   b.textContent = on ? 'Вимкнути код' : 'Увімкнути код';
 }
+/* Під замком — inert усе, що він накриває: каркас, вікно й перегляд на
+   телефоні. Блокування за бездіяльністю може настати поверх відкритого
+   вікна, а z-index ховає його лише від очей: Tab і зчитувач екрана
+   дістались би до кнопок вікна під замком. Інерт вікна й каркаса ставимо
+   на самі контейнери (#shell, #modal), а не на #side/.wrap, тож він не
+   перетинається з uiInert() і після розблокування вікно знову працює. */
+function pinInert(on){
+  ['shell','modal','phoneOverlay'].forEach(id=>{ const n = el(id); if(n) n.inert = on; });
+}
 function pinLock(){
   if(!pinOn()) return;
   const sc = el('lockScreen'); if(!sc || !sc.hidden) return;
-  sc.hidden = false; el('lockPin').value = '';
+  if(window.cselCloseAll) cselCloseAll();
+  sc.hidden = false; pinInert(true); el('lockPin').value = '';
   el('lockMsg').textContent = 'Введіть код';
   setTimeout(()=>el('lockPin').focus(), 60);
 }
@@ -9122,6 +9243,9 @@ async function pinTry(){
   const v = el('lockPin').value;
   if(await pinHash(v, store.get('pinSalt','')) === store.get('pinHash', null)){
     el('lockScreen').hidden = true; el('lockPin').value = ''; PIN_LAST = Date.now();
+    pinInert(false);
+    /* Замок закрив відкрите вікно — фокус назад у вікно, а не в <body>. */
+    if(!el('modal').hidden){ const y = el('modalYes'); if(y && !y.hidden) y.focus(); }
   } else {
     el('lockMsg').textContent = 'Код не підходить';
     el('lockPin').value = ''; el('lockPin').focus();
@@ -9242,9 +9366,9 @@ const PRIVACY_OPTIONS = [
   ['updates','Оновлення апки','GitHub: перевірка версії та завантаження підписаної збірки.']
 ];
 el('privacyOptions').innerHTML = PRIVACY_OPTIONS.map(([key,name,detail])=>
-  `<div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-soft)">
-    <div style="flex:1;min-width:0"><b>${name}</b><div class="muted" style="font-size:12px">${detail}</div></div>
-    <button class="btn" data-privacy="${key}" aria-pressed="false" style="flex:0 0 125px;width:125px">Увімкнути</button></div>`).join('');
+  `<div class="row">
+    <div class="grow"><b>${name}</b><div class="muted privd">${detail}</div></div>
+    <button class="btn privbtn" data-privacy="${key}" aria-pressed="false">Увімкнути</button></div>`).join('');
 function privacyUi(){
   document.querySelectorAll('[data-privacy]').forEach(button=>{
     const on = privacyAllowed(button.dataset.privacy);
@@ -9728,14 +9852,16 @@ function hotkeysHelp(){
   uiAsk({ title:'Гарячі клавіші', input:false, ok:'Зрозуміло', text:
 `1–7 — вкладки (Огляд … Ще)
 / — пошук в Операціях
-T — світла/темна тема
-P — перегляд на телефоні (браузерна версія)
-[ — звузити / розгорнути бічну панель
-S — режим скріншоту (сховати суми)
+T (Е) — світла/темна тема
+P (З) — перегляд на телефоні (браузерна версія)
+[ (Х) — звузити / розгорнути бічну панель
+S (І) — режим скріншоту (сховати суми)
 ? — ця довідка
 Esc — закрити вікно / зняти вибір
 Enter — підтвердити у вікні
-Shift-клік — діапазон у виборі кількох операцій` });
+Shift-клік — діапазон у виборі кількох операцій
+
+У дужках — та сама клавіша в українській розкладці.` });
 }
 addEventListener('keydown', e=>{
   const t = e.target;
@@ -9790,12 +9916,12 @@ function phRender(){
   fr.style.width = w+'px'; fr.style.height = h+'px';
   frame.classList.toggle('landscape', PH.landscape);
   el('phSize').textContent = `${w} × ${h} px`;
-  // масштаб, щоб рамка вміщалась у вікно
+  // масштаб, щоб рамка вміщалась у вікно; 26 = рамка 2×12 + межа 2×1
   let k = 1;
   if(el('phFit').checked)
-    k = Math.min(1, (innerHeight-160)/(h+24), (innerWidth-80)/(w+24));
+    k = Math.min(1, (innerHeight-160)/(h+26), (innerWidth-80)/(w+26));
   frame.style.transform = `scale(${k.toFixed(3)})`;
-  frame.style.margin = k<1 ? `${(h+24)*(k-1)/2}px ${(w+24)*(k-1)/2}px` : '0';
+  frame.style.margin = k<1 ? `${(h+26)*(k-1)/2}px ${(w+26)*(k-1)/2}px` : '0';
   store.set('phone', PH);
 }
 function phOpen(){
