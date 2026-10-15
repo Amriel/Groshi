@@ -120,7 +120,7 @@ tpl = tpl[:i] + NOTICE + tpl[j:]
 tpl = sub(tpl, "if(!INNER && innerWidth >= 860){\n  const btn = el('phoneBtn'); btn.hidden = false;",
           "if(false){\n  const btn = el('phoneBtn'); btn.hidden = false;", 'phone off')
 # сам елемент лишається в розмітці (його читає phRender), але назавжди прихований
-tpl = sub(tpl, 'id="phoneBtn" data-tip="Перегляд на телефоні" data-key="P" hidden',
+tpl = sub(tpl, 'id="phoneBtn" aria-label="Перегляд на телефоні" data-tip="Перегляд на телефоні" data-key="P" hidden',
           'id="phoneBtn" aria-hidden="true" hidden style="display:none"', 'phone btn')
 
 # ── 3d. картка «Рахунки» на Огляді ───────────────────────────────────

@@ -1173,10 +1173,37 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .shell.collapsed .brand{justify-content:center;padding:0}
 /* У рядка періодів є padding-top 2px: без цього зсуву підсвітка чипа вища за нього на 2 px. */
 .periodbar .chip-ind{top:2px}
+/* ══════════════════ КАРКАС: нижні таби (<760 px) ══════════════════
+   Дві розкладки діють за ОДНИМ медіа-запитом: ширина 759/760 — єдина
+   межа, тож двох навігацій одночасно не буває. Категорії й Кошториси
+   сховані: вони відкриваються з меню «Ще» (5 слотів — стеля читабельності
+   на 360 px). */
+@media (max-width:759px){
+  .shell{display:block}
+  .side{position:static;height:auto;padding:0;border:0;background:none;overflow:visible}
+  .side .brand,.side .side-foot{display:none}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;flex-direction:row;gap:0;
+    padding:6px 4px calc(env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 6px);
+    min-height:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px));
+    background:var(--surface);border-top:1px solid var(--border)}
+  nav.tabs button{flex:1;min-width:0;flex-direction:column;justify-content:center;gap:3px;
+    height:auto;padding:4px 2px;font-size:var(--fs-xs);font-weight:600}
+  nav.tabs button .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  nav.tabs button[data-tab="cats"],nav.tabs button[data-tab="budget"]{display:none}
+  nav.tabs button[data-tab="settings"]{margin-top:0}
+  nav.tabs button[aria-current="true"],nav.tabs button:hover{background:none}
+  nav.tabs button[aria-current="true"] .ic{color:var(--accent-ink)}
+  .tab-ind{display:none}
+  nav.tabs button[data-badge]:not([data-badge=""])::after{
+    right:calc(50% - 22px);top:2px;transform:none;min-width:14px;height:14px;line-height:14px;
+    padding:0 3px;font-size:10px}
+}
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<!-- width/height продубльовано в style: глобальне svg{width:100%} перекриває
+     атрибути, і невидимий спрайт займав би всю ширину сторінки. -->
+<svg width="0" height="0" style="position:absolute;width:0;height:0" aria-hidden="true" focusable="false">
   <defs>
     <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
     <symbol id="i-cats" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></symbol>
@@ -1207,19 +1234,21 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   <div class="brand"><span class="logo">₴</span><span class="brand-t nl">Гроші</span></div>
   <nav class="tabs" id="tabs" aria-label="Розділи">
     <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
-    <button data-tab="overview" aria-current="true" data-tip="Огляд" data-key="1"><svg class="ic" width="20" height="20"><use href="#i-overview"/></svg><span class="nl">Огляд</span></button>
-    <button data-tab="cats" data-tip="Категорії" data-key="2"><svg class="ic" width="20" height="20"><use href="#i-cats"/></svg><span class="nl">Категорії</span></button>
-    <button data-tab="tx" data-tip="Операції" data-key="3"><svg class="ic" width="20" height="20"><use href="#i-tx"/></svg><span class="nl">Операції</span></button>
-    <button data-tab="budget" data-tip="Кошториси" data-key="4"><svg class="ic" width="20" height="20"><use href="#i-budget"/></svg><span class="nl">Кошториси</span></button>
-    <button data-tab="inv" data-tip="Інвестиції" data-key="5"><svg class="ic" width="20" height="20"><use href="#i-inv"/></svg><span class="nl">Інвестиції</span></button>
-    <button data-tab="subs" data-tip="Підписки" data-key="6"><svg class="ic" width="20" height="20"><use href="#i-subs"/></svg><span class="nl">Підписки</span></button>
-    <button data-tab="settings" data-tip="Ще" data-key="7"><svg class="ic" width="20" height="20"><use href="#i-more"/></svg><span class="nl">Ще</span></button>
+    <!-- aria-label дублює підпис: у звуженій панелі підпис схований, і
+         зчитувач екрана без нього озвучив би кнопку порожньою. -->
+    <button data-tab="overview" aria-current="true" aria-label="Огляд" data-tip="Огляд" data-key="1"><svg class="ic" width="20" height="20"><use href="#i-overview"/></svg><span class="nl">Огляд</span></button>
+    <button data-tab="cats" aria-label="Категорії" data-tip="Категорії" data-key="2"><svg class="ic" width="20" height="20"><use href="#i-cats"/></svg><span class="nl">Категорії</span></button>
+    <button data-tab="tx" aria-label="Операції" data-tip="Операції" data-key="3"><svg class="ic" width="20" height="20"><use href="#i-tx"/></svg><span class="nl">Операції</span></button>
+    <button data-tab="budget" aria-label="Кошториси" data-tip="Кошториси" data-key="4"><svg class="ic" width="20" height="20"><use href="#i-budget"/></svg><span class="nl">Кошториси</span></button>
+    <button data-tab="inv" aria-label="Інвестиції" data-tip="Інвестиції" data-key="5"><svg class="ic" width="20" height="20"><use href="#i-inv"/></svg><span class="nl">Інвестиції</span></button>
+    <button data-tab="subs" aria-label="Підписки" data-tip="Підписки" data-key="6"><svg class="ic" width="20" height="20"><use href="#i-subs"/></svg><span class="nl">Підписки</span></button>
+    <button data-tab="settings" aria-label="Ще" data-tip="Ще" data-key="7"><svg class="ic" width="20" height="20"><use href="#i-more"/></svg><span class="nl">Ще</span></button>
   </nav>
   <div class="side-foot">
-    <button class="iconbtn" id="phoneBtn" data-tip="Перегляд на телефоні" data-key="P" hidden><svg class="ic" width="18" height="18"><use href="#i-phone"/></svg></button>
-    <button class="iconbtn" id="scrnBtn" data-tip="Режим скріншоту: сховати всі суми (S)" data-key="S"><svg class="ic" width="18" height="18"><use href="#i-eye"/></svg></button>
-    <button class="iconbtn" id="themeBtn" data-tip="Світла / темна тема" data-key="T"><svg class="ic" width="18" height="18"><use href="#i-theme"/></svg></button>
-    <button class="iconbtn" id="navToggle" data-tip="Звузити панель" data-key="["><svg class="ic" width="18" height="18"><use href="#i-chevron"/></svg></button>
+    <button class="iconbtn" id="phoneBtn" aria-label="Перегляд на телефоні" data-tip="Перегляд на телефоні" data-key="P" hidden><svg class="ic" width="18" height="18"><use href="#i-phone"/></svg></button>
+    <button class="iconbtn" id="scrnBtn" aria-label="Режим скріншоту" data-tip="Режим скріншоту: сховати всі суми (S)" data-key="S"><svg class="ic" width="18" height="18"><use href="#i-eye"/></svg></button>
+    <button class="iconbtn" id="themeBtn" aria-label="Світла / темна тема" data-tip="Світла / темна тема" data-key="T"><svg class="ic" width="18" height="18"><use href="#i-theme"/></svg></button>
+    <button class="iconbtn" id="navToggle" aria-label="Звузити панель" data-tip="Звузити панель" data-key="["><svg class="ic" width="18" height="18"><use href="#i-chevron"/></svg></button>
   </div>
 </aside>
 <div class="wrap">
@@ -8114,7 +8143,7 @@ function render(){
   el('periodWrap').hidden = NO_PERIOD.has(S.tab);
 
   showTab(S.tab);
-  el('tabs').querySelectorAll('button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===S.tab));
+  markTabs();
 
   if(S.tab==='overview'){
     renderKpis(rows, prev);
@@ -8166,6 +8195,26 @@ function openTx({cat='', q='', ids=null, label=''}={}){
   el('fDir').value = '';          // закріплений набір показуємо повністю
   renderTx(); scrollTo({top:0,behavior:'smooth'});
 }
+/* У нижній панелі лише п'ять слотів, тому Категорії, Кошториси й
+   налаштування живуть за «Ще». Тема й режим скріншоту там же: у вузькому
+   вікні панелі з кнопками немає, а на телефоні їх не було б ніде. */
+const NARROW = matchMedia('(max-width:759px)');
+const MORE = new Set(['cats', 'budget', 'settings']);
+/* «Ще» підсвічується й тоді, коли відкрито прихований за ним розділ:
+   інакше в нижній панелі не світилося б нічого і людина не бачила б, де вона. */
+function markTabs(){
+  el('tabs').querySelectorAll('button').forEach(b=>b.setAttribute('aria-current',
+    b.dataset.tab===S.tab || (NARROW.matches && b.dataset.tab==='settings' && MORE.has(S.tab))));
+}
+async function moreMenu(){
+  const v = await uiPick({title:'Ще', options:[
+    {v:'cats', n:'Категорії'}, {v:'budget', n:'Кошториси'}, {v:'settings', n:'Налаштування'},
+    {v:'theme', n:'Тема: світла / темна'}, {v:'scrn', n:'Режим скріншоту'}]});
+  if(!v) return;
+  if(v==='theme') el('themeBtn').click();
+  else if(v==='scrn') scrnToggle();
+  else go(v);
+}
 function go(tab){ S.tab=tab; render(); scrollTo({top:0,behavior:'smooth'}); }
 
 /* ═══════════════════════ WIRING ═══════════════════════ */
@@ -8210,7 +8259,11 @@ function moveHint(){
     h.textContent = `${nOps(n)} поза підсумками`;
   }
 }
-el('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
+el('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  if(NARROW.matches && b.dataset.tab==='settings') return moreMenu();
+  go(b.dataset.tab);
+});
+NARROW.addEventListener('change', ()=>{ applyShell(); markTabs(); });
 el('themeBtn').onclick = ()=>{
   const next = document.documentElement.dataset.theme==='dark' ? 'light':'dark';
   document.documentElement.dataset.theme = next; store.set('theme',next); render();
@@ -8860,14 +8913,28 @@ function moveTabIndicator(){
 /* Стан панелі: звужена вручну (≥1000 px) або автоматично (<1000 px).
    Зберігається через store, як решта налаштувань. */
 const shellEl = el('shell');
+/* transitionend спливає від нащадків (кольори кнопок, поворот шеврона):
+   з {once:true} перша ж така подія знімала слухача ще до кінця руху
+   колонки, і індикатор лишався за проміжними розмірами. Тому слухаємо
+   лише власну подію каркаса і знімаємо слухача тільки після неї. */
+function onShellTransEnd(e){
+  if(e.target!==shellEl) return;
+  shellEl.removeEventListener('transitionend', onShellTransEnd);
+  moveTabIndicator();
+}
 function applyShell(){
   const forced = matchMedia('(max-width:999px)').matches;
-  shellEl.classList.toggle('collapsed', forced || !!store.get('navCollapsed', false));
+  /* У нижніх табах (<760) клас collapsed ховав би підписи (.nl), а там
+     вони потрібні; звуження стосується лише бічної панелі. */
+  shellEl.classList.toggle('collapsed', !NARROW.matches && (forced || !!store.get('navCollapsed', false)));
   el('navToggle').hidden = forced;
-  el('navToggle').dataset.tip = shellEl.classList.contains('collapsed') ? 'Розгорнути панель' : 'Звузити панель';
+  const tip = shellEl.classList.contains('collapsed') ? 'Розгорнути панель' : 'Звузити панель';
+  el('navToggle').dataset.tip = tip;
+  el('navToggle').setAttribute('aria-label', tip);
   // Ширина колонки анімується: індикатор треба перемістити й після переходу,
   // інакше він лишиться за розмірами кнопок посеред руху.
-  shellEl.addEventListener('transitionend', moveTabIndicator, {once:true});
+  shellEl.removeEventListener('transitionend', onShellTransEnd);
+  shellEl.addEventListener('transitionend', onShellTransEnd);
   requestAnimationFrame(moveTabIndicator);
 }
 el('navToggle').onclick = ()=>{ store.set('navCollapsed', !store.get('navCollapsed', false)); applyShell(); };
@@ -9133,7 +9200,7 @@ addEventListener('keydown', e=>{
   if(/^[1-7]$/.test(e.key)){ go(TABKEYS[+e.key-1]); e.preventDefault(); return; }
   if(k==='t' || k==='е'){ el('themeBtn').click(); return; }
   if(k==='s' || k==='і'){ scrnToggle(); return; }
-  if(k==='['){ const b=el('navToggle'); if(!b.hidden) b.click(); return; }
+  if(k==='[' || k==='х'){ const b=el('navToggle'); if(!b.hidden) b.click(); return; }
   if(k==='p' || k==='з'){ const b=el('phoneBtn'); if(!b.hidden) b.click(); return; }
   if(e.key==='/'){ e.preventDefault(); go('tx'); setTimeout(()=>el('q').focus(), 60); return; }
   if(e.key==='?'){ e.preventDefault(); hotkeysHelp(); return; }
