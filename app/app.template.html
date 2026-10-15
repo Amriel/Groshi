@@ -148,15 +148,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .notebox textarea:focus{outline:0;
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent),0 0 0 3px var(--accent-soft)}
 .notebox .hint{display:block;margin-top:6px;font-size:11.5px;color:var(--text-mute)}
-.txrow .pin{font-size:11px;opacity:.6;flex:none}
-.lnk{border:0;background:none;padding:0 0 0 6px;font:inherit;font-size:12px;cursor:pointer;
-  color:var(--accent);text-decoration:underline;text-underline-offset:2px}
-.lnk:hover{color:var(--text)}
-.tx-amt .ccy{display:block;font-style:normal;font-size:11px;font-weight:500;
-  color:var(--text-mute);letter-spacing:0}
-.pinchip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;
-  cursor:pointer;background:var(--accent-soft);color:var(--accent);font-weight:600}
-.pinchip:hover{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+/* .lnk і .pinchip — у блоці «ЕКРАНИ» (Операції). */
 .subrow .subops{font-size:11px;color:var(--text-mute)}
 
 /* ── однодатне поле: та сама сітка, що й у виборі періоду ── */
@@ -490,102 +482,12 @@ section[hidden]{display:none}
 #tip b{display:block;font-family:var(--font-display);font-size:var(--fs-sm);margin-bottom:3px}
 #tip .v{font-variant-numeric:tabular-nums;color:var(--text-dim)}
 
-/* ── операції ───────────────────────────────────────────── */
-.txhead{flex-wrap:wrap}
-.txfilters{display:grid;gap:9px;grid-template-columns:1fr 1fr;margin-bottom:9px}
-.txfilters #q{grid-column:1/-1}
-.txfilters select{min-width:0}
-.sortbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11.5px;
-  padding-bottom:11px;margin-bottom:2px;border-bottom:1px solid var(--border)}
-.sortbar button{padding:5px 12px;border-radius:var(--radius-pill);font-size:11.5px;
-  font-weight:600;color:var(--text-dim);height:auto}
-.sortbar button[data-on]{color:var(--accent-contrast)}
-.txrow{display:grid;gap:3px 12px;align-items:center;padding:12px 4px;
-  border-bottom:1px solid var(--border-soft);cursor:pointer;border-radius:var(--radius-sm);
-  grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"merch amt" "meta cat"}
-.txrow:hover{background:var(--surface-2)}
-.txrow .tx-merch{grid-area:merch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-.txrow .tx-meta{grid-area:meta;font-size:12px;color:var(--text-dim);white-space:nowrap;font-variant-numeric:tabular-nums}
-.txrow .tx-cat{grid-area:cat;justify-self:end;overflow:hidden;min-width:0}
-.txrow .tx-amt{grid-area:amt;justify-self:end;font-family:var(--font-display);
-  font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
-.txdetail{padding:0 0 14px}
-
-/* ── режим вибору кількох операцій ──────────────────────
-   Колонка з галочкою зʼявляється лише у режимі вибору: у звичайному
-   списку вона з'їдала б місце під назву мерчанта заради дії, якою
-   користуються раз на місяць. */
-.tx-sel{grid-area:sel;display:none;align-items:center}
-#txList.selmode .tx-sel{display:flex}
-#txList.selmode .txrow{grid-template-columns:auto minmax(0,1fr) auto;
-  grid-template-areas:"sel merch amt" "sel meta cat"}
-#txList.selmode .txrow[data-on]{background:var(--accent-soft)}
-.selbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
-  position:sticky;top:6px;z-index:60;margin:0 0 11px;padding:9px 12px;
-  border-radius:16px;background:var(--surface-2);
-  box-shadow:inset 0 0 0 1px var(--border);font-size:12.5px}
-.selbar[hidden]{display:none}
-.selbar .selcount{font-weight:700}
-.selbar .selsum{color:var(--text-dim);font-variant-numeric:tabular-nums}
-.selbar .grow{flex:1}
-.selbar button{padding:6px 13px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;
-  height:auto}
-.selbar button[disabled]{opacity:.35;pointer-events:none}
-@media(min-width:760px){
-  .txfilters{grid-template-columns:1fr 210px 190px}
-  .txfilters #q{grid-column:auto}
-  .txrow{grid-template-columns:160px minmax(0,1fr) minmax(0,190px) 130px;gap:0 14px;
-    grid-template-areas:"meta merch cat amt"}
-  .txrow .tx-meta{font-size:12.5px}
-  #txList.selmode .txrow{grid-template-columns:auto 160px minmax(0,1fr) minmax(0,190px) 130px;
-    grid-template-areas:"sel meta merch cat amt"}
-}
-
-/* ── дерево розбивки ────────────────────────────────────── */
-.tr{display:flex;align-items:center;gap:9px;padding:9px 0;
-  border-bottom:1px solid var(--border-soft);cursor:pointer}
-.tr:hover{background:var(--surface-2)}
-.tr .tw-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tr .tw-n{font-size:11px;color:var(--text-mute);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
-.tr .tw-v{font-family:var(--font-display);font-weight:700;white-space:nowrap;min-width:92px;
-  text-align:right;font-variant-numeric:tabular-nums}
-.tr .tw-p{font-size:11px;color:var(--text-mute);min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+/* Спільне для кількох екранів: стрілка розгортання (Огляд, Категорії,
+   «Рахунки» на десктопі) і кнопки ↗ / ⊗ у рядку. Решта правил Операцій і
+   Категорій — у блоці «ЕКРАНИ». */
 .tw-arrow{width:12px;flex:none;color:var(--text-mute);font-size:10px;line-height:1}
-.lvl1{font-weight:700}
-.lvl2{padding-left:20px;color:var(--text-dim)}
-.lvl3{padding-left:38px;color:var(--text-dim);font-size:13.5px}
-.lvl4{padding:7px 0 7px 56px;font-size:13px;color:var(--text-dim);border-bottom:0}
-.lvl4:hover{color:var(--text)}
-.lvl4[data-open]{color:var(--text)}
-.lvl2,.lvl3,.lvl4{position:relative}
-.lvl2::before,.lvl3::before,.lvl4::before{content:'';position:absolute;top:0;bottom:0;border-left:1px solid var(--border-soft)}
-.lvl2::before{left:5px} .lvl3::before{left:23px} .lvl4::before{left:41px}
-.tw-det{position:relative;padding:2px 0 14px 56px}
-.tw-det::before{content:'';position:absolute;left:41px;top:0;bottom:14px;border-left:1px solid var(--border-soft)}
-.tw-more{padding:4px 0 12px 56px;position:relative}
-.tw-more::before{content:'';position:absolute;left:41px;top:0;bottom:12px;border-left:1px solid var(--border-soft)}
-.tw-more button{font-size:12px;color:var(--accent);font-weight:600}
 .tw-go,.tw-ex{opacity:0;flex:none;color:var(--text-mute);font-size:13px;padding:0 4px;cursor:pointer}
-.tw-ex:hover{color:var(--danger)}
-.tw-ex.on{opacity:1;color:var(--warn)}
-.tr:hover .tw-go,.tr:hover .tw-ex{opacity:1}
 @media(hover:none){.tw-go,.tw-ex{opacity:.55}}
-.tr.off .tw-nm{text-decoration:line-through;text-decoration-color:var(--text-mute)}
-.tr.off .tw-v,.tr.off .tw-n,.tr.off .tw-p{opacity:.45}
-.tr.off .dot{opacity:.35}
-@media(max-width:700px){
-  .tr{gap:7px}
-  .tr .tw-p{display:none}
-  .tr .tw-v{min-width:76px;font-size:13.5px}
-  .tr .tw-n{min-width:26px;font-size:11px}
-  .lvl1{font-size:14.5px}
-  .lvl2{padding-left:16px}
-  .lvl3{padding-left:30px;font-size:13px}
-  .lvl4{padding-left:44px}
-  .tw-det{padding-left:44px} .tw-det::before{left:33px}
-  .lvl3::before{left:19px} .lvl4::before{left:33px}
-  .tw-more{padding-left:44px} .tw-more::before{left:33px}
-}
 
 /* ── картка операції ────────────────────────────────────── */
 .det h4{margin:0 0 2px;font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--text-dim)}
@@ -1101,10 +1003,46 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
 .kpi .sub{font-size:var(--fs-sm);color:var(--text-mute);line-height:1.45}
 .dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
 .badge-ico{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;
-  color:var(--accent-contrast)}
-.tag{display:inline-flex;align-items:center;max-width:100%;padding:3px 10px;border-radius:var(--radius-pill);
+  font-size:var(--fs-sm);font-weight:700;line-height:1;color:var(--accent-contrast)}
+/* Колір категорії — клас-слот cN (= серія --sN), а не інлайновий background:
+   слот рахує JS, а заливка, колір літери й контраст живуть тут. Літера на
+   заливці має ≥4,5:1 в обох темах: де темний --accent-contrast не дотягує,
+   текст білий (c6 завжди; c1 і c7 у світлій), а чотири «межові» заливки
+   (c2, c5 темної; c1, c8 світлої) на 8 % зсунуто до білого чи чорного,
+   бо жоден із двох кольорів тексту на сирій серії не давав 4,5. */
+.dot.c1,.badge-ico.c1{background:var(--s1)}
+.dot.c2,.badge-ico.c2{background:var(--s2)}
+.dot.c3,.badge-ico.c3{background:var(--s3)}
+.dot.c4,.badge-ico.c4{background:var(--s4)}
+.dot.c5,.badge-ico.c5{background:var(--s5)}
+.dot.c6,.badge-ico.c6{background:var(--s6)}
+.dot.c7,.badge-ico.c7{background:var(--s7)}
+.dot.c8,.badge-ico.c8{background:var(--s8)}
+.badge-ico.c2{background:color-mix(in srgb,var(--s2) 92%,#fff)}
+.badge-ico.c5{background:color-mix(in srgb,var(--s5) 92%,#fff)}
+.badge-ico.c6{color:#fff}
+:root[data-theme="light"] .badge-ico.c1{background:color-mix(in srgb,var(--s1) 92%,#000);color:#fff}
+:root[data-theme="light"] .badge-ico.c7{color:#fff}
+:root[data-theme="light"] .badge-ico.c8{background:color-mix(in srgb,var(--s8) 92%,#fff)}
+/* inline-block, а не inline-flex: text-overflow на flex-контейнері не діє
+   (його вміст — анонімний flex-елемент), і довга категорія в рядку
+   операції різалась без «…». У inline-block із overflow:hidden базова
+   лінія — нижній край, тож vertical-align:middle повертає чип на рівень
+   тексту, де він стоїть у рядку (Огляд). */
+.tag{display:inline-block;vertical-align:middle;max-width:100%;padding:3px 10px;border-radius:var(--radius-pill);
   font-size:var(--fs-xs);font-weight:600;color:var(--text-dim);background:var(--surface-2);
   border:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Зміна показника — текстовий колір на прозорому чипі: на заливці
+   --surface-2 світлий --success не дотягує до 4,5:1, а на самій картці
+   дотягує. Колір лише в тексті, фон картки не тонується. */
+.tag.up,.tag.down,.tag.pos,.tag.neg{background:transparent}
+.tag.up,.tag.neg{color:var(--danger)}
+.tag.down,.tag.pos{color:var(--success)}
+/* Сітка карток, що самі перебудовуються за шириною (Огляд, Інвестиції).
+   min(310px,100%) — щоб на вікні вужчому за 310 px колонка не розпирала
+   сторінку. Стоїть після .grid (рядок ~345): рівна специфічність, тож
+   перемагає порядок. */
+.grid-auto{grid-template-columns:repeat(auto-fit,minmax(min(310px,100%),1fr))}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--ctl);padding:0 16px;
   border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);
   color:var(--text);font-size:var(--fs-sm);font-weight:600;white-space:nowrap;
@@ -1317,15 +1255,6 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .ovsec .muted{white-space:nowrap;order:1;font-size:var(--fs-xs)}
 /* Група карток під підписом: нижній відступ — роль, а не інлайн. */
 .ovgrid{margin-bottom:12px}
-/* Сітка карток, що самі перебудовуються за шириною. min(310px,100%) —
-   щоб на вікні вужчому за 310 px колонка не розпирала сторінку. */
-.grid-auto{grid-template-columns:repeat(auto-fit,minmax(min(310px,100%),1fr))}
-/* Зміна показника — текстовий колір на прозорому чипі: на заливці
-   --surface-2 світлий --success не дотягує до 4,5:1, а на самій картці
-   дотягує. Колір лише в тексті, фон картки не тонується. */
-.tag.up,.tag.down,.tag.pos,.tag.neg{background:transparent}
-.tag.up,.tag.neg{color:var(--danger)}
-.tag.down,.tag.pos{color:var(--success)}
 /* Рядок «назва — значення» (капітал, ФОП, поїздки, рух по категоріях). */
 .ovline{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
   padding:3px 0;font-size:var(--fs-sm)}
@@ -1373,6 +1302,121 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 /* Картка «Рахунки» (лише десктоп): заголовок гортає список. */
 #balHead{cursor:pointer}
 #balSum{margin-left:auto}
+
+/* ── Операції ── */
+/* Картка — стек: проміжки між рядками керує gap, а не поля кожного блоку. */
+.txcard>.cardhead{margin-bottom:0}
+/* Підсумок окремим рядком на всю ширину: на одному рядку із заголовком він
+   переносився залежно від довжини тексту (кількість, суми, «уся історія»),
+   і фільтри під ним стрибали при кожній зміні фільтра. */
+.cardhead .hint#txCount{flex:1 0 100%;margin-left:0;text-align:left;min-height:1.5em}
+.txs-exp{color:var(--text)}
+.txs-inc{color:var(--success)}
+.txfilters #q{flex:1 1 260px;min-width:0}
+.txfilters .csel{flex:1 1 150px}
+@media(min-width:760px){.txfilters .csel{flex:0 0 200px}}
+.txall{display:flex;gap:8px;align-items:center;cursor:pointer}
+#qHelp{margin:0}
+/* Збережені фільтри — чипи з власною заливкою: на прозорому тлі .chip у
+   рядку без сегмента не читався б як кнопка. */
+#qSaved .chip{max-width:100%;gap:8px;background:var(--surface-2);border:1px solid var(--border)}
+#qSaved .chip:hover{background:var(--surface-3)}
+#qSaved .chipt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+#qSaved .chipx{flex:none;color:var(--text-mute)}
+#qSaved .chipx:hover{color:var(--danger)}
+#qSaved .chip.add{color:var(--text-dim)}
+.sortbar{padding-bottom:12px;border-bottom:1px solid var(--border)}
+.sortbar .chip{background:var(--surface-2);border:1px solid var(--border);padding:0 10px 0 14px}
+.sortbar .chip:hover{background:var(--surface-3)}
+/* Активний порядок — акцент (єдиний активний стан у рядку). */
+.sortbar .chip[aria-pressed="true"]{background:var(--accent);border-color:transparent;color:var(--accent-contrast)}
+.sortbar .arr{display:inline-block;width:12px;margin-left:2px;font-style:normal;text-align:center}
+#selToggle{margin-left:auto}
+.selbar{position:sticky;top:6px;z-index:60;padding:8px 12px;border-radius:var(--radius);
+  background:var(--surface-2);border:1px solid var(--border);font-size:var(--fs-sm)}
+.selbar .selcount{font-weight:700}
+.selbar .selsum{color:var(--text-dim);font-variant-numeric:tabular-nums}
+.txmore{align-self:center}
+.txempty{padding:16px 0;margin:0}
+/* Заголовок дня: підпис і сума дня на одній лінії. Сума без верхнього
+   регістру й розрядки — це число, а не підпис. */
+.txday{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:18px 0 6px}
+.txday:first-child{padding-top:6px}
+.txday-sum{text-transform:none;letter-spacing:0;font-size:var(--fs-sm);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+/* Рядок операції. Розділювач — псевдоелемент між сусідніми рядками, а не
+   border-bottom: з радіусом на hover нижня межа вигиналась по кутах. */
+.txrow{position:relative;gap:12px;padding:10px 8px;margin:0 -8px;border-bottom:0;
+  border-radius:var(--radius-sm);cursor:pointer}
+.txrow+.txrow::before{content:'';position:absolute;top:0;left:8px;right:8px;height:1px;background:var(--border-soft)}
+.txrow:hover,.txrow[data-on]{background:var(--surface-2)}
+.tx-sel{display:none;align-items:center}
+#txList.selmode .tx-sel{display:flex}
+.tx-main{display:flex;flex-direction:column;gap:3px}
+.tx-merch{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.tx-meta{display:flex;align-items:center;gap:8px;min-width:0;font-size:var(--fs-sm);
+  color:var(--text-dim);font-variant-numeric:tabular-nums}
+.tx-when{flex:none;white-space:nowrap}
+.tx-meta .tag{flex:0 1 auto;min-width:0;padding:1px 8px}
+.tx-amt{flex:none;text-align:right}
+.tx-amt.inc,.det .sum.inc{color:var(--success)}
+.tx-amt .ccy{display:block;font-style:normal;font-size:var(--fs-xs);font-weight:500;
+  color:var(--text-mute);letter-spacing:0}
+.txrow .pin{font-size:11px;opacity:.6;flex:none}
+.txdetail{padding:0 0 14px}
+@media(max-width:759px){.tx-amt.num-md{font-size:var(--fs-lg)}}
+/* Чип «показано набір операцій» над списком і посилання в картці операції:
+   лайм не буває кольором тексту на світлому тлі, тому --accent-ink. */
+.pinchip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:var(--radius-pill);
+  cursor:pointer;background:var(--surface-3);color:var(--text);font-weight:600}
+.pinchip:hover{background:var(--surface-2)}
+.lnk{border:0;background:none;padding:0 0 0 6px;font:inherit;font-size:12px;cursor:pointer;
+  color:var(--accent-ink);text-decoration:underline;text-underline-offset:2px}
+.lnk:hover{color:var(--text)}
+.warnt{color:var(--warn)}
+
+/* ── Категорії: дерево розбивки ── */
+/* Рівень — відступ padding-inline-start, а не лінії-напрямні: розгорнута
+   підгілка читається як панель на фоні --surface-2, без border-left. */
+.tr{position:relative;gap:10px;padding:10px 8px;margin:0 -8px;border-bottom:0;
+  border-radius:var(--radius-sm);cursor:pointer}
+.tr+.tr::before{content:'';position:absolute;top:0;left:8px;right:8px;height:1px;background:var(--border-soft)}
+.tr:hover{background:var(--surface-2)}
+.tr .tw-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr .tw-n{font-size:var(--fs-xs);color:var(--text-mute);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+.tr .tw-v{white-space:nowrap;min-width:92px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.tr .tw-v.num-md{min-width:110px}
+.tr .tw-v.inc{color:var(--success)}
+.tr .tw-p{font-size:var(--fs-xs);color:var(--text-mute);min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.lvl1{font-weight:600}
+.lvl2,.lvl3,.lvl4,.tw-det,.tw-more{background:var(--surface-2);border-radius:0}
+.lvl2,.lvl3,.lvl4{color:var(--text-dim)}
+.lvl2:hover,.lvl3:hover,.lvl4:hover{background:var(--surface-3)}
+.lvl2{padding-inline-start:28px}
+.lvl3{padding-inline-start:48px;font-size:var(--fs-sm)}
+.lvl4{padding-inline-start:68px;font-size:var(--fs-sm)}
+.lvl4:hover,.lvl4[data-open]{color:var(--text)}
+.lvl4 .tw-v{font-weight:500}
+.tw-det{padding:2px 8px 14px 68px}
+.tw-more{padding:4px 8px 12px 68px}
+.tw-more button{font-size:var(--fs-xs);color:var(--accent-ink);font-weight:600}
+.tw-ex:hover{color:var(--danger)}
+.tw-ex.on{opacity:1;color:var(--warn)}
+.tr:hover .tw-go,.tr:hover .tw-ex{opacity:1}
+.tr.off .tw-nm{text-decoration:line-through;text-decoration-color:var(--text-mute)}
+.tr.off .tw-v,.tr.off .tw-n,.tr.off .tw-p{opacity:.45}
+.tr.off .dot{opacity:.35}
+@media(max-width:700px){
+  .tr{gap:7px}
+  .tr .tw-p{display:none}
+  .tr .tw-v,.tr .tw-v.num-md{min-width:76px;font-size:var(--fs-md)}
+  .tr .tw-n{min-width:26px}
+  .lvl2{padding-inline-start:24px}
+  .lvl3{padding-inline-start:40px}
+  .lvl4{padding-inline-start:56px}
+  .tw-det{padding-inline-start:20px}
+  .tw-more{padding-inline-start:56px}
+}
 </style>
 </head>
 <body>
@@ -1524,8 +1568,8 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 </section>
 
 <!-- ══════════════════ CATEGORIES ══════════════════ -->
-<section id="tab-cats" hidden>
-  <div class="card" style="margin-bottom:12px">
+<section id="tab-cats" class="stack" hidden>
+  <div class="card">
     <div class="cardhead"><h2>Місяць до місяця</h2><span class="hint">топ-6 категорій</span></div>
     <div id="chartTrend"></div>
     <div class="legend" id="trendLegend"></div>
@@ -1538,11 +1582,11 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 
 <!-- ══════════════════ TRANSACTIONS ══════════════════ -->
 <section id="tab-tx" hidden>
-  <div class="card">
-    <div class="cardhead txhead"><h2>Операції</h2>
-      <button class="btn pri" id="txAdd" style="padding:5px 13px;height:auto;font-size:12px">+ Додати операцію</button>
-      <span class="hint" id="txCount" style="margin-left:auto"></span></div>
-    <div class="txfilters">
+  <div class="card stack txcard">
+    <div class="cardhead"><h2>Операції</h2>
+      <button class="btn pri sm" id="txAdd">+ Додати операцію</button>
+      <span class="hint" id="txCount"></span></div>
+    <div class="cluster txfilters">
       <input id="q" placeholder="Пошук: магазин, ім'я, картка, коментар, MCC, &gt;500">
       <select id="fCat"></select>
       <select id="fDir">
@@ -1551,36 +1595,35 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
         <option value="income">Надходження</option>
       </select>
     </div>
-    <label class="muted" style="display:flex;gap:7px;align-items:center;margin:2px 0 10px;cursor:pointer">
+    <label class="muted txall">
       <input type="checkbox" id="qAll">
       Показувати за всю історію, ігноруючи вибраний період
     </label>
-    <div id="qSaved" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px"></div>
-    <p class="muted" id="qHelp" style="margin:0 0 12px">
+    <div class="cluster" id="qSaved"></div>
+    <p class="muted" id="qHelp">
       Кілька слів звужують пошук. <code>&gt;500</code> — суми більші за 500,
       <code>&lt;100</code> — менші, <code>2026-07</code> — конкретний місяць.
     </p>
-    <div class="sortbar" id="sortbar">
+    <div class="cluster sortbar" id="sortbar">
       <span class="muted">Сортувати:</span>
-      <button class="btn" data-sort="date">Дата</button>
-      <button class="btn" data-sort="amount">Сума</button>
-      <button class="btn" data-sort="merchant">Мерчант</button>
-      <button class="btn" data-sort="cat">Категорія</button>
-      <span style="flex:1"></span>
-      <button class="btn" id="selToggle">Вибрати кілька</button>
+      <button class="chip" data-sort="date">Дата<i class="arr"></i></button>
+      <button class="chip" data-sort="amount">Сума<i class="arr"></i></button>
+      <button class="chip" data-sort="merchant">Мерчант<i class="arr"></i></button>
+      <button class="chip" data-sort="cat">Категорія<i class="arr"></i></button>
+      <button class="btn sm" id="selToggle">Вибрати кілька</button>
     </div>
-    <div class="selbar" id="selbar" hidden>
+    <div class="cluster selbar" id="selbar" hidden>
       <span class="selcount" id="selCount">Обрано 0</span>
       <span class="selsum" id="selSum"></span>
       <span class="grow"></span>
-      <button class="btn" id="selAll">Обрати всі знайдені</button>
-      <button class="btn" id="selNone">Зняти</button>
-      <button class="btn pri" id="selCat">Змінити категорію</button>
-      <button class="btn" id="selReset">Скинути свої</button>
-      <button class="btn" id="selOff">Вийти</button>
+      <button class="btn sm" id="selAll">Обрати всі знайдені</button>
+      <button class="btn sm" id="selNone">Зняти</button>
+      <button class="btn pri sm" id="selCat">Змінити категорію</button>
+      <button class="btn sm" id="selReset">Скинути свої</button>
+      <button class="btn sm" id="selOff">Вийти</button>
     </div>
     <div id="txList"></div>
-    <div style="text-align:center;margin-top:14px"><button class="btn" id="more">Показати ще</button></div>
+    <button class="btn txmore" id="more">Показати ще</button>
   </div>
 </section>
 
@@ -3536,11 +3579,11 @@ function renderCatTable(host, rows){
 
   cats.forEach((c,i)=>{
     const kc = esc2(c.k);
-    out.push(`<div class="tr lvl1${EXCL.has('cat:'+c.k)?' off':''}" data-k="${esc(kc)}">
-      ${arrow(kc)}<span class="dot" style="background:var(${PAL[i%8]})"></span>
+    out.push(`<div class="row tr lvl1${EXCL.has('cat:'+c.k)?' off':''}" data-k="${esc(kc)}">
+      ${arrow(kc)}<span class="dot c${i%8+1}"></span>
       <span class="tw-nm">${esc(c.k)}</span>${ex('cat:'+c.k)}${go(c.k)}
       <span class="tw-n">${c.n}&times;</span>
-      <span class="tw-v">${money(c.v)}</span>
+      <span class="tw-v num-md">${money(c.v)}</span>
       <span class="tw-p">${(c.v/total*100).toFixed(1)}%</span></div>`);
     if(!OPEN.has(kc)) return;
 
@@ -3552,7 +3595,7 @@ function renderCatTable(host, rows){
     const subs = subsOfCat(rows, c.k);
     subs.forEach(sub=>{
       const ks = kc+'|'+esc2(sub.k);
-      out.push(`<div class="tr lvl2${EXCL.has('sub:'+c.k+'|'+sub.k)?' off':''}" data-k="${esc(ks)}">
+      out.push(`<div class="row tr lvl2${EXCL.has('sub:'+c.k+'|'+sub.k)?' off':''}" data-k="${esc(ks)}">
         ${arrow(ks)}<span class="tw-nm">${esc(sub.k)}</span>${ex('sub:'+c.k+'|'+sub.k)}${go(sub.k)}
         <span class="tw-n">${sub.n}&times;</span>
         <span class="tw-v">${money(sub.v)}</span>
@@ -3567,7 +3610,7 @@ function renderCatTable(host, rows){
         const km = ks+'|'+esc2(m.k);
         // якщо мерчант у підкатегорії один — розкриваємо його одразу
         const solo = merch.length===1;
-        if(!solo) out.push(`<div class="tr lvl3${EXCL.has('merch:'+m.k)?' off':''}" data-k="${esc(km)}">
+        if(!solo) out.push(`<div class="row tr lvl3${EXCL.has('merch:'+m.k)?' off':''}" data-k="${esc(km)}">
           ${arrow(km)}<span class="tw-nm">${esc(m.k)}</span>${ex('merch:'+m.k)}${go(m.k)}
           <span class="tw-n">${m.n}&times;</span>
           <span class="tw-v">${money(m.v)}</span>
@@ -3579,11 +3622,11 @@ function renderCatTable(host, rows){
         ops.slice(0, OPS_CAP).forEach(t=>{
           const showName = solo && m.k !== sub.k;
           const isOpen = S.treeOp===t.id;
-          out.push(`<div class="tr lvl4" data-op="${esc(t.id)}"${isOpen?' data-open':''}>
+          out.push(`<div class="row tr lvl4" data-op="${esc(t.id)}"${isOpen?' data-open':''}>
             <span class="tw-arrow">${isOpen?'▾':'▸'}</span>
             <span class="tw-nm">${t.date}${t.time?' '+t.time.slice(11,16):''}${
               showName?' · '+esc(m.k):''}${t.comment?' · '+esc(t.comment):''}</span>
-            <span class="tw-v" style="font-weight:500;color:${rfn(t)?'var(--good)':isOpen?'var(--ink)':'var(--ink-2)'}">${
+            <span class="tw-v${rfn(t)?' inc':''}">${
               rfn(t)?'+':'−'}${amt2(t.amount)}</span></div>`);
           if(isOpen) out.push(`<div class="tw-det">${detailCard(t)}</div>`);
         });
@@ -3655,32 +3698,58 @@ function filteredTx(){
   });
 }
 const UKCOLL = new Intl.Collator('uk', {sensitivity:'base', numeric:true});
+/* Слот палітри (1–8) для категорії рядка. Порядок — за сумою витрат у
+   ПОТОЧНОМУ періоді, як у дереві розбивки й діаграмі: колір категорії
+   збігається між екранами. Рахуємо від періоду, а не від відфільтрованого
+   списку: інакше набір у #q перефарбовував би крапки за кожну літеру.
+   Категорії без витрат (надходження) мають стабільний хеш назви. */
+function catSlots(){
+  const m = new Map();
+  groupSum(inPeriod(), catOf).forEach((d,i)=>m.set(d.k, i%8+1));
+  return k => m.get(k) || 1 + [...k].reduce((a,c)=>a+c.codePointAt(0), 0) % 8;
+}
+/* Той самий розподіл «витрата / надходження / повернення / рух коштів»
+   для підсумку над списком і для суми дня в заголовку групи. */
+function txTally(a, t){
+  if(t.dir==='income'){
+    if(isRefund(t)){ a.back += t.amount; a.spent -= t.amount; }
+    else if(isIncome(t)) a.got += t.amount;
+    else a.moved += t.amount;
+  }
+  else if(isSpend(t))  a.spent += t.amount;
+  else                 a.moved += t.amount;
+}
+const txDayLbl = d => `${+d.slice(8)} ${MON[+d.slice(5,7)-1]} ${d.slice(0,4)}`;
 function renderTx(){
   const rows = filteredTx();
-  let spent=0, got=0, moved=0, back=0;
+  /* Групи за днем лише при сортуванні за датою: під іншим порядком
+     один день розпався б на шматки, а заголовки повторювались би. */
+  const byDate = S.sort.k==='date';
+  const tot = {spent:0, got:0, moved:0, back:0}, days = new Map();
   for(const t of rows){
-    if(t.dir==='income'){
-      if(isRefund(t)){ back += t.amount; spent -= t.amount; }
-      else if(isIncome(t)) got += t.amount;
-      else moved += t.amount;
-    }
-    else if(isSpend(t))  spent += t.amount;
-    else                 moved += t.amount;
+    txTally(tot, t);
+    if(!byDate) continue;
+    let d = days.get(t.date);
+    if(!d) days.set(t.date, d = {spent:0, got:0, moved:0, back:0});
+    txTally(d, t);
   }
+  const {spent, got, moved, back} = tot;
   const parts = [];
   if(S.ids) parts.push(`<span class="pinchip" data-idsoff>${esc(S.idsLabel||'вибрані операції')} · ${rows.length} оп. ✕</span>`);
   else parts.push(`${rows.length} оп.`);
-  if(spent) parts.push(`<span style="color:var(--bar-exp)">витрати ${money(spent)}</span>`);
-  if(got)   parts.push(`<span style="color:var(--good)">надходження ${money(got)}</span>`);
-  if(back)  parts.push(`<span style="color:var(--good)">повернення ${money(back)}</span>`);
-  if(moved) parts.push(`<span style="color:var(--muted)">рух коштів ${money(moved)}</span>`);
-  if(el('qAll').checked) parts.push('<span style="color:var(--s1)">уся історія</span>');
+  if(spent) parts.push(`<span class="txs-exp">витрати ${money(spent)}</span>`);
+  if(got)   parts.push(`<span class="txs-inc">надходження ${money(got)}</span>`);
+  if(back)  parts.push(`<span class="txs-inc">повернення ${money(back)}</span>`);
+  if(moved) parts.push(`рух коштів ${money(moved)}`);
+  if(el('qAll').checked) parts.push('уся історія');
   el('txCount').innerHTML = parts.join(' · ');
 
   el('sortbar').querySelectorAll('[data-sort]').forEach(b=>{
     const on = S.sort.k===b.dataset.sort;
-    if(on){ b.dataset.on=''; b.classList.add('on'); } else { delete b.dataset.on; b.classList.remove('on'); }
-    b.textContent = b.textContent.replace(/ [↑↓]$/,'') + (on ? (S.sort.dir<0?' ↓':' ↑') : '');
+    b.setAttribute('aria-pressed', on);
+    /* Стрілка живе у власному елементі постійної ширини: дописана до
+       тексту, вона розсовувала сусідні кнопки при кожному перемиканні. */
+    b.querySelector('.arr').textContent = on ? (S.sort.dir<0 ? '↓' : '↑') : '';
   });
 
   /* Вибір живе окремо від показу: після зміни фільтра обрані операції,
@@ -3693,24 +3762,38 @@ function renderTx(){
   const shown = rows.slice(0,S.limit);
   S.view = shown.map(t=>t.id);
 
+  const slot = catSlots();
+  let prevDay = null;
   el('txList').classList.toggle('selmode', S.selMode);
   el('txList').innerHTML = shown.map(t=>{
     const isOpen = S.openRow===t.id;
     const on = S.sel.has(t.id);
-    return `<div class="txrow" data-id="${esc(t.id)}"${on?' data-on':''}>
+    const cat = catOf(t);
+    let head = '';
+    if(byDate && t.date !== prevDay){
+      prevDay = t.date;
+      const d = days.get(t.date), net = d.spent;
+      const sums = [net ? (net>0 ? '−' : '+') + money(Math.abs(net)) : '',
+                    d.got ? '+' + money(d.got) : ''].filter(Boolean).join(' · ');
+      head = `<div class="lbl txday"><span>${txDayLbl(t.date)}</span><span class="txday-sum">${sums}</span></div>`;
+    }
+    const clock = t.time ? t.time.slice(11,16) : '';
+    return head + `<div class="row txrow" data-id="${esc(t.id)}"${on?' data-on':''}>
         <span class="tx-sel"><input type="checkbox" data-selbox="${esc(t.id)}"${on?' checked':''}
           aria-label="обрати операцію"></span>
-        <span class="tx-meta">${isOpen?'▾':'▸'} ${t.date}${t.time?' '+t.time.slice(11,16):''}</span>
-        <span class="tx-merch" data-tip="${esc(t.merchant)}">${esc(t.merchant)}${
-          rfn(t) ? ' <i class="pin" data-tip="повернення коштів">↩</i>' : ''}${
-          txNote(t.id) ? ` <i class="pin" data-tip="${esc(txNote(t.id))}">✎</i>` : ''}${
-          subOfTx(t) ? ' <i class="pin">↻</i>' : ''}</span>
-        <span class="tx-cat"><span class="tag">${esc(catOf(t))}</span></span>
-        <span class="tx-amt" style="color:${t.dir==='income'?'var(--good)':'inherit'}">${t.dir==='income'?'+':'−'}${num2(t.amount)}${
+        <span class="badge-ico c${slot(cat)}" aria-hidden="true">${esc([...cat][0] || '?').toUpperCase()}</span>
+        <span class="grow tx-main">
+          <span class="tx-merch" data-tip="${esc(t.merchant)}">${esc(t.merchant)}${
+            rfn(t) ? ' <i class="pin" data-tip="повернення коштів">↩</i>' : ''}${
+            txNote(t.id) ? ` <i class="pin" data-tip="${esc(txNote(t.id))}">✎</i>` : ''}${
+            subOfTx(t) ? ' <i class="pin">↻</i>' : ''}</span>
+          <span class="tx-meta"><span class="tx-when">${isOpen?'▾':'▸'} ${byDate ? clock : (t.date + (clock ? ' ' + clock : ''))}</span><span class="tag">${esc(cat)}</span></span>
+        </span>
+        <span class="tx-amt num-md${t.dir==='income'?' inc':''}">${t.dir==='income'?'+':'−'}${num2(t.amount)}${
           t.accAmount ? `<em class="ccy">${fmt2(t.accAmount)} ${esc(CCYSIGN[t.accCcy]||t.accCcy)}</em>` : ''}</span>
       </div>`
       + (isOpen ? `<div class="txdetail">${detailCard(t)}</div>` : '');
-  }).join('') || '<p class="muted" style="padding:16px 0">Нічого не знайдено. Спробуйте інший запит або довший період.</p>';
+  }).join('') || '<p class="muted txempty">Нічого не знайдено. Спробуйте інший запит або довший період.</p>';
 
   const off = el('txCount').querySelector('[data-idsoff]');
   if(off) off.onclick = ()=>{ S.ids = null; S.idsLabel = ''; renderTx(); };
@@ -3724,7 +3807,7 @@ function renderTx(){
      та сама картка відкривається і в «Операціях», і в дереві категорій,
      а обробники висіли лише в першому місці — у дереві «змінити» просто
      нічого не робило. Делегування покриває будь-де, де картка зʼявиться. */
-  el('more').style.display = rows.length>S.limit ? '' : 'none';
+  el('more').hidden = rows.length<=S.limit;
   renderSelbar(rows);
 }
 
@@ -4146,7 +4229,7 @@ function detailCard(t){
   if(t.accAmount) rows.push(['Списано з рахунку',
     `${fmt2(t.accAmount)} ${esc(CCYSIGN[t.accCcy]||t.accCcy)}`
     + (t.accRate ? ` <span class="muted">· у гривні за курсом ${fmt2(t.accRate)}</span>`
-                 : ' <span style="color:var(--warn)">· курсу на цю дату немає, сума показана як є</span>')]);
+                 : ' <span class="warnt">· курсу на цю дату немає, сума показана як є</span>')]);
   if(t.opAmount && t.currency && t.currency!=='UAH')
     rows.push(['У валюті операції', `${fmt2(t.opAmount)} ${esc(t.currency)}`]);
   /* Кешбек, комісія і баланс приходять від банку у валюті РАХУНКУ, а не
@@ -4158,7 +4241,7 @@ function detailCard(t){
   rows.push(['Баланс після', t.balance!=null ? own(t.balance) : '<span class="muted">невідомий</span>']);
   rows.push(['Напрямок', (rfn(t) ? 'повернення коштів' : t.dir==='income'?'надходження':'витрата')
     + (full ? '' : ` <span class="muted">— ${CONF_LABEL[t.conf]||t.conf}</span>`)]);
-  if(t.hold) rows.push(['Статус', '<span style="color:var(--warn)">холд — сума ще може змінитися</span>']);
+  if(t.hold) rows.push(['Статус', '<span class="warnt">холд — сума ще може змінитися</span>']);
   /* Повернення показуємо разом із покупкою, за яку його зробили: без
      цього «+450 ₴ від служби доставки» читається як заробіток
      кур'єра, а не як скасоване замовлення. */
@@ -4187,7 +4270,7 @@ function detailCard(t){
 
   return `<div class="det">
     <h4>${esc(t.merchant)}</h4>
-    <div class="sum" style="color:${t.dir==='income'?'var(--good)':'inherit'}">${t.dir==='income'?'+':'−'}${amt2(t.amount)}</div>
+    <div class="sum${t.dir==='income'?' inc':''}">${t.dir==='income'?'+':'−'}${amt2(t.amount)}</div>
     <dl class="dl">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
     <label class="notebox"><span>Ваша примітка</span>
       <textarea data-note="${esc(t.id)}" placeholder="за що це було, з ким ділили, чи повертати">${esc(txNote(t.id))}</textarea>
@@ -8550,9 +8633,9 @@ function renderQf(){
   const host = el('qSaved'); if(!host) return;
   const list = QF();
   host.innerHTML = list.map((f,i)=>
-    `<button class="btn" data-qf="${i}" style="padding:2px 10px;height:auto;font-size:11.5px">${esc(f.name)}
-      <span data-qfdel="${i}" style="opacity:.5;margin-left:5px" data-tip="Прибрати">✕</span></button>`).join('')
-    + `<button class="btn" id="qfAdd" style="padding:2px 10px;height:auto;font-size:11.5px;opacity:.75">+ зберегти фільтр</button>`;
+    `<button class="chip" data-qf="${i}"><span class="chipt">${esc(f.name)}</span>
+      <span class="chipx" data-qfdel="${i}" data-tip="Прибрати">✕</span></button>`).join('')
+    + `<button class="chip add" id="qfAdd">+ зберегти фільтр</button>`;
   host.querySelectorAll('[data-qf]').forEach(b=>b.onclick=e=>{
     if(e.target.dataset.qfdel !== undefined){
       const l = QF(); l.splice(+e.target.dataset.qfdel, 1); store.set('qFilters', l); renderQf(); return;
