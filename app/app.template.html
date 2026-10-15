@@ -334,34 +334,9 @@ svg{display:block;width:100%;overflow:visible}
 .balgrp:first-child{margin-top:0}
 .baltot{margin-top:8px;border-top:1px solid var(--border);border-bottom:0;padding-top:11px}
 /* ── інвестиції ───────────────────────────────────────────
-   Той самий принцип, що в «Рахунках»: головна колонка — остання,
-   фіксована, суми стоять стовпчиком. Між назвою і сумою — кількість
-   з ціною і P&L, обидва не змагаються з сумою за увагу. */
-.invrow{display:grid;grid-template-columns:minmax(0,1.3fr) auto auto 150px;gap:12px;
-  align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border-soft)}
-.invrow .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.invrow .nm small{color:var(--text-mute);font-size:11px;margin-left:6px}
-/* логотип позиції: рядок вирівняний по baseline, тому картинку тягнемо
-   вниз відʼємним vertical-align, а не flex-ом — сітка рядка не змінюється */
-.ivlogo{width:18px;height:18px;border-radius:5px;vertical-align:-4px;margin-right:7px;
-  object-fit:contain;background:rgba(255,255,255,.08)}
-/* overflow:hidden не для обрізання: він змінює базову лінію inline-block
-   на нижній край коробки — рівно як у <img>. Без нього рядок з
-   монограмою на 3px вищий за рядок з логотипом, і список смикається. */
-span.ivlogo.mono{display:inline-block;overflow:hidden;text-align:center;font-size:10px;
-  font-weight:700;line-height:18px;color:var(--text-mute);vertical-align:-4px}
-.invrow .qp{font-size:11px;color:var(--text-mute);white-space:nowrap;
-  font-variant-numeric:tabular-nums;text-align:right}
-.invrow .pl{font-size:11.5px;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
-.invrow .val{font-family:var(--font-display);font-weight:700;text-align:right;
-  white-space:nowrap;font-variant-numeric:tabular-nums}
-.invgrp{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px;align-items:baseline;
-  margin-top:12px;padding:2px 0;cursor:pointer;border-radius:8px}
-.invgrp:first-child{margin-top:0}
-.invgrp .nm{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--text-mute)}
-.invgrp .nm i{font-style:normal;display:inline-block;width:14px}
-.invgrp .val{font-size:13px;color:var(--text-dim);font-family:var(--font-display);font-weight:700;
-  text-align:right;font-variant-numeric:tabular-nums}
+   Рядки позицій, групи, платформи — у блоці «ЕКРАНИ» (── Інвестиції ──).
+   Тут лишились графікові цеглинки, якими користуються й інші екрани
+   (курсор .qwrap/.qline/.qlab — ще й «Капітал» на Огляді). */
 .ivb{display:grid;grid-template-columns:86px minmax(0,1fr) auto;gap:10px;align-items:center;
   padding:7px 0;border-bottom:1px solid var(--border-soft);font-size:12.5px}
 .ivb:last-child{border-bottom:0}
@@ -371,22 +346,26 @@ span.ivlogo.mono{display:inline-block;overflow:hidden;text-align:center;font-siz
 /* графік вартості портфеля: площа + лінія, без осей-клітинок — цифри
    стоять по кутах, а деталі дає ряд «динаміки» під графіком */
 #invNav svg{display:block;width:100%;height:150px}
-.invnavlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--text-mute);
+#invCryNav svg{display:block;width:100%;height:110px}
+.invnavlbl{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-mute);
   font-variant-numeric:tabular-nums;margin-top:4px}
+/* Плитки «динаміки» й фактів акції — прозорі з межею, а не на --surface-2:
+   на ньому світлий --success має лише 4,26:1, а значення тут кольорові. */
 .invdyn{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.invdyn .d{flex:1;min-width:96px;padding:8px 12px;border-radius:12px;background:var(--surface-2)}
+.invdyn .d{flex:1;min-width:96px;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border)}
 .invdyn .d .t{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute)}
-.invdyn .d .v{font-family:var(--font-display);font-weight:700;font-size:14px;margin-top:2px;
+.invdyn .d .v{font-weight:700;font-size:14px;margin-top:2px;
   font-variant-numeric:tabular-nums;white-space:nowrap}
 /* дивіденди по місяцях: той самий словник, що стовпчики Огляду */
-.dvrow{display:flex;align-items:flex-end;gap:5px;height:86px;margin:4px 0 2px}
+.dvrow{position:relative;display:flex;align-items:flex-end;gap:5px;height:86px;margin:4px 0 2px}
 .dvrow .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
-.dvrow .c i{display:block;width:100%;max-width:34px;border-radius:5px 5px 2px 2px;background:var(--good);opacity:.85}
+.dvrow .c i{display:block;width:100%;max-width:34px;border-radius:5px 5px 2px 2px;background:var(--success);opacity:.85}
+.dvrow .c i.z{opacity:.25}
 .dvrow .c em{font-style:normal;font-size:9.5px;color:var(--text-mute);white-space:nowrap}
 .dvrow .c b{font-size:9px;color:var(--text-dim);font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
-.invrow{cursor:pointer;border-radius:8px}
-.invrow:hover{background:var(--surface-2)}
-.invdet{padding:6px 4px 12px 16px;border-bottom:1px solid var(--border-soft);font-size:12.5px}
+/* підказка над стовпчиком дивідендів — вище за ряд, щоб не перекривати числа */
+.dvrow>.qlab{top:-6px}
+.invdet{padding:4px 0 14px 44px;border-bottom:1px solid var(--border-soft);font-size:12.5px}
 .invdet .tr2{display:grid;grid-template-columns:88px minmax(0,1fr) auto 120px;gap:10px;
   padding:4px 0;color:var(--text-dim);font-variant-numeric:tabular-nums}
 .invdet .tr2 .a{text-align:right;white-space:nowrap}
@@ -401,9 +380,14 @@ span.ivlogo.mono{display:inline-block;overflow:hidden;text-align:center;font-siz
 .qlab{position:absolute;top:3px;padding:3px 9px;border-radius:9px;font-size:11px;
   background:var(--surface-3);color:var(--text);white-space:nowrap;opacity:0;pointer-events:none;
   font-variant-numeric:tabular-nums;box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:5}
+.qlab .pos{color:var(--success)} .qlab .neg{color:var(--danger)}
+.qlab .qnote{font-size:10.5px}
+/* У світлій темі --success на --surface-3 дає лише 3,8:1 — підпис курсора
+   там лягає на саму поверхню картки з межею. */
+:root[data-theme="light"] .qlab{background:var(--surface);border:1px solid var(--border)}
 /* ── картка акції: періоди, факти, новини ── */
 .qstats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
-.qstats .d{padding:6px 11px;border-radius:11px;background:var(--surface-2);font-size:11px;color:var(--text-mute)}
+.qstats .d{padding:6px 11px;border-radius:11px;border:1px solid var(--border);font-size:11px;color:var(--text-mute)}
 .qstats .d b{display:block;font-size:12.5px;color:var(--text-dim);font-variant-numeric:tabular-nums;font-weight:600;margin-top:1px}
 .qnews{margin:10px 0 4px;border-top:1px solid var(--border-soft);padding-top:8px}
 .qnews .n{display:flex;gap:10px;align-items:baseline;padding:4px 0;cursor:pointer;border-radius:7px}
@@ -973,7 +957,7 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
   transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .btn:hover{background:var(--surface-3)}
 .btn:active{transform:scale(.98)}
-.btn:focus-visible,.iconbtn:focus-visible,.chip:focus-visible,nav.tabs button:focus-visible{
+.btn:focus-visible,.iconbtn:focus-visible,.chip:focus-visible,nav.tabs button:focus-visible,.invgh:focus-visible{
   outline:2px solid var(--accent-line);outline-offset:2px}
 .btn.pri,button.on{background:var(--accent);border-color:transparent;color:var(--accent-contrast)}
 .btn.pri:hover,button.on:hover{background:var(--accent-hover)}
@@ -1449,6 +1433,130 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .subacts{grid-column:1/-1;grid-row:3;justify-content:flex-end;margin-top:8px}
   .subrow .cnt{display:none}
 }
+/* ── Інвестиції ── */
+/* Екран — стек із проміжком 12 px: поля між картками задає роль, а не
+   інлайнові margin-top/bottom кожної картки. */
+#tab-inv:not([hidden]){display:flex;flex-direction:column;gap:12px}
+#tab-inv .kpis{margin-bottom:0}
+#invWarn:empty{display:none}
+.invtop{display:flex;flex-direction:column;gap:6px}
+.invsync{font-size:var(--fs-xs)}
+/* Перемикачі — сегмент періоду без рухомого індикатора: тут їх по кілька
+   в картці, і пігулку під активним чипом малює сам чип. */
+#tab-inv .periodbar .chip[aria-pressed="true"]{background:var(--surface-3)}
+#tab-inv .periodbar.sm{padding:2px}
+#tab-inv .periodbar.sm .chip{height:28px;padding:0 10px;font-size:var(--fs-xs)}
+#tab-inv .push{margin-left:auto}
+/* У шапці із сегментами підказка стоїть одразу за заголовком, а праворуч —
+   сегмент; дві auto-межі ділили б місце навпіл. */
+#tab-inv .cardhead.segs .hint{margin-left:0;text-align:left}
+.invmode{margin-bottom:12px}
+.invqper{margin:2px 0 10px}
+/* Знак зміни — лише колір тексту на поверхні картки. */
+#tab-inv .pos{color:var(--success)}
+#tab-inv .neg{color:var(--danger)}
+#tab-inv .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+#tab-inv .click{cursor:pointer}
+.invempty{margin:2px 0 12px}
+.invempty:last-child{margin-bottom:0}
+.invnote{margin:10px 0 0;font-size:var(--fs-xs);line-height:1.5}
+.invfoot{margin:6px 0 0;font-size:var(--fs-xs)}
+.invacts{margin-top:12px}
+.invmsg{font-size:var(--fs-xs)}
+/* Підпис секції (Позиції, Монети) — як на Огляді, без власних полів:
+   проміжок дає стек. Пояснення переносяться, а не розпирають 390 px. */
+#tab-inv .ovsec{margin:0}
+#tab-inv .ovsec .muted{white-space:normal;text-align:right;min-width:0}
+/* Група позицій — картка, шапка якої є кнопкою згортання. */
+.invgh{width:100%;margin:0;text-align:left;color:var(--text)}
+.invgrp:not(.shut) .invgh{margin-bottom:6px}
+.invgt{font-size:var(--fs-lg);font-weight:600;letter-spacing:-.01em}
+.invgsum{margin-left:auto;font-size:var(--fs-lg);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Стрілка #i-chevron дивиться ліворуч: відкрита група — вниз, згорнута — праворуч. */
+.invchev{width:16px;height:16px;color:var(--text-mute);transform:rotate(-90deg);
+  transition:transform var(--dur) var(--ease)}
+.invgrp.shut .invchev{transform:rotate(180deg)}
+/* Рядок позиції = .row. Без тла на наведенні: зелений P&L на --surface-2
+   у світлій темі не дотягує до 4,5:1, тож наведення лише підсвічує тікер. */
+.invrow{cursor:pointer}
+.invrow.static{cursor:default}
+.invrow:hover .invnm b,.invrow[data-open] .invnm b{color:var(--accent-ink)}
+.invrow.static:hover .invnm b{color:inherit}
+.invmain{display:flex;flex-direction:column;gap:3px}
+.invnm{display:flex;align-items:baseline;gap:8px;min-width:0}
+.invnm b{flex:none;font-weight:600}
+.invnm span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:var(--fs-sm);color:var(--text-mute)}
+.invmeta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:var(--fs-xs);
+  color:var(--text-mute);font-variant-numeric:tabular-nums}
+.invmeta .tag{padding:1px 8px}
+.invamt{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right}
+.invval{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.invpl{font-size:var(--fs-xs);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Логотип — у тому ж колі .badge-ico, що й монограма: однакова ширина. */
+.badge-ico.ivlogo{background:var(--surface-2);overflow:hidden}
+.badge-ico.ivlogo img{width:20px;height:20px;object-fit:contain}
+.badge-ico.sm{width:24px;height:24px;font-size:var(--fs-xs)}
+.badge-ico.sm.ivlogo img{width:16px;height:16px}
+.invdel{margin-left:-4px}
+.invdel:hover{color:var(--danger)}
+/* Платформа: крапка стану й текст; колір — лише в крапці. */
+.dot.ok{background:var(--success)}
+.dot.off{background:var(--text-mute)}
+/* Легенда міток угод на графіках. */
+.invlegend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:4px;
+  font-size:10.5px;color:var(--text-mute)}
+.dot.buy{background:var(--success)} .dot.sell{background:var(--danger)}
+.invlegend .dot{width:8px;height:8px}
+.invdash{display:inline-block;width:14px;border-top:2px dashed var(--warn)}
+/* Картка акції. */
+.invqhead{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px}
+.invqhead span{font-weight:600}
+.invqcur{font-size:var(--fs-lg);font-variant-numeric:tabular-nums}
+.invqsvg{display:block;width:100%;height:88px}
+.invqwait{margin:4px 0 8px}
+.invfacts{margin-bottom:6px}
+.ivthesis{margin-top:8px;font-size:var(--fs-xs);cursor:pointer;color:var(--text-dim)}
+.ivthesis.empty{color:var(--text-mute)}
+.ivthesis i{font-style:normal;opacity:.5}
+/* Розподіл: мітка цільової частки поверх смуги; положення — інлайн (дані). */
+.ivb .bar{position:relative}
+.ivtgt{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--warn);display:block}
+.ivb small{margin-left:6px}
+.ivb .bar i.div{background:var(--success)}
+/* Підрозділ усередині картки (очікувані виплати, реалізований результат, обрій). */
+.invsub{margin-top:12px;border-top:1px solid var(--border-soft);padding-top:10px}
+.invsubh{margin-bottom:6px}
+.invmini{display:flex;align-items:center;gap:10px;padding:3px 0}
+.invmini small{margin-left:6px}
+/* Рядки податкового розрахунку. */
+.invline{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:5px 0;
+  border-bottom:1px solid var(--border-soft)}
+.invline>span:first-child{min-width:0}
+.invline small{margin-left:6px}
+.invline.tot{border-bottom:0;padding-top:9px;font-weight:700}
+.invyr{display:flex;align-items:center;gap:10px;padding:2px 0;font-size:12.5px}
+.invyr>.muted{width:38px;flex:none}
+.invtrack{flex:1;height:7px;background:var(--border-soft);border-radius:4px;overflow:hidden}
+.invtrack i{display:block;height:100%}
+.invtrack i.pos{background:var(--success)} .invtrack i.neg{background:var(--danger)}
+/* Ціль. */
+.meter.lg{height:8px}
+#invGoal .meter>i{background:var(--accent)}
+.invgoalrow{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px}
+.invhsvg{display:block;width:100%;height:64px}
+/* Підписи місяців рідшають за шириною самої картки, а не вікна: у дві
+   колонки на 900 px картка дивідендів вужча, ніж на телефоні, і
+   «жов 25лис 25…» злипались. */
+#invDiv{container-type:inline-size}
+@container (max-width:520px){.dvrow .c:nth-child(even) em{visibility:hidden}}
+@media(max-width:759px){
+  /* Журнал позиції: дата, подія, сума — кількість ховається, вона є в рядку. */
+  .invdet{padding-left:0}
+  .invdet .tr2{grid-template-columns:56px minmax(0,1fr) auto}
+  .invdet .tr2 .q{display:none}
+  .invgt,.invgsum{font-size:var(--fs-md)}
+}
 </style>
 </head>
 <body>
@@ -1745,110 +1853,117 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 
 <!-- ══════════════════ ІНВЕСТИЦІЇ ══════════════════ -->
 <section id="tab-inv" hidden>
-  <div class="seg" id="invSeg">
-    <button data-iseg="sec" class="on">Цінні папери</button>
-    <button data-iseg="cry">Крипта</button>
+  <!-- Перемикачі екрана — той самий сегмент, що й період (.periodbar .chip),
+       з aria-pressed замість класу .on: глобальне button.on фарбує лаймом,
+       а лайм лишається за основною дією. -->
+  <div class="invtop">
+    <div class="periodbar" id="invSeg" role="group" aria-label="Розділ">
+      <button class="chip" data-iseg="sec" aria-pressed="true">Цінні папери</button>
+      <button class="chip" data-iseg="cry" aria-pressed="false">Крипта</button>
+    </div>
+    <div class="muted invsync" id="invSyncTop"></div>
   </div>
-  <div class="muted" id="invSyncTop" style="font-size:11.5px;margin:-4px 0 10px"></div>
 
   <!-- ── цінні папери ── -->
-  <div id="invSecPane">
+  <div class="stack invpane" id="invSecPane">
     <div class="grid kpis" id="invKpis"></div>
 
-    <div class="card" style="margin-bottom:12px" id="invNavCard" hidden>
-      <div class="cardhead"><h2>Динаміка портфеля</h2><span class="hint" id="invNavHint"></span>
-        <span class="seg mini" id="invPerSeg" style="margin-left:auto">
-          <button data-iper="1d">Сьогодні</button>
-          <button data-iper="30">1М</button><button data-iper="91">3М</button>
-          <button data-iper="182">6М</button><button data-iper="ytd">YTD</button>
-          <button data-iper="365">Рік</button><button data-iper="all">Все</button>
-        </span></div>
-      <div class="seg mini" id="invModeSeg" style="margin-bottom:10px">
-        <button data-imode="profit">Чистий дохід</button>
-        <button data-imode="value">Вартість</button>
+    <div class="card" id="invNavCard" hidden>
+      <div class="cardhead segs"><h2>Динаміка портфеля</h2><span class="hint" id="invNavHint"></span>
+        <div class="periodbar sm push" id="invPerSeg" role="group" aria-label="Вікно графіка">
+          <button class="chip" data-iper="1d">Сьогодні</button>
+          <button class="chip" data-iper="30">1М</button><button class="chip" data-iper="91">3М</button>
+          <button class="chip" data-iper="182">6М</button><button class="chip" data-iper="ytd">YTD</button>
+          <button class="chip" data-iper="365">Рік</button><button class="chip" data-iper="all">Все</button>
+        </div></div>
+      <div class="periodbar sm invmode" id="invModeSeg" role="group" aria-label="Що показує графік">
+        <button class="chip" data-imode="profit">Чистий дохід</button>
+        <button class="chip" data-imode="value">Вартість</button>
       </div>
       <div id="invNav"></div>
       <div id="invDyn"></div>
-      <p class="muted" id="invTwrNote" style="margin:10px 0 0;font-size:11.5px"></p>
+      <p class="muted invnote" id="invTwrNote"></p>
     </div>
 
-    <div class="card" style="margin-bottom:12px" id="invStockCard">
-      <div class="cardhead"><h2>Позиції</h2><span class="hint" id="invState"></span>
-        <span class="hint" id="invStockSum" style="margin-left:auto"></span></div>
-      <div id="invPos"></div>
+    <!-- Позиції — не одна картка, а стек карток-груп (Акції, ETF, Гроші):
+         кожна група згортається своєю шапкою, і вкладені картки не
+         потрібні. -->
+    <div class="stack" id="invStockCard">
+      <div class="ovsec"><span class="lbl">Позиції</span><span class="muted" id="invState"></span>
+        <span class="muted" id="invStockSum"></span></div>
+      <div class="stack" id="invPos"></div>
     </div>
 
-    <div class="grid two">
+    <div class="grid grid-auto">
       <div class="card">
-        <div class="cardhead"><h2>Дивіденди</h2><span class="hint" id="invDivHint"></span>
-          <span class="seg mini" id="invDivPer" style="margin-left:auto">
-            <button data-idper="6">6М</button><button data-idper="12">Рік</button>
-            <button data-idper="24">2Р</button><button data-idper="all">Все</button>
-          </span>
-          <span class="seg mini" id="invDivSeg">
-            <button data-idiv="m">Місяці</button><button data-idiv="a">Активи</button>
-          </span></div>
+        <div class="cardhead segs"><h2>Дивіденди</h2><span class="hint" id="invDivHint"></span>
+          <div class="periodbar sm push" id="invDivPer" role="group" aria-label="Період дивідендів">
+            <button class="chip" data-idper="6">6М</button><button class="chip" data-idper="12">Рік</button>
+            <button class="chip" data-idper="24">2Р</button><button class="chip" data-idper="all">Все</button>
+          </div>
+          <div class="periodbar sm" id="invDivSeg" role="group" aria-label="Розріз дивідендів">
+            <button class="chip" data-idiv="m">Місяці</button><button class="chip" data-idiv="a">Активи</button>
+          </div></div>
         <div id="invDiv"></div>
         <div id="invDivNext"></div>
       </div>
       <div class="card">
-        <div class="cardhead"><h2>Розподіл</h2>
-          <span class="seg mini" id="invAllocSeg" style="margin-left:auto">
-            <button data-ialloc="pos">Позиції</button>
-            <button data-ialloc="sect">Сектори</button>
-            <button data-ialloc="ctry">Країни</button>
-            <button data-ialloc="ccy">Валюти</button>
-          </span></div>
+        <div class="cardhead segs"><h2>Розподіл</h2>
+          <div class="periodbar sm push" id="invAllocSeg" role="group" aria-label="Розріз розподілу">
+            <button class="chip" data-ialloc="pos">Позиції</button>
+            <button class="chip" data-ialloc="sect">Сектори</button>
+            <button class="chip" data-ialloc="ctry">Країни</button>
+            <button class="chip" data-ialloc="ccy">Валюти</button>
+          </div></div>
         <div id="invAlloc"></div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:12px" id="invGoalCard">
+    <div class="card" id="invGoalCard">
       <div class="cardhead"><h2>Ціль</h2><span class="hint" id="invGoalHint"></span></div>
       <div id="invGoal"></div>
     </div>
 
-    <div class="card" style="margin-top:12px" id="invTaxCard">
-      <div class="cardhead"><h2>Податки</h2><span class="hint">довідково, не консультація</span>
-        <span class="seg mini" id="invTaxSeg" style="margin-left:auto"></span></div>
+    <div class="card" id="invTaxCard">
+      <div class="cardhead segs"><h2>Податки</h2><span class="hint">довідково, не консультація</span>
+        <div class="periodbar sm push" id="invTaxSeg" role="group" aria-label="Рік"></div></div>
       <div id="invTax"></div>
     </div>
 
-    <div class="card" style="margin-top:12px" id="invWatchCard">
+    <div class="card" id="invWatchCard">
       <div class="cardhead"><h2>Watchlist</h2><span class="hint" id="invWatchHint"></span></div>
       <div id="invWatchList"></div>
-      <div class="fieldrow" style="margin-top:10px">
-        <button class="btn" id="invWatchAdd">+ Додати тікер</button>
+      <div class="cluster invacts">
+        <button class="btn sm" id="invWatchAdd">+ Додати тікер</button>
       </div>
     </div>
   </div>
 
   <!-- ── крипта ── -->
-  <div id="invCryPane" hidden>
+  <div class="stack invpane" id="invCryPane" hidden>
     <div class="grid kpis" id="invKpisC"></div>
 
-    <div class="card" style="margin-bottom:12px" id="invCryNavCard" hidden>
+    <div class="card" id="invCryNavCard" hidden>
       <div class="cardhead"><h2>Динаміка крипти</h2><span class="hint" id="invCryNavHint"></span></div>
       <div id="invCryNav"></div>
     </div>
 
-    <div class="card" style="margin-bottom:12px" id="invCryptoCard">
-      <div class="cardhead"><h2>Монети</h2>
-        <span class="hint" id="invCryptoSum" style="margin-left:auto"></span></div>
-      <div id="invPosC"></div>
+    <div class="stack" id="invCryptoCard">
+      <div class="ovsec"><span class="lbl">Монети</span><span class="muted" id="invCryptoSum"></span></div>
+      <div class="stack" id="invPosC"></div>
     </div>
 
-    <div class="card" style="margin-bottom:12px">
+    <div class="card">
       <div class="cardhead"><h2>Розподіл</h2><span class="hint">частка крипти</span></div>
       <div id="invAllocC"></div>
     </div>
   </div>
 
   <!-- ── спільне ── -->
-  <div class="card" style="margin-top:12px">
+  <div class="card" id="invPlatCard">
     <div class="cardhead"><h2>Платформи</h2><span class="hint" id="invSyncHint"></span></div>
     <div id="invPlat"></div>
-    <div class="fieldrow" id="invActions" style="margin-top:12px"></div>
+    <div class="cluster invacts" id="invActions"></div>
   </div>
   <div id="invWarn"></div>
 </section>
@@ -6965,12 +7080,14 @@ function hoverize(host, dates, vals, fmtV, notes){
     if(!r.width) return;
     let f = (e.clientX - r.left)/r.width; f = Math.max(0, Math.min(1, f));
     const i = Math.round(f*(vals.length-1));
+    // Положення курсора й підпису — справді динамічні (за мишею), тому
+    // лишаються інлайновими властивостями; вигляд — класами .pos/.neg/.qnote.
     line.style.left = (f*r.width)+'px'; line.style.opacity = .6;
     const hasPct = vals[0] && Math.abs(vals[0]) > 1e-9;
     const chg = hasPct ? (vals[i]/vals[0]-1)*100 : 0;
     lab.innerHTML = `<b>${fmtV(vals[i])}</b> · ${dates[i]}` + (hasPct
-      ? ` · <span style="color:var(--${chg>=0?'good':'danger'})">${chg>=0?'+':'−'}${Math.abs(chg).toFixed(1)}%</span>` : '')
-      + (notes && notes[dates[i]] ? `<br><span style="font-size:10.5px">${notes[dates[i]]}</span>` : '');
+      ? ` · <span class="${chg>=0?'pos':'neg'}">${chg>=0?'+':'−'}${Math.abs(chg).toFixed(1)}%</span>` : '')
+      + (notes && notes[dates[i]] ? `<br><span class="qnote">${notes[dates[i]]}</span>` : '');
     lab.style.opacity = 1;
     const lw = lab.offsetWidth;
     lab.style.left = Math.max(4, Math.min(r.width-lw-4, f*r.width - lw/2))+'px';
@@ -6981,15 +7098,16 @@ function hoverize(host, dates, vals, fmtV, notes){
    none, де <circle> став би овалом): нуль-довжинний штрих із round-cap
    і vector-effect — товщина міряється в пікселях екрана. */
 const svgDot = (x, y, col) =>
-  `<path d="M ${x.toFixed(1)} ${y.toFixed(1)} l .01 0" fill="none" stroke="var(--surface-1)"
+  `<path d="M ${x.toFixed(1)} ${y.toFixed(1)} l .01 0" fill="none" stroke="var(--surface)"
      stroke-width="9" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`
   + `<path d="M ${x.toFixed(1)} ${y.toFixed(1)} l .01 0" fill="none" stroke="${col}"
      stroke-width="5.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+/* Легенда міток угод: колір — лише в крапці .dot, текст нейтральний. */
 const dotLegend = (hasB, hasS) => (hasB || hasS)
-  ? `<div class="muted" style="font-size:10.5px;margin-top:2px">${[
-      hasB ? '<span style="color:var(--good)">●</span> купівля' : '',
-      hasS ? '<span style="color:var(--danger)">●</span> продаж' : '',
-    ].filter(Boolean).join(' · ')} — наведіть курсор на день</div>` : '';
+  ? `<div class="invlegend">${[
+      hasB ? '<span class="dot buy"></span>купівля' : '',
+      hasS ? '<span class="dot sell"></span>продаж' : '',
+    ].filter(Boolean).join('<span>·</span>')}<span>— наведіть курсор на день</span></div>` : '';
 window.quotesSet = q => { QUOTES = q; if(S.tab==='inv') render(); };
 /* «N хв тому» — людське відносне «коли», для бейджів синхронізації */
 function agoTxt(ts){
@@ -7005,20 +7123,31 @@ function agoTxt(ts){
   return d.toLocaleDateString('uk-UA') + ' ' + hh;
 }
 const qOf = sym => (QUOTES && QUOTES.quotes && QUOTES.quotes[sym]) || null;
-const dayCol = v => `color:var(--${v>=0?'good':'danger'})`;
+/* Знак зміни — клас тексту, а не інлайновий колір: .pos/.neg живуть у CSS. */
+const pnCls = v => v>=0 ? 'pos' : 'neg';
 const dayBadge = v => (v==null || Math.abs(v) > 30) ? '' :
-  `<small style="${dayCol(v)}">${v>=0?'▲':'▼'}${Math.abs(v).toFixed(1)}% сьогодні</small>`;
+  `<span class="tag ${pnCls(v)}">${v>=0?'▲':'▼'}${Math.abs(v).toFixed(1)}% сьогодні</span>`;
 const invUAH = p => p.value == null ? null : p.value * (fxOf(p.ccy) || 0);
-/* логотип або монограма: однакова ширина в обох випадках, щоб рядки
-   з логотипом і без стояли в одну лінію */
-const logoImg = sym => {
+/* Слот кольору монограми (.c1–.c8) — стійкий хеш тікера: та сама
+   позиція має той самий колір між запусками й у будь-якому порядку
+   списку. Повертає лише число — у розмітку не потрапляє нічого з даних. */
+const invSlot = sym => {
+  let h = 0;
+  for(const ch of String(sym||'')) h = (h*31 + ch.codePointAt(0)) >>> 0;
+  return h % 8 + 1;
+};
+/* логотип або монограма в колі .badge-ico: однаковий розмір в обох
+   випадках, щоб рядки з логотипом і без стояли в одну лінію */
+const logoImg = (sym, cls='') => {
   const u = safeImage(LOGOS[sym]);
   return u
-    ? `<img class="ivlogo" src="${u}" alt="">`
-    : `<span class="ivlogo mono">${esc(String(sym||'?').replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,1) || '?')}</span>`;
+    ? `<span class="badge-ico ivlogo ${cls}"><img src="${u}" alt=""></span>`
+    : `<span class="badge-ico c${invSlot(sym)} ${cls}">${esc(String(sym||'?').replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,1) || '?')}</span>`;
 };
+/* Кількість — така сама таємниця, як і сума: у режимі скріншоту
+   маскується (дрібні кількості раніше йшли повз fmt і лишались видимими). */
 const fmtQty = q => q == null ? '' :
-  (Math.abs(q) >= 1000 ? fmt(q) : String(+q.toFixed(Math.abs(q) < 1 ? 6 : 2)));
+  (Math.abs(q) >= 1000 ? fmt(q) : scrnTxt(String(+q.toFixed(Math.abs(q) < 1 ? 6 : 2))));
 /* капіталізація людською: 3,12 трлн $, 840 млрд $, 65 млн $ */
 const fmtCap = c => c==null ? null :
   c>=1e12 ? (c/1e12).toFixed(2)+' трлн $' :
@@ -7046,7 +7175,7 @@ function renderInv(){
   /* сегменти: «повністю розділити» означає, що людина дивиться АБО на
      папери, АБО на крипту — кожен зі своїми KPI і графіками */
   el('invSeg').querySelectorAll('[data-iseg]').forEach(b=>{
-    b.classList.toggle('on', b.dataset.iseg===INVSEG);
+    b.setAttribute('aria-pressed', String(b.dataset.iseg===INVSEG));
     b.onclick = ()=>{ if(INVSEG!==b.dataset.iseg){ INVSEG=b.dataset.iseg;
       store.set('invSeg', INVSEG); INVOPEN=null; render(); } };
   });
@@ -7065,12 +7194,17 @@ function renderInv(){
     el('invCryNavCard').hidden = true;
     if(INVWATCH.length) renderInvWatch();
     const hasKeys = window.__BOOT__ && (__BOOT__.hasIbkr || __BOOT__.hasBin);
-    const msg = `<p class="muted" style="margin:6px 0 14px">${
+    /* Групи позицій тепер окремі картки, тож порожній стан теж кладемо
+       в картку — інакше пояснення висіло б голим рядком між секціями. */
+    const msg = `<div class="card"><p class="muted invempty">${
       !desk ? 'Підключення брокерів живе в десктопній версії — там є сховище ключів Windows і прямий доступ до API. Браузерна версія показує лише витрати.'
       : hasKeys ? 'Ключі збережено — натисніть «Оновити», і апка стягне перший знімок портфеля.'
       : 'Підключіть Interactive Brokers або Binance у «Ще». Обидва підключення тільки читають: торгувати чи вивести гроші ними неможливо.'}</p>`
-      + (desk && !hasKeys ? `<button class="btn pri" data-invgo>Відкрити налаштування</button>` : '');
+      + (desk && !hasKeys ? `<button class="btn pri" data-invgo>Відкрити налаштування</button>` : '') + '</div>';
     el('invPos').innerHTML = msg; el('invPosC').innerHTML = msg;
+    /* У браузері платформ немає зовсім — порожня картка з заголовком
+       лише дублювала б пояснення вище. */
+    el('invPlatCard').hidden = !desk;
     document.querySelectorAll('[data-invgo]').forEach(g=>g.onclick=()=>go2set('src'));
     invActions(desk);
     return;
@@ -7100,12 +7234,19 @@ function renderInv(){
       ? fmt2(p.qty===1 ? p.price : p.qty) + ' ' + esc(p.symbol)
       : fmtQty(p.qty) + (p.price!=null ? ' × ' + fmt2(p.price) + ' ' + sgn(p.ccy) : '');
     const sh = share ? ` · ${share(p).toFixed(0)}%` : '';
-    return `<div class="invrow" data-invsym="${esc(p.symbol)}">
-      <span class="nm">${logoImg(p.symbol)}<b>${esc(p.symbol)}</b><small>${esc(p.name||'')}</small>${dayBadge(p.dayChg)}</span>
-      <span class="qp">${qp}${sh}</span>
-      <span class="pl">${pl==null ? '' :
-        `<span style="color:var(--${pl>=0?'good':'danger'})">${pl>=0?'+':'−'}${money(Math.abs(pl))}${plPct!=null?' · '+Math.abs(plPct).toFixed(1)+'%':''}</span>`}</span>
-      <span class="val">${v==null ? '<span class="muted">без ціни</span>' : money(v)}</span>
+    /* Рядок — .row: коло-іконка, назва з кількістю під нею, праворуч
+       вартість і під нею прибуток. Два поверхи замість чотирьох колонок
+       із фіксованою шириною: на 390 px колонки виштовхували суму за картку. */
+    return `<div class="row invrow" data-invsym="${esc(p.symbol)}"${INVOPEN===p.symbol?' data-open':''}>
+      ${logoImg(p.symbol)}
+      <div class="grow invmain">
+        <div class="invnm"><b>${esc(p.symbol)}</b><span>${esc(p.name||'')}</span></div>
+        <div class="invmeta"><span>${qp}${sh}</span>${dayBadge(p.dayChg)}</div>
+      </div>
+      <div class="invamt">
+        <div class="invval">${v==null ? '<span class="muted">без ціни</span>' : money(v)}</div>
+        ${pl==null ? '' : `<div class="invpl ${pnCls(pl)}">${pl>=0?'+':'−'}${money(Math.abs(pl))}${plPct!=null?' · '+Math.abs(plPct).toFixed(1)+'%':''}</div>`}
+      </div>
     </div>` + (INVOPEN===p.symbol ? invDetail(p) : '');
   };
   /* картка позиції: усі угоди й виплати цього символу з журналу брокера */
@@ -7129,7 +7270,7 @@ function renderInv(){
       p.avgCost!=null ? `середня ${fmt2(p.avgCost)} ${sgn(p.ccy)} проти ${fmt2(p.price)} зараз` : '',
       buys.length ? `куплено ${plural(buys.length,'раз','рази','разів')} на ${fmt2(buys.reduce((s,t)=>s+t.amount,0))} ${sgn(p.ccy)}` : '',
       sells.length ? `продано на ${fmt2(sells.reduce((s,t)=>s+t.amount,0))} ${sgn(p.ccy)}`
-        + (realized ? ` <span style="color:var(--${realized>=0?'good':'danger'})">(${realized>=0?'+':''}${fmt2(realized)} реалізовано)</span>` : '') : '',
+        + (realized ? ` <span class="${pnCls(realized)}">(${realized>=0?'+':''}${fmt2(realized)} реалізовано)</span>` : '') : '',
       div ? `дивідендів ${fmt2(div)} ${sgn(p.ccy)}${yld!=null?` · ${yld.toFixed(1)}%/рік`:''}${tax ? ` (податок ${fmt2(tax)})` : ''}` : '',
     ].filter(Boolean).join(' · ');
     /* ── аналіз акції ─────────────────────────────────────────────
@@ -7150,8 +7291,8 @@ function renderInv(){
         else if(c && c.loading) cdErr = 'завантажую…';
         else cd = c;
       }
-      const chips = `<div class="seg mini" style="margin:2px 0 8px">${RN.map(([r,n])=>
-        `<button data-qrange="${r}" data-qsym="${esc(p.symbol)}" class="${r===range?'on':''}">${n}</button>`).join('')}</div>`;
+      const chips = `<div class="periodbar sm invqper" role="group" aria-label="Період графіка ціни">${RN.map(([r,n])=>
+        `<button class="chip" data-qrange="${r}" data-qsym="${esc(p.symbol)}" aria-pressed="${r===range}">${n}</button>`).join('')}</div>`;
       if(cd && cd.closes && cd.closes.length > 1){
         const cs = cd.closes, cur = (range==='1y'||range==='1d'||range==='5d') && cd.price ? cd.price : cs[cs.length-1];
         const first = cs[0];
@@ -7191,11 +7332,11 @@ function renderInv(){
           const avg = a => a.reduce((s,v)=>s+v,0)/a.length;
           const note = [];
           if(e.b){ hasB = true;
-            tmarks += svgDot(px(i), py(Math.max(lo, Math.min(hi, avg(e.bp)))), 'var(--good)');
-            note.push(`<span style="color:var(--good)">купівля ${fmtQty(e.b)} × ${fmt2(avg(e.bp))}</span>`); }
+            tmarks += svgDot(px(i), py(Math.max(lo, Math.min(hi, avg(e.bp)))), 'var(--success)');
+            note.push(`<span class="pos">купівля ${fmtQty(e.b)} × ${fmt2(avg(e.bp))}</span>`); }
           if(e.s){ hasS = true;
             tmarks += svgDot(px(i), py(Math.max(lo, Math.min(hi, avg(e.sp)))) - (e.b?7:0), 'var(--danger)');
-            note.push(`<span style="color:var(--danger)">продаж ${fmtQty(e.s)} × ${fmt2(avg(e.sp))}</span>`); }
+            note.push(`<span class="neg">продаж ${fmtQty(e.s)} × ${fmt2(avg(e.sp))}</span>`); }
           const key = cd.dates[i];
           tnotes[key] = tnotes[key] ? tnotes[key] + ' · ' + note.join(' · ') : note.join(' · ');
         }
@@ -7211,16 +7352,15 @@ function renderInv(){
         const st = (t,v)=> v==null ? '' : `<div class="d">${t}<b>${v}</b></div>`;
         const vol = cd.volume ? (cd.volume>=1e6 ? (cd.volume/1e6).toFixed(1)+' млн' : fmt(cd.volume)) : null;
         priceBlock = chips + `
-          <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px">
-            <b style="font-size:17px;font-family:var(--font-display)">${fmt2(cur)} ${sgn(p.ccy)}</b>
-            <span style="${dayCol(rchg)};font-weight:600">${up?'▲':'▼'} ${Math.abs(rchg).toFixed(2)}% за ${
+          <div class="invqhead">
+            <b class="invqcur">${fmt2(cur)} ${sgn(p.ccy)}</b>
+            <span class="${pnCls(rchg)}">${up?'▲':'▼'} ${Math.abs(rchg).toFixed(2)}% за ${
               ({'1d':'день','5d':'5 днів','1mo':'місяць','6mo':'пів року','1y':'рік','5y':'5 років'})[range]}</span>
           </div>
           <div data-qhov="${esc(p.symbol)}">
-            <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"
-              style="display:block;width:100%;height:88px">
-              <polygon points="0,${H} ${pts2} ${W},${H}" fill="var(--${up?'good':'danger'})" opacity=".10"/>
-              <polyline points="${pts2}" fill="none" stroke="var(--${up?'good':'danger'})" stroke-width="1.6"
+            <svg class="invqsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="0,${H} ${pts2} ${W},${H}" fill="var(--${up?'success':'danger'})" opacity=".10"/>
+              <polyline points="${pts2}" fill="none" stroke="var(--${up?'success':'danger'})" stroke-width="1.6"
                 vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
               ${avgLine}
               ${tmarks}
@@ -7228,7 +7368,7 @@ function renderInv(){
           </div>
           <div class="invnavlbl"><span>${cd.dates[0]}</span><span></span><span>${cd.dates[cd.dates.length-1]}</span></div>
           ${dotLegend(hasB, hasS)}
-          ${avgLine ? `<div class="muted" style="font-size:10.5px;margin-top:2px"><span style="color:var(--warn)">– –</span> середня ціна входу ${fmt2(p.avgCost)} ${sgn(p.ccy)}</div>` : ''}
+          ${avgLine ? `<div class="invlegend"><span class="invdash"></span>середня ціна входу ${fmt2(p.avgCost)} ${sgn(p.ccy)}</div>` : ''}
           <div class="qstats">
             ${st('попер. закриття', cd.prev!=null ? fmt2(cd.prev)+' '+sgn(p.ccy) : null)}
             ${st('діапазон дня', cd.dayLow!=null && cd.dayHigh!=null ? fmt2(cd.dayLow)+' – '+fmt2(cd.dayHigh) : null)}
@@ -7250,12 +7390,11 @@ function renderInv(){
               + (q.payDate ? '' : ' (екс-дата)') : null)}
           </div>
           ${(()=>{ const th = (INVTHESIS[p.symbol]||'').trim();
-            return `<div class="ivthesis" data-ivth="${esc(p.symbol)}"
-              style="margin:8px 0 0;font-size:11.5px;cursor:pointer;color:var(--text-${th?'dim':'mute'})"
-              data-tip="Натисніть, щоб змінити"><i style="opacity:.5">✎</i> ${
+            return `<div class="ivthesis${th?'':' empty'}" data-ivth="${esc(p.symbol)}"
+              data-tip="Натисніть, щоб змінити"><i>✎</i> ${
               th ? esc(th) : 'нащо я це купив і коли продам — записати'}</div>`; })()}`;
       } else {
-        priceBlock = chips + `<p class="muted" style="margin:4px 0 8px">${
+        priceBlock = chips + `<p class="muted invqwait">${
           cdErr || (window.__DESK__ && window.__DESK__.tauri
             ? 'завантажую…' : 'інші періоди — в десктопній версії')}</p>`;
       }
@@ -7266,24 +7405,24 @@ function renderInv(){
         priceBlock += `<div class="qnews">${nw.items.slice(0,6).map(n=>`
           <div class="n" data-qlink="${esc(n.link)}"><span>${esc(n.titleUk || n.title)}</span>
             <em>${esc((n.when||'').replace(/:\d\d \+0000|GMT/,'').slice(0,22))}</em></div>`).join('')}
-          <p class="muted" style="margin:4px 0 0;font-size:10.5px">Новини: Yahoo Finance · відкриються в браузері</p></div>`;
+          <p class="muted invfoot">Новини: Yahoo Finance · відкриються в браузері</p></div>`;
       } else if(nw && nw.loading){
-        priceBlock += `<p class="muted" style="font-size:11px">новини завантажуються…</p>`;
+        priceBlock += `<p class="muted invfoot">новини завантажуються…</p>`;
       }
     }
     const LIM = 30;
     return `<div class="invdet">
       ${priceBlock}
-      ${facts ? `<div class="muted" style="margin-bottom:6px">${facts}</div>` : ''}
+      ${facts ? `<div class="muted invfacts">${facts}</div>` : ''}
       ${ops.slice(0,LIM).map(t=>`<div class="tr2">
         <span>${t.date.slice(2).split('-').reverse().join('.')}</span>
         <span>${TLBL[t.type]||t.type}${t.note?` <span class="muted">· ${esc(t.note)}</span>`:''}${
-          t.type==='sell' && t.pnl ? ` <span style="color:var(--${t.pnl>=0?'good':'danger'})">${t.pnl>=0?'+':''}${fmt2(t.pnl)}</span>` : ''}</span>
-        <span class="a">${t.qty ? fmtQty(t.qty)+(t.price?' × '+fmt2(t.price):'') : ''}</span>
-        <span class="a" style="color:${t.type==='div'?'var(--good)':t.type==='tax'?'var(--danger)':'inherit'}">${
+          t.type==='sell' && t.pnl ? ` <span class="${pnCls(t.pnl)}">${t.pnl>=0?'+':''}${fmt2(t.pnl)}</span>` : ''}</span>
+        <span class="a q">${t.qty ? fmtQty(t.qty)+(t.price?' × '+fmt2(t.price):'') : ''}</span>
+        <span class="a${t.type==='div'?' pos':t.type==='tax'?' neg':''}">${
           (t.type==='sell'||t.type==='div'||t.type==='interest'?'+':'−')}${fmt2(t.amount)} ${sgn(t.ccy)}</span>
       </div>`).join('')}
-      ${ops.length>LIM ? `<div class="muted" style="margin-top:4px">…і ще ${nOps(ops.length-LIM)} — повний журнал у звіті брокера</div>` : ''}
+      ${ops.length>LIM ? `<div class="muted invfoot">…і ще ${nOps(ops.length-LIM)} — повний журнал у звіті брокера</div>` : ''}
     </div>`;
   }
   const posList = (host, list, names, pfx) => {
@@ -7293,10 +7432,14 @@ function renderInv(){
       if(!sub.length) return '';
       const sum = sub.reduce((s,p)=>s+(invUAH(p)??0),0);
       const key = pfx + kind, open = !INVFOLD.has(key);
-      return `<div class="invgrp" data-invk="${key}">
-          <span class="nm"><i>${open?'▾':'▸'}</i>${names[kind] || INV_KIND[kind]} · ${sub.length}</span>
-          <span class="val">${money(sum)}</span></div>`
-        + (open ? sub.map(p=>row(p, share)).join('') : '');
+      /* Група — окрема картка; шапка — кнопка зі стрілкою-SVG, яку
+         повертає клас .shut (символ ▾/▸ мав різну ширину в шрифтах). */
+      return `<div class="card invgrp${open?'':' shut'}">
+          <button class="cardhead invgh" data-invk="${key}" aria-expanded="${open}">
+            <svg class="ic invchev" aria-hidden="true"><use href="#i-chevron"/></svg>
+            <span class="invgt">${names[kind] || INV_KIND[kind]}</span><span class="muted">${sub.length}</span>
+            <span class="invgsum">${money(sum)}</span></button>
+          ${open ? `<div class="invlist">${sub.map(p=>row(p, share)).join('')}</div>` : ''}</div>`;
     }).join('');
     host.querySelectorAll('[data-invk]').forEach(n=>n.onclick=()=>{
       const k = n.dataset.invk;
@@ -7348,6 +7491,8 @@ function renderInv(){
       if(cd && cd.closes) hoverize(h, cd.dates, cd.closes, v=>fmt2(v), QD['__notes_'+sym]);
     });
   };
+  /* Ширина смуги частки — єдиний інлайновий стиль тут: це дані (%),
+     а не оформлення; заливка й висота — у CSS (.ivb .bar). */
   const bars = (host, groups)=>{
     const tot = groups.reduce((s,g)=>s+g.v,0) || 1;
     host.innerHTML = groups.filter(g=>g.v>0).map(g=>`<div class="ivb">
@@ -7360,11 +7505,24 @@ function renderInv(){
   if(INVSEG==='sec') renderInvSec(secs, secVal, total, navh, ivt, when);
   else renderInvCry(crypto, cryVal, total, when);
 
-  /* ── спільний низ ── */
-  bars(el('invPlat'), [
-    {k:'Interactive Brokers', v: pos.filter(p=>p.src==='ibkr').reduce((s,p)=>s+(invUAH(p)??0),0)},
-    {k:'Binance', v: pos.filter(p=>p.src==='binance').reduce((s,p)=>s+(invUAH(p)??0),0)},
-  ]);
+  /* ── спільний низ ──
+     Платформа — рядок: крапка стану (підключено/ні) і текст, праворуч
+     частка й вартість. Колір стану — лише в .dot, картка не тонується. */
+  el('invPlatCard').hidden = false;
+  const platV = src => pos.filter(p=>p.src===src).reduce((s,p)=>s+(invUAH(p)??0),0);
+  const platTot = (platV('ibkr') + platV('binance')) || 1;
+  el('invPlat').innerHTML = [
+    {k:'Interactive Brokers', src:'ibkr', has: window.__BOOT__ && __BOOT__.hasIbkr, t: when.ibkr},
+    {k:'Binance', src:'binance', has: window.__BOOT__ && __BOOT__.hasBin, t: when.binance},
+  ].map(x=>{
+    const v = platV(x.src), on = !!(x.has || v);
+    return `<div class="row invplat">
+      <span class="dot ${on?'ok':'off'}" aria-hidden="true"></span>
+      <div class="grow invmain"><div class="invnm"><b>${x.k}</b></div>
+        <div class="invmeta"><span>${on ? (x.t ? 'оновлено ' + agoTxt(x.t) : 'підключено') : 'не підключено'}</span></div></div>
+      <div class="invamt">${v ? `<div class="invval">${money(v)}</div><div class="invpl muted">${(v/platTot*100).toFixed(0)}% портфеля</div>` : ''}</div>
+    </div>`;
+  }).join('');
   /* «коли востаннє синхронізовано» — на видноті, а не тільки внизу
      в «Платформах»: людина має бачити свіжість даних одним поглядом */
   el('invSyncTop').textContent = [
@@ -7378,7 +7536,7 @@ function renderInv(){
   ].filter(Boolean).join(' · ');
   invActions(desk);
   el('invWarn').innerHTML = (INV.warn||[]).length
-    ? `<div class="warnbox" style="margin-top:12px">${INV.warn.map(esc).join('<br>')}</div>` : '';
+    ? `<div class="warnbox">${INV.warn.map(esc).join('<br>')}</div>` : '';
 
   /* ── розділ «Цінні папери» ── */
   function renderInvSec(secs, secVal, total, navh, ivt, when){
@@ -7399,7 +7557,7 @@ function renderInv(){
        s:'за середніми цінами входу'},
       {l:'Нереалізований прибуток', v: known.length ? (gain>=0?'+':'−')+money(Math.abs(gain)) : '—',
        a: known.length?alt(Math.abs(gain)):'',
-       s: known.length ? `<span class="${gain>=0?'down':'up'}">${gain>=0?'▲':'▼'} ${Math.abs(gpct).toFixed(1)}%</span> до вкладеного` : ''},
+       s: known.length ? `<span class="tag ${pnCls(gain)}">${gain>=0?'▲':'▼'} ${Math.abs(gpct).toFixed(1)}%</span> до вкладеного` : ''},
       {l:'Дивіденди за 12 міс', v: divs.length?money(div12uah):'—', a: divs.length?alt(div12uah):'',
        s: divs.length ? `${nOps(divs.length)} · ≈ ${money(div12uah/12)}/міс` : 'виплат у звіті немає'},
     ].map(kpi).join('');
@@ -7409,7 +7567,7 @@ function renderInv(){
     ].filter(Boolean).join(' · ');
     el('invStockSum').textContent = secs.length ? money(secVal) : '';
     if(secs.length) posList(el('invPos'), secs, {}, 's:');
-    else el('invPos').innerHTML = '<p class="muted" style="margin:6px 0 4px">IBKR ще не підключено або в звіті немає позицій — підключіть у «Ще».</p>';
+    else el('invPos').innerHTML = '<div class="card"><p class="muted invempty">IBKR ще не підключено або в звіті немає позицій — підключіть у «Ще».</p></div>';
     invNavChart(navh, ivt);
     invDivChart(ivt, secs);
     invDivNext(ivt, secs);
@@ -7419,7 +7577,7 @@ function renderInv(){
     /* розподіл: УСІ позиції (обрізаний список породжував «а де решта 8?»),
        плюс зрізи, яких у списку позицій не видно: країни і валюти */
     el('invAllocSeg').querySelectorAll('[data-ialloc]').forEach(b=>{
-      b.classList.toggle('on', b.dataset.ialloc===INVALLOC);
+      b.setAttribute('aria-pressed', String(b.dataset.ialloc===INVALLOC));
       b.onclick = ()=>{ INVALLOC = b.dataset.ialloc; renderInv(); };
     });
     const CTRY = {US:'США', KR:'Пд. Корея', NL:'Нідерланди', DK:'Данія', DE:'Німеччина',
@@ -7434,11 +7592,12 @@ function renderInv(){
       el('invAlloc').innerHTML = rows.map(({p,v})=>{
         const cur = v/tot*100, tgt = INVTGT[p.symbol];
         const dev = tgt!=null ? cur-tgt : null;
-        return `<div class="ivb" data-tgtsym="${esc(p.symbol)}" style="cursor:pointer">
-          <span>${esc(p.symbol)}${tgt!=null ? `<small class="muted" style="margin-left:6px">ціль ${tgt}%</small>`:''}</span>
+        /* інлайн лише ширина смуги й положення мітки цілі — це дані (%) */
+        return `<div class="ivb click" data-tgtsym="${esc(p.symbol)}">
+          <span>${esc(p.symbol)}${tgt!=null ? `<small class="muted">ціль ${tgt}%</small>`:''}</span>
           <span class="bar"><i style="width:${Math.max(2, v/rows[0].v*100).toFixed(1)}%"></i>${
-            tgt!=null ? `<u style="position:absolute;left:${Math.min(100, tgt/ (rows[0].v/tot*100) *100).toFixed(1)}%;top:-2px;bottom:-2px;width:2px;background:var(--warn);display:block"></u>` : ''}</span>
-          <span class="v">${cur.toFixed(0)}%${dev!=null ? ` <span style="color:var(--${Math.abs(dev)<1?'good':'warn'})">${dev>=0?'+':'−'}${Math.abs(dev).toFixed(1)}</span>` : ''} · ${money(v)}</span>
+            tgt!=null ? `<u class="ivtgt" style="left:${Math.min(100, tgt/ (rows[0].v/tot*100) *100).toFixed(1)}%"></u>` : ''}</span>
+          <span class="v">${cur.toFixed(0)}%${dev!=null ? ` <span class="${Math.abs(dev)<1?'pos':'warnt'}">${dev>=0?'+':'−'}${Math.abs(dev).toFixed(1)}</span>` : ''} · ${money(v)}</span>
         </div>`;
       }).join('');
       /* план виходу на цілі */
@@ -7447,12 +7606,12 @@ function renderInv(){
         const steps = planned.map(({p,v})=>({sym:p.symbol, d: INVTGT[p.symbol]/100*tot - v}))
           .filter(x=>Math.abs(x.d) > tot*0.005)
           .sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,6);
-        el('invAlloc').innerHTML += `<p class="muted" style="margin:10px 0 0;font-size:12px">${
+        el('invAlloc').innerHTML += `<p class="muted invnote">${
           steps.length ? 'Щоб вийти на цілі: ' + steps.map(x=>
             `${x.d>0?'докупити':'продати'} ${esc(x.sym)} на ${money(Math.abs(x.d))}`).join(' · ')
-          : 'Частки в межах цілей — ребаланс не потрібен.'} <span style="opacity:.7">Клік по рядку — змінити ціль.</span></p>`;
+          : 'Частки в межах цілей — ребаланс не потрібен.'} Клік по рядку — змінити ціль.</p>`;
       } else {
-        el('invAlloc').innerHTML += `<p class="muted" style="margin:10px 0 0;font-size:12px">Клік по рядку — поставити цільову частку: апка порахує, що докупити чи продати.</p>`;
+        el('invAlloc').innerHTML += `<p class="muted invnote">Клік по рядку — поставити цільову частку: апка порахує, що докупити чи продати.</p>`;
       }
       el('invAlloc').querySelectorAll('[data-tgtsym]').forEach(n=>n.onclick=async ()=>{
         const sym = n.dataset.tgtsym;
@@ -7478,7 +7637,7 @@ function renderInv(){
         const k = q && q.sector ? (SECT[q.sector]||q.sector) : 'невідомо';
         by[k] = (by[k]||0) + (invUAH(p)??0); }
       bars(el('invAlloc'), Object.entries(by).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v));
-      if(by['невідомо']) el('invAlloc').innerHTML += `<p class="muted" style="margin:8px 0 0;font-size:11.5px">Сектор приходить із Yahoo під час оновлення цін — «невідомо» зменшиться після наступного оновлення.</p>`;
+      if(by['невідомо']) el('invAlloc').innerHTML += `<p class="muted invnote">Сектор приходить із Yahoo під час оновлення цін — «невідомо» зменшиться після наступного оновлення.</p>`;
     }
     else if(INVALLOC==='ctry'){
       const by = {};
@@ -7517,10 +7676,9 @@ function renderInv(){
       const x = i => i/(vs.length-1)*W, yv = v => H-(v-min+pad)/(max-min+2*pad)*H;
       const pts = vs.map((v,i)=>`${x(i).toFixed(1)},${yv(v).toFixed(1)}`).join(' ');
       const up = vs[vs.length-1] >= vs[0];
-      el('invCryNav').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"
-          style="display:block;width:100%;height:110px">
-          <polygon points="0,${H} ${pts} ${W},${H}" fill="var(--${up?'good':'danger'})" opacity=".12"/>
-          <polyline points="${pts}" fill="none" stroke="var(--${up?'good':'danger'})" stroke-width="2"
+      el('invCryNav').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <polygon points="0,${H} ${pts} ${W},${H}" fill="var(--${up?'success':'danger'})" opacity=".12"/>
+          <polyline points="${pts}" fill="none" stroke="var(--${up?'success':'danger'})" stroke-width="2"
             vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
         <div class="invnavlbl"><span>${CRYHIST[0].date}</span>
           <span>${vs[vs.length-1]>=vs[0]?'+':'−'}${money(Math.abs(vs[vs.length-1]-vs[0]))} з початку збору</span>
@@ -7530,7 +7688,7 @@ function renderInv(){
     } else {
       card.hidden = !crypto.length;
       if(crypto.length){
-        el('invCryNav').innerHTML = '<p class="muted" style="margin:2px 0 0">Історію вартості крипти біржа назад не віддає — апка збирає її сама, по одному знімку на день. Графік зʼявиться з другого дня.</p>';
+        el('invCryNav').innerHTML = '<p class="muted invempty">Історію вартості крипти біржа назад не віддає — апка збирає її сама, по одному знімку на день. Графік зʼявиться з другого дня.</p>';
         el('invCryNavHint').textContent = CRYHIST.length ? '1 знімок' : '';
       }
     }
@@ -7550,7 +7708,7 @@ function renderInv(){
     ].map(kpi).join('');
     el('invCryptoSum').textContent = crypto.length ? money(cryVal) : '';
     if(crypto.length) posList(el('invPosC'), crypto, {crypto:'Монети', cash:'Стейбли'}, 'c:');
-    else el('invPosC').innerHTML = '<p class="muted" style="margin:6px 0 4px">Binance ще не підключено — підключіть у «Ще».</p>';
+    else el('invPosC').innerHTML = '<div class="card"><p class="muted invempty">Binance ще не підключено — підключіть у «Ще».</p></div>';
     bars(el('invAllocC'), crypto.map(p=>({k:p.symbol, v:invUAH(p)??0})).sort((a,b)=>b.v-a.v));
   }
 
@@ -7566,11 +7724,11 @@ function renderInv(){
 
     /* перемикачі вікна і режиму */
     el('invPerSeg').querySelectorAll('[data-iper]').forEach(b=>{
-      b.classList.toggle('on', b.dataset.iper===String(INVPER));
+      b.setAttribute('aria-pressed', String(b.dataset.iper===String(INVPER)));
       b.onclick = ()=>{ INVPER = b.dataset.iper; store.set('invPer', INVPER); renderInv(); };
     });
     el('invModeSeg').querySelectorAll('[data-imode]').forEach(b=>{
-      b.classList.toggle('on', b.dataset.imode===INVMODE);
+      b.setAttribute('aria-pressed', String(b.dataset.imode===INVMODE));
       b.onclick = ()=>{ INVMODE = b.dataset.imode; store.set('invMode', INVMODE); renderInv(); };
     });
 
@@ -7612,7 +7770,7 @@ function renderInv(){
     /* у режимі доходу — лінія нуля, щоб видно було, де портфель у мінусі */
     const zero = INVMODE==='profit' && min<0 && max>0
       ? `<line x1="0" x2="${W}" y1="${yv(0).toFixed(1)}" y2="${yv(0).toFixed(1)}" stroke="var(--border)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` : '';
-    const col = INVMODE==='profit' ? (series[series.length-1]>=0?'var(--good)':'var(--danger)') : 'var(--s1)';
+    const col = INVMODE==='profit' ? (series[series.length-1]>=0?'var(--success)':'var(--danger)') : 'var(--s1)';
     /* мої угоди на лінії портфеля: крапка на дні, коли Я купував або
        продавав, — курсор розшифровує, що саме і скільки */
     const tby = {};
@@ -7632,10 +7790,10 @@ function renderInv(){
       const e = tby[n.date];
       if(!e) return;
       const note = [];
-      if(e.b.length){ hasB = true; tmarks += svgDot(x(i), yv(series[i]), 'var(--good)');
-        note.push(`<span style="color:var(--good)">▲ купив: ${short(e.b)}</span>`); }
+      if(e.b.length){ hasB = true; tmarks += svgDot(x(i), yv(series[i]), 'var(--success)');
+        note.push(`<span class="pos">▲ купив: ${short(e.b)}</span>`); }
       if(e.s.length){ hasS = true; tmarks += svgDot(x(i), yv(series[i]) - (e.b.length?7:0), 'var(--danger)');
-        note.push(`<span style="color:var(--danger)">▼ продав: ${short(e.s)}</span>`); }
+        note.push(`<span class="neg">▼ продав: ${short(e.s)}</span>`); }
       tnotes[n.date] = note.join(' · ');
     });
     el('invNav').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
@@ -7661,7 +7819,7 @@ function renderInv(){
     const ann = twr!=null && twr>-1 && days>=28 ? Math.pow(1+twr, 365/days)-1 : null;
     const profit = V1-V0-netF;
     const chip = (t,v,isPct)=>`<div class="d"><div class="t">${t}</div>
-      <div class="v" style="color:var(--${v>=0?'good':'danger'})">${v>=0?'+':'−'}${
+      <div class="v ${pnCls(v)}">${v>=0?'+':'−'}${
         isPct ? Math.abs(v*100).toFixed(1)+'%' : money(Math.abs(v))}</div></div>`;
     /* XIRR — річна грошовозважена за ВЕСЬ час: скільки реально
        заробляють вкладені гроші з урахуванням, коли їх завели */
@@ -7724,8 +7882,8 @@ function renderInv(){
         if(sd > 0) shrp = (mu/sd)*Math.sqrt(365/per);
       }
     }
-    const chipN = (t,v,fmtv,col)=>`<div class="d"><div class="t">${t}</div>
-      <div class="v"${col?` style="color:var(--${col})"`:''}>${fmtv}</div></div>`;
+    const chipN = (t,v,fmtv,cls)=>`<div class="d"><div class="t">${t}</div>
+      <div class="v ${cls||''}">${fmtv}</div></div>`;
 
     el('invDyn').innerHTML = `<div class="invdyn">
       ${today!=null ? chip('Сьогодні', today) : ''}
@@ -7734,12 +7892,12 @@ function renderInv(){
       ${ann!=null ? chip('Річними', ann, true) : ''}
       ${xirr!=null ? chip('XIRR за весь час', xirr, true) : ''}
       ${mdd!=null && mdd < -0.005 ? chipN('Макс. просадка',
-        mdd, '−'+Math.abs(mdd*100).toFixed(1)+'%', 'danger') : ''}
+        mdd, '−'+Math.abs(mdd*100).toFixed(1)+'%', 'neg') : ''}
       ${shrp!=null ? chipN('Sharpe (спрощений)', shrp, shrp.toFixed(2),
-        shrp >= 1 ? 'good' : shrp < 0 ? 'danger' : '') : ''}
-      ${bmk!=null ? `<div class="d" data-bench style="cursor:pointer" data-tip="Клік — інший бенчмарк">
+        shrp >= 1 ? 'pos' : shrp < 0 ? 'neg' : '') : ''}
+      ${bmk!=null ? `<div class="d click" data-bench data-tip="Клік — інший бенчмарк">
           <div class="t">${esc(BENCH_LBL[INVBENCH]||INVBENCH)} за вікно ▾</div>
-          <div class="v" style="color:var(--${bmk>=0?'good':'danger'})">${bmk>=0?'+':'−'}${Math.abs(bmk*100).toFixed(1)}%</div>
+          <div class="v ${pnCls(bmk)}">${bmk>=0?'+':'−'}${Math.abs(bmk*100).toFixed(1)}%</div>
         </div>` : ''}
     </div>`;
     const bp = el('invDyn').querySelector('[data-bench]');
@@ -7799,18 +7957,18 @@ function renderInv(){
     const desk2 = !!(window.__DESK__ && __DESK__.tauri);
     el('invDyn').innerHTML = ''; el('invTwrNote').textContent = ''; el('invNavHint').textContent = '';
     if(!desk2){
-      host.innerHTML = '<p class="muted" style="margin:6px 0">Рух за сьогодні — в застосунку: браузерний файл не тягне внутрішньоденні ціни.</p>';
+      host.innerHTML = '<p class="muted invempty">Рух за сьогодні — в застосунку: браузерний файл не тягне внутрішньоденні ціни.</p>';
       return;
     }
     const qt = window.QT;
     if(!qt || Date.now()/1000 - qt.fetched > 300) invTodayKick(secs2);
     if(!qt || !qt.quotes){
-      host.innerHTML = '<p class="muted" style="margin:6px 0">Завантажую сьогоднішній рух цін (кілька секунд на кожен папір)…</p>';
+      host.innerHTML = '<p class="muted invempty">Завантажую сьогоднішній рух цін (кілька секунд на кожен папір)…</p>';
       return;
     }
     const grid = [...new Set([].concat(...secs2.map(p=>((qt.quotes[p.symbol]||{}).dates)||[])))].sort();
     if(grid.length < 2){
-      host.innerHTML = '<p class="muted" style="margin:6px 0">Внутрішньоденних цін ще немає — ринок сьогодні не відкривався.</p>';
+      host.innerHTML = '<p class="muted invempty">Внутрішньоденних цін ще немає — ринок сьогодні не відкривався.</p>';
       return;
     }
     let base = 0;
@@ -7839,7 +7997,7 @@ function renderInv(){
     const zero = INVMODE==='profit' && min<0 && max>0
       ? `<line x1="0" x2="${W}" y1="${yv(0).toFixed(1)}" y2="${yv(0).toFixed(1)}" stroke="var(--border)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` : '';
     const dlt = vals[vals.length-1] - base;
-    const col = INVMODE==='profit' ? (dlt>=0?'var(--good)':'var(--danger)') : 'var(--s1)';
+    const col = INVMODE==='profit' ? (dlt>=0?'var(--success)':'var(--danger)') : 'var(--s1)';
     const t0 = String(grid[0]).slice(11) || grid[0], t1 = String(grid[grid.length-1]).slice(11) || grid[grid.length-1];
     host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         ${zero}
@@ -7853,7 +8011,7 @@ function renderInv(){
     hoverize(host, grid.map(g=>String(g).slice(11)||g), series,
       v => (INVMODE==='profit' && v<0 ? '−' : '') + money(Math.abs(v)));
     const chip2 = (t,v,isPct)=>`<div class="d"><div class="t">${t}</div>
-      <div class="v" style="color:var(--${v>=0?'good':'danger'})">${v>=0?'+':'−'}${
+      <div class="v ${pnCls(v)}">${v>=0?'+':'−'}${
         isPct ? Math.abs(v*100).toFixed(2)+'%' : money(Math.abs(v))}</div></div>`;
     let bmk2 = null;
     const bq = qt.quotes[INVBENCH];
@@ -7862,7 +8020,7 @@ function renderInv(){
       ${chip2('Сьогодні', dlt)}
       ${base ? chip2('У відсотках', dlt/base, true) : ''}
       ${bmk2!=null ? `<div class="d"><div class="t">${esc(BENCH_LBL[INVBENCH]||INVBENCH)} сьогодні</div>
-        <div class="v" style="color:var(--${bmk2>=0?'good':'danger'})">${bmk2>=0?'+':'−'}${Math.abs(bmk2*100).toFixed(2)}%</div></div>` : ''}
+        <div class="v ${pnCls(bmk2)}">${bmk2>=0?'+':'−'}${Math.abs(bmk2*100).toFixed(2)}%</div></div>` : ''}
     </div>`;
     el('invNavHint').textContent = `${grid.length} точок · зараз ${money(vals[vals.length-1])} · ціни ${agoTxt(qt.fetched)}`;
     el('invTwrNote').textContent = 'Рух за сьогодні: 5-хвилинні ціни Yahoo проти вчорашнього закриття. Оновлюються при відкритті вікна, не рідше ніж раз на 5 хвилин.';
@@ -7889,11 +8047,11 @@ function renderInv(){
   function invDivChart(ivt, secs){
     const host = el('invDiv');
     el('invDivSeg').querySelectorAll('[data-idiv]').forEach(b=>{
-      b.classList.toggle('on', b.dataset.idiv===INVDIVV);
+      b.setAttribute('aria-pressed', String(b.dataset.idiv===INVDIVV));
       b.onclick = ()=>{ INVDIVV = b.dataset.idiv; renderInv(); };
     });
     el('invDivPer').querySelectorAll('[data-idper]').forEach(b=>{
-      b.classList.toggle('on', b.dataset.idper===INVDIVP);
+      b.setAttribute('aria-pressed', String(b.dataset.idper===INVDIVP));
       b.onclick = ()=>{ INVDIVP = b.dataset.idper; renderInv(); };
     });
     const now = new Date();
@@ -7924,10 +8082,11 @@ function renderInv(){
       for(const t of divs){ const m = t.date.slice(0,7); by[m]=(by[m]||0)+t.amount*(fxOf(t.ccy)||0); }
       const mx = Math.max(...months.map(m=>by[m]||0)) || 1;
       /* значення НАД стовпчиком: графік без чисел змушує вгадувати */
-      host.innerHTML = `<div class="dvrow" style="position:relative">${months.map(m=>{
+      /* інлайн лише висота стовпчика — це дані; порожній місяць — клас .z */
+      host.innerHTML = `<div class="dvrow">${months.map(m=>{
         const v = by[m]||0;
         return `<div class="c" data-dvm="${m}"><b>${v && months.length<=18 ? fmt(v) : ''}</b>
-          <i style="height:${Math.max(v?6:2, v/mx*54).toFixed(0)}px;${v?'':'opacity:.25'}"></i>
+          <i${v?'':' class="z"'} style="height:${Math.max(v?6:2, v/mx*54).toFixed(0)}px"></i>
           <em>${monthLabel(m)}</em></div>`; }).join('')}</div>`;
 
       /* висновок людською мовою — що з цього всього РОЗУМІТИ */
@@ -7935,7 +8094,7 @@ function renderInv(){
       const invested = secs.filter(p=>p.avgCost!=null&&p.qty!=null)
         .reduce((sm,p)=>sm+p.qty*p.avgCost*(fxOf(p.ccy)||0),0);
       const onInv = invested ? totalY/invested*100 : null;
-      host.innerHTML += `<p class="muted" style="margin:10px 0 0;font-size:12px;line-height:1.5">
+      host.innerHTML += `<p class="muted invnote">
         Портфель платить <b>≈ ${money(totalY/nMonths)}/міс</b> пасивного доходу
         (${money(totalY)} за ${nMonths} міс${onInv!=null && nMonths>=12 ? `, це ${(onInv*12/nMonths).toFixed(1)}% річних на вкладене`:''}).
         Місяці нерівні, бо більшість компаній платить раз на квартал — найщедріший був
@@ -7946,7 +8105,7 @@ function renderInv(){
          будь-який += після цього зніс би обробники разом із DOM. */
       const wrap = host.querySelector('.dvrow');
       const tipEl = document.createElement('div');
-      tipEl.className = 'qlab'; tipEl.style.top = '-6px';
+      tipEl.className = 'qlab';
       wrap.appendChild(tipEl);
       wrap.querySelectorAll('[data-dvm]').forEach(c=>{
         c.onmouseenter = ()=>{
@@ -7975,12 +8134,13 @@ function renderInv(){
       host.innerHTML = rows.map(([sym,d])=>{
         const pv = posVal(sym);
         const yld = pv ? d.v/pv*100 : null;
+        /* інлайн лише ширина смуги — частка від найщедрішого платника */
         return `<div class="ivb">
-          <span>${esc(sym)}<small class="muted" style="margin-left:6px">${d.n}×${yld!=null?` · ${yld.toFixed(1)}%/рік`:''}</small></span>
-          <span class="bar"><i style="width:${Math.max(3, d.v/rows[0][1].v*100).toFixed(1)}%;background:var(--good)"></i></span>
+          <span>${esc(sym)}<small class="muted">${d.n}×${yld!=null?` · ${yld.toFixed(1)}%/рік`:''}</small></span>
+          <span class="bar"><i class="div" style="width:${Math.max(3, d.v/rows[0][1].v*100).toFixed(1)}%"></i></span>
           <span class="v">${(d.v/totalY*100).toFixed(0)}% · ${money(d.v)}</span></div>`;
       }).join('')
-        + `<p class="muted" style="margin:8px 0 0;font-size:12px">Разом ${money(totalY)} за ${nMonths} міс ≈ ${money(totalY/nMonths)}/міс${taxes?` · податків ${money(taxes)}`:''}</p>`;
+        + `<p class="muted invnote">Разом ${money(totalY)} за ${nMonths} міс ≈ ${money(totalY/nMonths)}/міс${taxes?` · податків ${money(taxes)}`:''}</p>`;
     }
     el('invDivHint').textContent = money(totalY) + (INVDIVP==='all' ? ' за весь звіт' : ` за ${nMonths} міс`);
   }
@@ -8013,14 +8173,14 @@ function renderInv(){
     const fact12 = ivt.filter(t=>t.type==='div' && t.date>=y.toISOString().slice(0,10))
       .reduce((s,t)=>s+t.amount*(fxOf(t.ccy)||0),0);
     rows.sort((a,b)=>a.date<b.date?-1:1);
-    host.innerHTML = `<div style="margin-top:12px;border-top:1px solid var(--border-soft);padding-top:10px">
-      ${rows.length ? `<div class="muted" style="font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Очікується</div>` : ''}
-      ${rows.slice(0,6).map(r=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0">
-        <span>${logoImg(r.sym)}<b>${esc(r.sym)}</b>
-          <small class="muted" style="margin-left:6px">${r.date.slice(5).split('-').reverse().join('.')}${r.ex?' · екс-дата':''}</small></span>
-        <span style="font-variant-numeric:tabular-nums;color:var(--good)">≈ ${fmt2(r.est)} ${sgn(r.ccy)}</span>
+    host.innerHTML = `<div class="invsub">
+      ${rows.length ? `<div class="lbl invsubh">Очікується</div>` : ''}
+      ${rows.slice(0,6).map(r=>`<div class="invmini">
+        ${logoImg(r.sym, 'sm')}<span class="grow"><b>${esc(r.sym)}</b>
+          <small class="muted">${r.date.slice(5).split('-').reverse().join('.')}${r.ex?' · екс-дата':''}</small></span>
+        <span class="num pos">≈ ${fmt2(r.est)} ${sgn(r.ccy)}</span>
       </div>`).join('')}
-      ${annUah ? `<p class="muted" style="margin:${rows.length?8:0}px 0 0;font-size:11.5px">За оголошеними ставками портфель має
+      ${annUah ? `<p class="muted invnote">За оголошеними ставками портфель має
         платити ≈ <b>${money(annUah/12)}/міс</b> (${money(annUah)}/рік)${fact12
           ? `; фактично за 12 міс виходило ${money(fact12/12)}/міс` : ''}.
         Дати і ставки — оголошення компаній через Yahoo, їх можуть змінити.</p>` : ''}
@@ -8042,17 +8202,22 @@ function renderInv(){
       if(w.target && price){
         const d = (price/w.target-1)*100;
         tgtTxt = d <= 0
-          ? `<span style="color:var(--good)">нижче цілі ${fmt2(w.target)} — можна дивитись</span>`
+          ? `<span class="pos">нижче цілі ${fmt2(w.target)} — можна дивитись</span>`
           : `<span class="muted">до цілі ${fmt2(w.target)} ще −${d.toFixed(1)}%</span>`;
       } else if(w.target) tgtTxt = `<span class="muted">ціль ${fmt2(w.target)}</span>`;
-      return `<div class="invrow" style="cursor:default">
-        <span class="nm">${logoImg(w.sym)}<b>${esc(w.sym)}</b>${q && q.name ? `<small>${esc(q.name)}</small>`:''}${dayBadge(day)}</span>
-        <span class="qp">${q && q.w52Low!=null ? `52т: ${fmt2(q.w52Low)}–${fmt2(q.w52High)}` : ''}</span>
-        <span class="pl">${tgtTxt}</span>
-        <span class="val">${price ? fmt2(price)+' '+sgn(q.ccy||'USD') : '<span class="muted">ще без ціни</span>'}
-          <button class="btn" data-wdel="${esc(w.sym)}" style="padding:1px 8px;height:auto;font-size:11px;margin-left:8px">✕</button></span>
+      return `<div class="row invrow static">
+        ${logoImg(w.sym)}
+        <div class="grow invmain">
+          <div class="invnm"><b>${esc(w.sym)}</b>${q && q.name ? `<span>${esc(q.name)}</span>`:''}</div>
+          <div class="invmeta">${q && q.w52Low!=null ? `<span>52т: ${fmt2(q.w52Low)}–${fmt2(q.w52High)}</span>` : ''}${dayBadge(day)}</div>
+        </div>
+        <div class="invamt">
+          <div class="invval">${price ? fmt2(price)+' '+sgn(q.ccy||'USD') : '<span class="muted">ще без ціни</span>'}</div>
+          ${tgtTxt ? `<div class="invpl">${tgtTxt}</div>` : ''}
+        </div>
+        <button class="iconbtn invdel" data-wdel="${esc(w.sym)}" aria-label="Прибрати ${esc(w.sym)} з watchlist">✕</button>
       </div>`;
-    }).join('') : '<p class="muted" style="margin:2px 0 0">Додайте тікери, за якими стежите до купівлі: жива ціна, денна зміна і сигнал, коли ринок дійде до вашої цільової ціни.</p>';
+    }).join('') : '<p class="muted invempty">Додайте тікери, за якими стежите до купівлі: жива ціна, денна зміна і сигнал, коли ринок дійде до вашої цільової ціни.</p>';
     host.querySelectorAll('[data-wdel]').forEach(b=>b.onclick=()=>{
       INVWATCH = INVWATCH.filter(w=>w.sym!==b.dataset.wdel);
       store.set('invWatch', INVWATCH);
@@ -8090,7 +8255,7 @@ function renderInv(){
     if(!years.length) return;
     if(!INVTAXY || !years.includes(INVTAXY)) INVTAXY = years[0];
     seg.innerHTML = years.slice(0,5).map(y=>
-      `<button data-taxy="${y}" class="${y===INVTAXY?'on':''}">${y}</button>`).join('');
+      `<button class="chip" data-taxy="${y}" aria-pressed="${y===INVTAXY}">${y}</button>`).join('');
     seg.querySelectorAll('[data-taxy]').forEach(b=>b.onclick=()=>{
       INVTAXY = b.dataset.taxy; renderInv(); });
     const Y = INVTAXY, inY = t => t.date.slice(0,4)===Y;
@@ -8117,9 +8282,9 @@ function renderInv(){
        річна: 5% почав діяти з доходів 2025-го */
     const invVz = base * (+Y>=2025 ? 0.05 : 0.015);
     const total = divPdfo + (divUah>0?divVz:0) + invPdfo + invVz;
-    const line = (t, v, sub) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border-soft)">
-      <span>${t}${sub?`<small class="muted" style="margin-left:6px">${sub}</small>`:''}</span>
-      <span style="font-variant-numeric:tabular-nums">${v}</span></div>`;
+    const line = (t, v, sub) => `<div class="invline">
+      <span>${t}${sub?`<small class="muted">${sub}</small>`:''}</span>
+      <span class="num">${v}</span></div>`;
     host.innerHTML =
       line(`Дивіденди нараховано`, money(Math.max(0,divUah)), `${nOps(divs.length)} · в грн за курсом НБУ на дати виплат`)
       + (divUah>0 ? line('→ ПДФО 9% з дивідендів', money(divPdfo))
@@ -8131,9 +8296,9 @@ function renderInv(){
         + line('→ військовий збір з інвестприбутку', money(invVz)) : (pnlUah<0
           ? line('→ податку немає', '0 ₴', 'збиток року можна перенести на наступні') : ''))
       + (feeUah ? line('Комісії брокера за рік', money(feeUah), 'уже враховані в P&L, окремо не віднімаються') : '')
-      + `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0 0;font-weight:700">
-          <span>Разом орієнтовно за ${Y}</span><span style="font-family:var(--font-display)">${money(total)}</span></div>
-      <p class="muted" style="margin:8px 0 0;font-size:11.5px">${missing
+      + `<div class="invline tot">
+          <span>Разом орієнтовно за ${Y}</span><span class="num">${money(total)}</span></div>
+      <p class="muted invnote">${missing
         ? `Для ${missing} операцій курс НБУ ще не стягнуто — тимчасово порахував за сьогоднішнім; відкрийте вкладку в застосунку з інтернетом, і числа уточняться. `
         : ''}Декларація подається до 1 травня наступного року, сплата — до 1 серпня. Це довідковий розрахунок за даними брокера, а не податкова консультація.</p>
       ${(()=>{
@@ -8148,19 +8313,19 @@ function renderInv(){
         const ys2 = Object.keys(byY).sort();
         if(!ys2.length) return '';
         const mx = Math.max(...ys2.map(y2=>Math.abs(byY[y2]))) || 1;
-        return `<div style="margin-top:12px;border-top:1px solid var(--border-soft);padding-top:10px">
-          <div class="muted" style="font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Реалізований результат</div>
-          ${ys2.map(y2=>`<div style="display:flex;align-items:center;gap:10px;padding:2px 0;font-size:12.5px">
-            <span class="muted" style="width:38px">${y2}</span>
-            <span style="flex:1;height:7px;background:var(--border-soft);border-radius:4px;overflow:hidden">
-              <i style="display:block;height:100%;width:${(Math.abs(byY[y2])/mx*100).toFixed(0)}%;background:var(--${byY[y2]>=0?'good':'danger'})"></i></span>
-            <span style="font-variant-numeric:tabular-nums;color:var(--${byY[y2]>=0?'good':'danger'})">${byY[y2]>=0?'+':'−'}${money(Math.abs(byY[y2]))}</span>
+        /* інлайн лише ширина смуги — частка від найбільшого року */
+        return `<div class="invsub">
+          <div class="lbl invsubh">Реалізований результат</div>
+          ${ys2.map(y2=>`<div class="invyr">
+            <span class="muted">${y2}</span>
+            <span class="invtrack"><i class="${pnCls(byY[y2])}" style="width:${(Math.abs(byY[y2])/mx*100).toFixed(0)}%"></i></span>
+            <span class="num ${pnCls(byY[y2])}">${byY[y2]>=0?'+':'−'}${money(Math.abs(byY[y2]))}</span>
           </div>`).join('')}
-          <p class="muted" style="margin:6px 0 0;font-size:11.5px">Win-rate: <b>${(wins/tot2*100).toFixed(0)}%</b>
+          <p class="muted invnote">Win-rate: <b>${(wins/tot2*100).toFixed(0)}%</b>
             (${wins} з ${tot2} продажів у плюс). У грн за курсами НБУ на дати продажів.</p>
         </div>`;
       })()}
-      <div class="fieldrow" style="margin-top:8px"><button class="btn" data-taxcopy>Скопіювати звіт</button></div>`;
+      <div class="cluster invacts"><button class="btn sm" data-taxcopy>Скопіювати звіт</button></div>`;
     host.querySelector('[data-taxcopy]').onclick = ()=>{
       const txt = `Гроші — податковий розрахунок за ${Y} (довідково)\n`
         + `Дивіденди нараховано: ${money(Math.max(0,divUah))} (${divs.length} виплат, курс НБУ на дати)\n`
@@ -8202,7 +8367,7 @@ function renderInv(){
     };
     if(!INVGOAL || !INVGOAL.target){
       hint.textContent = '';
-      host.innerHTML = `<p class="muted" style="margin:2px 0 12px">Поставте ціль — суму, до якої ростить портфель.
+      host.innerHTML = `<p class="muted invempty">Поставте ціль — суму, до якої ростить портфель.
         Апка покаже прогрес і чесно порахує, коли ви там будете за ваших внесків і дохідності.</p>
         <button class="btn pri" data-goalset>Поставити ціль</button>`;
       host.querySelector('[data-goalset]').onclick = ask;
@@ -8224,17 +8389,18 @@ function renderInv(){
       when = `≈ ${MON[d.getMonth()]} ${d.getFullYear()} (${yrs>=1 ? yrs.toFixed(1)+' р.' : Math.ceil(months)+' міс.'})`;
     } else when = 'за поточних внесків і дохідності — не досяжна: збільште внески або ціль';
     hint.textContent = `${(done*100).toFixed(0)}% з ${money(g.target)}`;
+    /* інлайн лише ширина — прогрес до цілі (дані); заливка акцентом — у CSS */
     host.innerHTML = `
-      <div class="meter" style="height:8px"><i style="width:${(done*100).toFixed(1)}%;background:var(--accent)"></i></div>
-      <div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap">
-        <span class="muted" style="font-size:12px">зараз ${money(secVal)} · бракує ${money(Math.max(0,g.target-secVal))}</span>
-        <span class="muted" style="font-size:12px">${when}</span>
+      <div class="meter lg"><i style="width:${(done*100).toFixed(1)}%"></i></div>
+      <div class="invgoalrow muted">
+        <span>зараз ${money(secVal)} · бракує ${money(Math.max(0,g.target-secVal))}</span>
+        <span>${when}</span>
       </div>
-      <p class="muted" style="margin:8px 0 0;font-size:11.5px">Рахунок: внески ${money(m)}/міс, дохідність ${g.rate||0}%/рік.
+      <p class="muted invnote">Рахунок: внески ${money(m)}/міс, дохідність ${g.rate||0}%/рік.
         Це план-сценарій за вашими припущеннями, а не гарантія.</p>
       ${horizonBlock(secVal, g, m)}
-      <div class="fieldrow" style="margin-top:10px">
-        <button class="btn" data-goaledit>Змінити</button>
+      <div class="cluster invacts">
+        <button class="btn sm" data-goaledit>Змінити</button>
       </div>`;
     host.querySelector('[data-goaledit]').onclick = ask;
   }
@@ -8273,17 +8439,16 @@ function renderInv(){
       ? `<line x1="0" x2="${W}" y1="${py(fi).toFixed(1)}" y2="${py(fi).toFixed(1)}"
            stroke="var(--warn)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` : '';
     const nowY = new Date().getFullYear();
-    return `<div style="margin-top:12px;border-top:1px solid var(--border-soft);padding-top:10px">
-      <div class="muted" style="font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">Далекий обрій · ${yrsH} р.</div>
-      <div data-horizon><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"
-          style="display:block;width:100%;height:64px">
+    return `<div class="invsub">
+      <div class="lbl invsubh">Далекий обрій · ${yrsH} р.</div>
+      <div data-horizon><svg class="invhsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         ${fiLine}
         <polygon points="0,${H} ${pts} ${W},${H}" fill="var(--s1)" opacity=".10"/>
         <polyline points="${pts}" fill="none" stroke="var(--s1)" stroke-width="1.6"
           vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
       </svg></div>
       <div class="invnavlbl"><span>${nowY}</span><span></span><span>${nowY+yrsH}</span></div>
-      <p class="muted" style="margin:6px 0 0;font-size:11.5px">
+      <p class="muted invnote">
         Через ${yrsH} р. — ≈ <b>${money(series[series.length-1])}</b> у сьогоднішніх грошах
         (дохідність ${g.rate||0}% мінус інфляція ${infl}% = ${(rr*100).toFixed(1)}% реальних).
         ${fi ? `Витрати зараз ≈ ${money(spendMo)}/міс → фінансова незалежність за правилом 4% —
@@ -8431,11 +8596,11 @@ function invActions(desk){
   const hasI = window.__BOOT__ && __BOOT__.hasIbkr, hasB = window.__BOOT__ && __BOOT__.hasBin;
   const hasSecs = ((INV && INV.pos)||[]).some(p=>p.src==='ibkr' && p.kind!=='cash') || INVWATCH.length > 0;
   host.innerHTML =
-    (hasI ? `<button class="btn" data-invsync="ibkr">Оновити IBKR</button>` : '')
-    + (hasB ? `<button class="btn" data-invsync="binance">Оновити Binance</button>` : '')
-    + (hasSecs ? `<button class="btn" data-invquotes>Оновити ціни</button>` : '')
-    + ((hasI||hasB) ? '' : `<button class="btn" data-invgo2>Підключити в «Ще»</button>`)
-    + `<span class="muted" id="invSyncMsg" style="font-size:12px"></span>`;
+    (hasI ? `<button class="btn sm" data-invsync="ibkr">Оновити IBKR</button>` : '')
+    + (hasB ? `<button class="btn sm" data-invsync="binance">Оновити Binance</button>` : '')
+    + (hasSecs ? `<button class="btn sm" data-invquotes>Оновити ціни</button>` : '')
+    + ((hasI||hasB) ? '' : `<button class="btn sm" data-invgo2>Підключити в «Ще»</button>`)
+    + `<span class="muted invmsg" id="invSyncMsg"></span>`;
   const qb = host.querySelector('[data-invquotes]');
   if(qb) qb.onclick = async ()=>{
     qb.disabled = true; el('invSyncMsg').textContent = 'тягну котирування…';
