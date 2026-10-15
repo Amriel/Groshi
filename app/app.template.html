@@ -561,44 +561,7 @@ section[hidden]{display:none}
 .seg.mini button{height:25px;padding:0 11px;font-size:11px}
 :root[data-theme="light"] .seg{background:rgba(20,23,25,.05);box-shadow:inset 0 0 0 1px rgba(20,23,25,.07)}
 
-.pjlay{display:flex;flex-direction:column;gap:12px}
-.pjmain{display:flex;flex-direction:column;gap:12px;min-width:0}
-.pjcard{padding:20px}
-/* Картки «Кошторисів» стояли впритул: у .pjcard був лише padding, а
-   відступу між сусідніми картками не було взагалі — «Проєкти» і
-   «Рахунки для клієнтів» злипались у суцільну плиту без межі. */
-.pjcard + .pjcard{margin-top:14px}
-
-
-/* список проєктів */
-.pjtop{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.pjcrumb{font-size:13px;color:var(--text-dim)}
 /* Підписи розділів Огляду (.ovsec) — у блоці «ЕКРАНИ» наприкінці. */
-.pjcrumb .sep{margin:0 7px;color:var(--text-mute)}
-.pjcrumb .pn{color:var(--text);font-weight:700}
-/* Клієнт = окрема плита з власною рамкою. Раніше групи були просто
-   рядками одна під одною і зливались у список без початку й кінця —
-   око не бачило, де закінчується один клієнт і починається наступний. */
-.pjgrp{border:1px solid var(--border-soft);border-radius:14px;overflow:hidden;
-  background:rgba(255,255,255,.018)}
-.pjgrp + .pjgrp{margin-top:10px}
-.pjgrp.open{background:rgba(255,255,255,.03);border-color:var(--border)}
-.pjgrph{width:100%;display:flex;align-items:center;gap:10px;padding:13px 14px;border:0;cursor:pointer;
-  background:none;border-radius:0;color:var(--text);text-align:left}
-.pjgrph:hover{background:rgba(255,255,255,.05)}
-.pjgrph .nm{font-weight:700;font-size:13.5px}
-.pjgrph .cnt{flex:1;font-size:11.5px;color:var(--text-mute)}
-.pjgrph .amt{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--text-dim);
-  font-variant-numeric:tabular-nums}
-.pjgrph .ar{width:10px;font-size:9px;color:var(--text-mute);flex:none}
-.pjgrpl{display:none;flex-direction:column;padding:0 8px 8px 24px}
-.pjgrp.open .pjgrpl{display:flex}
-.pjitem{display:grid;grid-template-columns:112px minmax(120px,1.4fr) minmax(90px,1fr) 88px 92px 96px 14px;
-  align-items:center;gap:14px;padding:12px;border:0;border-radius:12px;cursor:pointer;
-  background:none;color:var(--text-dim);text-align:left;font-size:13px;
-  border-top:1px solid var(--border-soft)}
-.pjitem:first-child{border-top:0}
-.pjitem:hover{background:rgba(255,255,255,.05);color:var(--text)}
 /* Числа в ПОЛЯХ ВВОДУ маскою не сховати: там живе справжнє значення,
    і підмінити його — зламати редагування. Тому в режимі скріншоту
    вони розмиваються: цифри нечитабельні, поле лишається робочим, а
@@ -614,68 +577,6 @@ body.scrn .pjkpi .v, body.scrn td.num.calc, body.scrn .pjt .u{
 /* Підказка курсора теж показує суми — у режимі скріншоту вона зайва. */
 body.scrn .qlab, body.scrn .tip{display:none !important}
 
-/* Стан — не крапка, а підписаний чіп: колір без слова доводилось
-   вгадувати, а сам стан не можна було змінити, не заходячи в проєкт. */
-.pjitem .stchip{display:inline-flex;align-items:center;gap:6px;justify-self:start;
-  padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;
-  color:var(--stc);background:color-mix(in srgb, var(--stc) 14%, transparent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--stc) 32%, transparent);cursor:pointer}
-.pjitem .stchip:hover{background:color-mix(in srgb, var(--stc) 26%, transparent)}
-.pjitem .st{width:8px;height:8px;border-radius:50%;background:var(--accent)}
-.pjitem .st.done{background:var(--text-mute)}
-.pjitem .nm{font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pjitem .meta{font-size:11.5px;color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pjitem .split{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden}
-.pjitem .split i{display:block;border-radius:2px}
-.pjitem .split i.empty{flex:1;background:var(--border)}
-.pjitem .usd{font-family:var(--font-display);font-weight:700;font-variant-numeric:tabular-nums;
-  text-align:right;color:var(--text)}
-.pjitem .uah{font-variant-numeric:tabular-nums;text-align:right;font-size:12px;color:var(--text-mute)}
-.pjitem .go{color:var(--text-mute);text-align:right}
-:root[data-theme="light"] .pjgrph:hover,:root[data-theme="light"] .pjitem:hover{background:rgba(20,23,25,.05)}
-@media(max-width:760px){
-  .pjitem{grid-template-columns:8px 1fr auto;gap:8px 10px}
-  .pjitem .meta{grid-column:2/4}
-  .pjitem .split{grid-column:2/4}
-  .pjitem .usd{grid-column:2;text-align:left}
-  .pjitem .uah{grid-column:3}
-  .pjitem .go{display:none}
-}
-
-/* ціна проєкту */
-.pjsum{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap}
-.pjbig .lbl{display:block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--text-mute);margin-bottom:5px}
-.pjbig .val{display:block;font-family:var(--font-display);font-size:clamp(30px,4.6vw,42px);
-  font-weight:700;letter-spacing:-.03em;line-height:1}
-.pjbig .sub{display:block;font-size:13px;color:var(--text-dim);margin-top:7px}
-.pjrow2{display:flex;gap:22px;flex-wrap:wrap;flex:1;justify-content:flex-end}
-.pjrow2 .lbl{display:block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--text-mute);margin-bottom:4px}
-.pjrow2 b{font-family:var(--font-display);font-size:17px;font-variant-numeric:tabular-nums}
-.pjbar{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:18px;gap:2px}
-.pjbar i{display:block;border-radius:3px}
-.pjleg{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--text-dim)}
-.pjleg span{display:inline-flex;align-items:center;gap:7px}
-.pjleg i{width:9px;height:9px;border-radius:50%}
-
-/* налаштування проєкту: підпис НАД полем */
-.pjfields{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;
-  padding-bottom:16px;margin-bottom:4px;border-bottom:1px solid var(--border)}
-.pjf{display:flex;flex-direction:column;gap:5px;min-width:0}
-.pjf.grow{flex:1;min-width:150px}
-.pjf > span{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mute)}
-.pjf input,.pjf select{height:var(--ctl)}
-.pjf input[type=number]{width:104px;text-align:right}
-.pjacts{display:flex;gap:7px}
-.pjf.pjend{margin-left:auto}
-
-/* таблиця */
-#pjTable{overflow-x:auto;overflow-y:hidden}
-.pjt{width:100%;min-width:900px;border-collapse:collapse;font-size:12.5px}
-.pjt th{text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--text-mute);padding:14px 7px 9px;white-space:nowrap}
-.pjt th.num,.pjt td.num{text-align:right}
 /* Нативні стрілочки number-інпутів — системний віджет (правило №2),
    а у WebView2 ще й пастка: перемальовування таблиці під натиснутою
    стрілкою лишає автоповтор без mouseup — число тікає нескінченно
@@ -683,71 +584,7 @@ body.scrn .qlab, body.scrn .tip{display:none !important}
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield;appearance:textfield}
-/* дні/одиниці: перемикач сидить У клітинці обсягу, рядок не росте */
-.pjt td.daycell{white-space:nowrap}
-.pjt td.daycell input{width:calc(100% - 26px);display:inline-block;vertical-align:middle}
-.pjunit{width:24px;height:32px;padding:0;border:0;background:none;color:var(--text-mute);
-  font-size:10px;font-weight:700;cursor:pointer;vertical-align:middle}
-.pjunit:hover{color:var(--text)}
 #modalM{white-space:pre-line}
-.pjt td{padding:7px 7px;border-top:1px solid var(--border-soft);vertical-align:middle}
-.pjt tbody tr:hover td{background:rgba(255,255,255,.028)}
-/* Поля мали ту саму заливку, що й кнопки, тож уся таблиця читалася як
-   сітка кнопок. Тут вони прозорі з волосяною рамкою і наливаються лише
-   під курсором чи у фокусі — як клітинки. */
-.pjt input,.pjt select{width:100%;min-width:0;height:32px;padding:0 9px;font-size:12.5px;
-  border-radius:9px;background:none;box-shadow:inset 0 0 0 1px var(--border-soft)}
-.pjt input:hover{background:rgba(255,255,255,.04)}
-.pjt input:focus{background:rgba(255,255,255,.06)}
-.pjt .cselb{background:none;box-shadow:inset 0 0 0 1px var(--border-soft)}
-.pjt .cselb:hover{background:rgba(255,255,255,.05)}
-:root[data-theme="light"] .pjt input:hover{background:rgba(20,23,25,.035)}
-:root[data-theme="light"] .pjt input:focus{background:rgba(255,255,255,.75)}
-.pjt td.num input{text-align:right;width:52px;padding:0 7px}
-.pjt td.rate input{width:66px}
-.pjtask{min-width:160px}
-.pjnotec{min-width:150px}
-.pjt input.pjnote{font-size:11.5px;background:none;
-  box-shadow:inset 0 0 0 1px var(--border-soft);color:var(--text-dim)}
-.pjt input.pjnote:focus{color:var(--text)}
-/* Заливка робила з них групу кнопок. Тепер їх відділяє тонка лінія,
-   значення світлі й у дисплейному накресленні, підписи — акцентні. */
-.pjt th.calc:first-of-type,.pjt td.calc:first-of-type{border-left:1px solid var(--border)}
-.pjt th.calc{color:color-mix(in srgb,var(--accent) 55%,var(--text-mute))}
-.pjt td.calc{font-family:var(--font-display);font-weight:700;font-variant-numeric:tabular-nums;
-  white-space:nowrap;color:var(--text)}
-.pjt td.uah{border-right:0}
-.pjt tfoot td{border-top:1px solid var(--border);padding-top:12px;font-weight:600;color:var(--text-dim)}
-.pjt tfoot td.calc{font-size:14.5px;color:var(--text)}
-.pjt td.uah{color:var(--text-dim)}
-.pjx{width:26px;height:26px;border-radius:8px;border:0;background:none;cursor:pointer;
-  color:var(--text-mute);font-size:12px;line-height:1}
-.pjx:hover{color:var(--danger);background:rgba(255,255,255,.08)}
-.pjfoot{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:16px}
-.pjformula{font-size:11.5px;flex:1;min-width:200px;text-align:right}
-/* Кошторис — таблиця, і колонка контенту в 940 px їй затісна. На широкому
-   екрані розділ виходить за межі колонки, решта сторінки лишається як є. */
-@media(min-width:1120px){
-  #segProj{ --bw:min(1340px, calc(100vw - 56px));
-            width:var(--bw); margin-left:calc((100% - var(--bw)) / 2) }
-}
-@media(max-width:760px){
-  /* На вузькому екрані flex розкладав цифри в колонку так, що головне число
-     опинялось посередині. Сітка ставить його першим, решту — парами. */
-  .pjsum{flex-direction:column;align-items:stretch;gap:18px}
-  .pjrow2{display:grid;grid-template-columns:1fr 1fr;gap:16px 14px;justify-content:stretch}
-  .pjfields{gap:12px}
-  .pjf.grow{min-width:130px}
-  .pjf input[type=number]{width:100%}
-  .pjformula{text-align:left}
-}
-:root[data-theme="light"] .pjt tbody tr:hover td{background:rgba(20,23,25,.03)}
-:root[data-theme="light"] .pjx:hover{background:rgba(20,23,25,.07)}
-:root[data-theme="light"] .pjt th.calc,
-:root[data-theme="light"] .pjt td.calc{background:rgba(20,23,25,.035)}
-:root[data-theme="light"] .pjclh{background:rgba(20,23,25,.045)}
-:root[data-theme="light"] .pjclh:hover{background:rgba(20,23,25,.08)}
-:root[data-theme="light"] .pjp:hover{background:rgba(20,23,25,.06)}
 
 
 /* ── власні випадайки ── */
@@ -775,7 +612,6 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .cselz{display:block;height:0;overflow:hidden;visibility:hidden;pointer-events:none;
   white-space:nowrap;font:inherit;font-size:13px;padding:0 28px 0 11px}
 .cselz span{display:block}
-.pjt .cselz{font-size:12.5px;padding:0 25px 0 9px}
 .cselb i{font-style:normal;font-size:9px;color:var(--text-mute);flex:none}
 /* Вище за модальне вікно (300). Інакше підказки в полях самого вікна
    відкривались ПІД ним і виглядали як «нічого не сталося». */
@@ -805,49 +641,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .cselh{font-style:normal;font-size:var(--fs-xs);color:var(--text-mute);margin-left:auto;flex:none}
 .cselmore{padding:6px 11px 8px;font-size:var(--fs-xs);color:var(--text-mute)}
 /* висоти під контекст */
-.pjt .cselb{height:32px;font-size:12.5px;border-radius:9px;padding:0 9px}
-.pjf .cselb{height:var(--ctl)}
 .txfilters .cselb{height:var(--ctl)}
-
-/* ── шаблони, журнал змін ── */
-.pjtplbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-  margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
-.pjtplbar .lbl{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--text-mute);flex:none}
-.pjtplrow{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
-.tplchip{display:inline-flex;align-items:center;border-radius:var(--radius-pill);
-  background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
-.tplchip > button{display:flex;align-items:center;gap:7px;height:32px;padding:0 6px 0 14px;
-  border:0;background:none;cursor:pointer;color:var(--text-dim);font-size:12.5px;font-weight:600}
-.tplchip > button:hover{color:var(--text)}
-.tplchip i{font-style:normal;font-size:10px;opacity:.6;font-variant-numeric:tabular-nums}
-.tplchip .tplx{padding:0 11px 0 5px;color:var(--text-mute);font-size:11px}
-.tplchip .tplx:hover{color:var(--danger)}
-:root[data-theme="light"] .tplchip{background:rgba(20,23,25,.05);box-shadow:inset 0 0 0 1px rgba(20,23,25,.07)}
-
-.pjdyn{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}
-.pjdyn .lbl{display:block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--text-mute);margin-bottom:4px}
-.pjdyn b{font-family:var(--font-display);font-size:19px;font-variant-numeric:tabular-nums}
-.pjdyn b.up{color:var(--warn)} .pjdyn b.down{color:var(--good)}
-.pjspark{margin-left:auto;display:block}
-.pjlog{display:flex;flex-direction:column}
-.lgrow{display:grid;grid-template-columns:74px minmax(0,1fr) 92px 84px;gap:12px;align-items:baseline;
-  padding:9px 0;border-top:1px solid var(--border-soft);font-size:12.5px}
-.lgrow .t{color:var(--text-mute);font-size:11.5px;font-variant-numeric:tabular-nums}
-.lgrow .txt{color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lgrow .pr{text-align:right;font-family:var(--font-display);font-weight:700;
-  font-variant-numeric:tabular-nums;color:var(--text)}
-.lgrow .dl{text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text-mute)}
-.lgrow .dl.up{color:var(--warn)} .lgrow .dl.down{color:var(--good)}
-.pjlogmore{margin-top:12px;padding:7px 14px;height:auto;font-size:12px}
-@media(max-width:760px){
-  .lgrow{grid-template-columns:1fr auto;gap:4px 10px}
-  .lgrow .t{grid-column:1} .lgrow .pr{grid-column:2}
-  .lgrow .txt{grid-column:1/-1} .lgrow .dl{grid-column:2;text-align:right}
-  .pjspark{margin-left:0;margin-top:12px}
-}
-
 
 /* ── поле з підказками ── */
 .cmbi.open{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent),
@@ -1557,6 +1351,219 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .invdet .tr2 .q{display:none}
   .invgt,.invgsum{font-size:var(--fs-md)}
 }
+/* ── Кошториси ── */
+/* Список, картка проєкту й «Рахунки» — стеки з проміжком 12 px: відступ між
+   картками дає gap, а не margin-top кожної наступної (колишнє .pjcard + .pjcard
+   склеювало «Проєкти» з «Рахунками»). Розділ більше не виходить за колонку
+   (колишній breakout 100vw−56 при ≥1120 px після появи бічної панелі розпирав
+   сторінку вправо на ~120 px): таблиці 900 px вистачає внутрішньої ширини
+   колонки 1040 px, а вужче вона гортається всередині #pjTable. */
+.pjlay,#pjListView,.pjmain{display:flex;flex-direction:column;gap:12px;min-width:0}
+#pjListView .kpis{margin-bottom:0}
+#pjNew{margin-left:auto}
+.pjtop{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pjcrumb{flex:1 1 200px;min-width:0;font-size:var(--fs-sm);color:var(--text-dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pjcrumb .sep{margin:0 7px;color:var(--text-mute)}
+.pjcrumb .pn{color:var(--text);font-weight:700}
+
+/* Клієнт = окрема група з тонкою рамкою, заголовок — підпис .lbl; смуг і
+   тонування немає, відділяють рамка й проміжок. Контейнер — сама група:
+   вузька розкладка рядка вмикається від її ширини (у вікні 900 px із
+   іконковою панеллю група вужча, ніж вікно 760 px із повною). */
+.pjgrp{container-type:inline-size;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.pjgrp+.pjgrp{margin-top:12px}
+.pjgrph{width:100%;display:flex;align-items:center;gap:10px;padding:12px 16px;border:0;border-radius:0;
+  background:none;color:var(--text);text-align:left;cursor:pointer;
+  transition:background var(--dur) var(--ease)}
+.pjgrph:hover{background:var(--surface-2)}
+.pjgrph:focus-visible,.pjitem:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
+.pjgrph .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--text);font-weight:700}
+.pjgrph .cnt{flex:1;font-size:var(--fs-xs);color:var(--text-mute);white-space:nowrap}
+.pjgrph .amt{font-size:var(--fs-md);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Стрілка #i-chevron: відкрита група — вниз (.invchev), згорнута — праворуч. */
+.pjgrp:not(.open) .invchev{transform:rotate(180deg)}
+.pjgrpl{display:none;flex-direction:column}
+.pjgrp.open .pjgrpl{display:flex}
+.pjitem{display:grid;grid-template-columns:136px minmax(120px,1.4fr) minmax(90px,1fr) 88px 92px 96px 14px;
+  align-items:center;gap:14px;padding:12px 16px;border-top:1px solid var(--border-soft);cursor:pointer;
+  color:var(--text-dim);font-size:var(--fs-sm);transition:background var(--dur) var(--ease)}
+.pjitem:hover{background:var(--surface-2);color:var(--text)}
+.pjitem .nm{min-width:0;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pjpaid{font-weight:400;font-size:var(--fs-xs)}
+.pjitem .meta{min-width:0;font-size:var(--fs-xs);color:var(--text-mute);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.pjitem .usd{font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.pjitem .uah{font-variant-numeric:tabular-nums;text-align:right;font-size:var(--fs-xs);
+  color:var(--text-mute);white-space:nowrap}
+.pjitem .go{color:var(--text-mute);text-align:right}
+/* Стан — .tag із крапкою: колір лише в крапці, текст нейтральний. Крапка
+   акцентного стану в світлій темі — темно-зелений --accent-ink: сирий лайм
+   на білому не видно. */
+.tag.pjst{display:inline-flex;align-items:center;gap:6px;justify-self:start;cursor:pointer;
+  transition:background var(--dur) var(--ease)}
+.tag.pjst:hover{background:var(--surface-3)}
+.tag.pjst::after{content:'▾';margin-left:2px;font-size:9px;color:var(--text-mute)}
+.tag>.dot{width:8px;height:8px;margin-right:6px;vertical-align:middle}
+.tag.pjst>.dot{margin-right:0}
+.dot.st-active{background:var(--accent-ink)}
+.dot.st-done,.dot.warn{background:var(--warn)}
+.dot.st-paid{background:var(--success)}
+/* Смуга розкладу за типами: flex = частка (дані, інлайн), колір — клас cN. */
+.pjitem .split{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden}
+.pjitem .split i{display:block;border-radius:2px}
+.pjitem .split i.empty{flex:1;background:var(--border)}
+:is(.pjbar,.pjitem .split)>i.c1{background:var(--s1)}
+:is(.pjbar,.pjitem .split)>i.c2{background:var(--s2)}
+:is(.pjbar,.pjitem .split)>i.c3{background:var(--s3)}
+:is(.pjbar,.pjitem .split)>i.c4{background:var(--s4)}
+:is(.pjbar,.pjitem .split)>i.c5{background:var(--s5)}
+:is(.pjbar,.pjitem .split)>i.c6{background:var(--s6)}
+:is(.pjbar,.pjitem .split)>i.c7{background:var(--s7)}
+:is(.pjbar,.pjitem .split)>i.c8{background:var(--s8)}
+@container (max-width:640px){
+  /* Назва зі станом у першому рядку, лічильники — нижче; суми внизу
+     в один рядок (ліворуч USD, праворуч ₴). */
+  .pjitem{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:12px 14px}
+  .pjitem .nm{grid-column:1;grid-row:1}
+  .pjitem .tag{grid-column:2;grid-row:1}
+  .pjitem .meta,.pjitem .split{grid-column:1/-1}
+  .pjitem .usd{text-align:left}
+  .pjitem .uah{grid-column:2}
+  .pjitem .go{display:none}
+}
+
+/* Ціна проєкту: головне число — .num-lg, решта — .num-md під підписами. */
+.pjsum{display:flex;gap:18px 26px;align-items:flex-end;flex-wrap:wrap}
+.pjbig .lbl,.pjrow2 .lbl,.pjdyn .lbl{display:block;margin-bottom:4px}
+.pjbig .sub{display:block;margin-top:6px;font-size:var(--fs-sm);color:var(--text-dim)}
+.pjrow2{display:flex;gap:16px 22px;flex-wrap:wrap;flex:1;justify-content:flex-end}
+.pjbar{display:flex;gap:2px;height:8px;margin-top:18px;border-radius:5px;overflow:hidden}
+.pjbar i{display:block;border-radius:3px}
+.pjleg{display:flex;gap:6px 18px;flex-wrap:wrap;margin-top:10px;font-size:var(--fs-sm);color:var(--text-dim)}
+.pjleg span{display:inline-flex;align-items:center;gap:7px}
+.pjleg .dot{width:8px;height:8px}
+.pjhint{margin:12px 0 0}
+
+/* Поля проєкту — .mf зі словника; кнопки дій стоять у тому ж рядку,
+   вирівняні по низу полів. */
+.pjfields{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
+  padding-bottom:16px;margin-bottom:4px;border-bottom:1px solid var(--border)}
+#pjHead input[type=number]{text-align:right}
+#pjHead .mf.grow{min-width:150px}
+.pjacts{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+
+/* Кошторис — .tablewrap зі словника, тут лише щільність і поля в клітинках.
+   Поля прозорі з тонкою рамкою й наливаються під курсором: інакше таблиця
+   читалась би як сітка кнопок. У фокусі — рамка кольору --accent-line без
+   3-пікселевого кільця глобального input:focus: у таблиці 40 полів, і
+   кільце кожного перекривало б сусідів. */
+#pjTable{overflow-y:hidden}
+/* table-layout:fixed і ширини в <colgroup>: з авто-розкладкою колонка «USD» росла
+   разом із числом ($700 → $70 000 зсувало сусідні колонки на ~10–20 px при кожному
+   редагуванні ставки). Тепер ширина колонок від вмісту не залежить; «Задача»
+   бере залишок. */
+.pjt{table-layout:fixed;min-width:900px}
+.pjt .cw-type{width:116px} .pjt .cw-rate{width:72px} .pjt .cw-days{width:88px}
+.pjt .cw-ot{width:56px} .pjt .cw-ind{width:68px} .pjt .cw-usd{width:92px}
+.pjt .cw-uah{width:108px} .pjt .cw-note{width:150px} .pjt .cw-x{width:36px}
+.pjt th{padding:12px 6px 8px;white-space:nowrap}
+.pjt th.num,.pjt td.num{text-align:right}
+.pjt td{padding:6px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+.pjt tbody tr:last-child td{border-bottom:0}
+.pjt tbody tr:hover td{background:var(--surface-2)}
+.pjt td.pjnorows{padding:16px 0}
+.pjt input{width:100%;min-width:0;height:32px;padding:0 9px;font-size:var(--fs-sm);
+  border-radius:9px;background:transparent}
+.pjt input:hover{background:var(--surface-3)}
+.pjt input:focus{background:var(--surface);border-color:var(--accent-line);box-shadow:none}
+.pjt td.num input{text-align:right;padding:0 7px}
+/* Перемикач дн/од сидить у клітинці обсягу, рядок не росте. */
+.pjt td.daycell{white-space:nowrap}
+.pjt td.daycell input{width:calc(100% - 26px);display:inline-block;vertical-align:middle}
+.pjt input.pjnote{font-size:var(--fs-xs);color:var(--text-dim)}
+.pjt input.pjnote:focus{color:var(--text)}
+.pjt .cselb{height:32px;padding:0 9px;border-radius:9px;background:transparent}
+.pjt .cselb:hover{background:var(--surface-3)}
+.pjt .csel.open .cselb{box-shadow:inset 0 0 0 1px var(--accent-line)}
+.pjt .cselz{padding:0 25px 0 9px}
+.pjt td.calc{font-weight:600;white-space:nowrap;color:var(--text)}
+.pjt td.uah{color:var(--text-dim)}
+.pjt tfoot tr:hover td{background:none}
+.pjt tfoot td{border-top:1px solid var(--border);border-bottom:0;padding-top:12px;
+  font-weight:600;color:var(--text-dim)}
+.pjt tfoot td.calc{font-size:var(--fs-md);color:var(--text)}
+.pjunit{width:24px;height:32px;padding:0;border:0;background:none;color:var(--text-mute);
+  font-size:var(--fs-xs);font-weight:700;cursor:pointer;vertical-align:middle}
+.pjunit:hover{color:var(--text)}
+.pjx{width:28px;height:28px;border:0;border-radius:var(--radius-sm);background:none;
+  color:var(--text-mute);cursor:pointer;font-size:var(--fs-xs);line-height:1}
+.pjx:hover{color:var(--danger)}
+.pjunit:focus-visible,.pjx:focus-visible,.tplchip>button:focus-visible{
+  outline:2px solid var(--accent-line);outline-offset:1px}
+.pjfoot{display:flex;gap:12px 14px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.pjformula{flex:1;min-width:200px;font-size:var(--fs-xs);text-align:right}
+
+/* Рядок «підпис — вміст» під таблицею й у картці «Рахунки»: шаблони,
+   власні типи, реквізити, клієнти. Підпис фіксованої ширини, щоб вміст
+   усіх рядків починався з однієї лінії. */
+.pjtplbar{display:flex;align-items:baseline;gap:8px 14px;flex-wrap:wrap;
+  margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.cardhead+.pjtplbar{margin-top:0}
+.pjtplbar>.lbl{flex:none;width:112px}
+.pjtplbar>.grow,.pjtplbar>.pjtplrow{flex:1 1 240px}
+.pjtplrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tplchip{display:inline-flex;align-items:center;border-radius:var(--radius-pill);
+  background:var(--surface-2);border:1px solid var(--border)}
+.tplchip>button,.tplchip .tplname{display:flex;align-items:center;gap:7px;height:30px;padding:0 6px 0 14px;
+  border:0;background:none;color:var(--text-dim);font-size:var(--fs-sm);font-weight:600}
+.tplchip>button{cursor:pointer}
+.tplchip>button:hover{color:var(--text)}
+.tplchip i{font-style:normal;font-size:var(--fs-xs);color:var(--text-mute);font-variant-numeric:tabular-nums}
+.tplchip .tplx{padding:0 11px 0 5px;color:var(--text-mute);font-size:var(--fs-xs)}
+.tplchip .tplx:hover{color:var(--danger)}
+/* Рядки реквізитів, клієнтів і виставлених рахунків = .row; на вузькому
+   екрані дії переносяться під текст, а не стискають його до нуля. */
+.pjline{padding:8px 0;gap:6px 10px;flex-wrap:wrap}
+.pjline>.pjtxt{flex:1 1 160px}
+.pjtxt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pjtxt .muted,.pjsm,.pjwait{font-size:var(--fs-xs)}
+.pjamt,.pjwait{white-space:nowrap}
+.pjadd{align-self:flex-start}
+/* Підпис — чорнило на прозорому тлі: потрібен білий «папір» в обох темах,
+   тому фон тут не токен поверхні. */
+.pjsign{height:30px;max-width:130px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 6px}
+
+/* Історія змін. */
+.pjdyn{display:flex;gap:12px 26px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}
+.pjdelta{display:inline-flex;align-items:center;gap:8px}
+.pjdelta .dot{width:8px;height:8px}
+.pjspark{width:260px;max-width:100%;height:auto;margin-left:auto}
+.pjlog{display:flex;flex-direction:column}
+/* Зміна ціни в рядку — .chg, а не .dl: .dl уже є визначальним списком
+   (display:grid, колонки 150px 1fr), і сума зміни вилазила за картку вправо. */
+.lgrow{display:grid;grid-template-columns:78px minmax(0,1fr) 92px 84px;gap:12px;align-items:baseline;
+  padding:9px 0;border-top:1px solid var(--border-soft);font-size:var(--fs-sm)}
+.lgrow .t{color:var(--text-mute);font-size:var(--fs-xs);font-variant-numeric:tabular-nums}
+.lgrow .txt{color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lgrow .pr{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text)}
+.lgrow .chg{text-align:right;font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--text-mute)}
+.pjlogmore{margin-top:12px}
+@media(max-width:759px){
+  .pjsum{flex-direction:column;align-items:stretch;gap:18px}
+  .pjrow2{display:grid;grid-template-columns:1fr 1fr;gap:16px 14px;justify-content:stretch}
+  .pjformula{text-align:left}
+  /* Три числових поля в один ряд на 390 px: 110 px кожне не вміщались. */
+  #pjHead .mf.w110{flex:1 1 90px;width:auto}
+  .pjacts{width:100%;margin-left:0}
+  .pjacts .btn{flex:1 1 auto}
+  .lgrow{grid-template-columns:1fr auto;gap:4px 10px}
+  /* Явні рядки: без них авторозміщення кидало суму в третій рядок під текст. */
+  .lgrow .t{grid-column:1;grid-row:1} .lgrow .pr{grid-column:2;grid-row:1}
+  .lgrow .txt{grid-column:1;grid-row:2} .lgrow .chg{grid-column:2;grid-row:2}
+  .pjspark{margin-left:0;margin-top:12px}
+}
 </style>
 </head>
 <body>
@@ -1773,7 +1780,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     <div class="pjlay">
       <div id="pjListView">
         <div class="grid kpis" id="pjTotals"></div>
-        <div class="card pjcard">
+        <div class="card">
           <div class="cardhead"><h2>Проєкти</h2>
             <button class="btn pri" id="pjNew">+ Проєкт</button></div>
           <div id="pjList"></div>
@@ -1783,36 +1790,35 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
           </div>
         </div>
 
-        <div class="card pjcard" id="invcCard">
+        <div class="card" id="invcCard">
           <div class="cardhead"><h2>Рахунки для клієнтів</h2>
             <span class="hint">реквізити · підпис · клієнти</span></div>
-          <div class="pjtplbar" style="margin-top:2px">
+          <div class="pjtplbar">
             <span class="lbl">Мої реквізити</span>
-            <div id="bizProfList" style="flex:1;min-width:0"></div>
-          </div>
-          <div class="fieldrow" style="margin:8px 0 0">
-            <button class="btn" id="bizAdd">+ Додати реквізити</button>
+            <div class="grow stack">
+              <div id="bizProfList"></div>
+              <button class="btn sm pjadd" id="bizAdd">+ Додати реквізити</button>
+            </div>
           </div>
           <div class="pjtplbar">
             <span class="lbl">Підпис</span>
-            <div class="pjtplrow" style="align-items:center;gap:10px">
-              <img id="bizSignPrev" alt="" style="height:30px;max-width:130px;object-fit:contain;
-                background:rgba(255,255,255,.85);border-radius:6px;padding:2px 6px" hidden>
-              <button class="btn" id="bizSignBtn">Додати підпис</button>
+            <div class="grow cluster">
+              <img id="bizSignPrev" class="pjsign" alt="" hidden>
+              <button class="btn sm" id="bizSignBtn">Додати підпис</button>
               <input type="file" id="bizSignFile" accept="image/png,image/jpeg,image/webp" hidden>
-              <span class="muted" id="bizMsg" style="font-size:11.5px"></span>
+              <span class="muted pjsm" id="bizMsg"></span>
             </div>
           </div>
           <div class="pjtplbar">
             <span class="lbl">Клієнти</span>
-            <div id="clientList" style="flex:1;min-width:0"></div>
+            <div class="grow" id="clientList"></div>
           </div>
-          <p class="muted" style="margin:10px 0 0;font-size:11.5px">Рахунок збирається кнопкою
+          <p class="muted invnote">Рахунок збирається кнопкою
             «Рахунок» усередині прорахунку. Клієнти запамʼятовуються самі з першого рахунку,
             тут їх можна поправити чи прибрати.</p>
         </div>
 
-        <div class="card pjcard" id="invcLogCard" hidden>
+        <div class="card" id="invcLogCard" hidden>
           <div class="cardhead"><h2>Виставлені рахунки</h2><span class="hint" id="invcLogHint"></span></div>
           <div id="invcLogList"></div>
         </div>
@@ -1820,16 +1826,16 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 
       <div class="pjmain" id="pjOneView" hidden>
         <div class="pjtop">
-          <button class="btn" id="pjBack">← Усі проєкти</button>
+          <button class="btn sm" id="pjBack">← Усі проєкти</button>
           <span class="pjcrumb" id="pjCrumb"></span>
         </div>
-        <div class="card pjcard">
+        <div class="card">
           <div id="pjPrice"></div>
         </div>
-        <div class="card pjcard">
+        <div class="card">
           <div class="cardhead"><h2>Кошторис</h2><span class="hint">задача · тип · ставка · дні</span></div>
           <div class="pjfields" id="pjHead"></div>
-          <div id="pjTable"></div>
+          <div id="pjTable" class="tablewrap"></div>
           <div class="pjfoot">
             <button class="btn" id="pjAdd">+ Рядок</button>
             <span class="muted" id="pjMsg" hidden></span>
@@ -1840,11 +1846,11 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
             <div id="pjTypes" class="pjtplrow"></div>
           </div>
         </div>
-        <div class="card pjcard" id="pjLogWrap" hidden>
+        <div class="card" id="pjLogWrap" hidden>
           <div class="cardhead"><h2>Історія змін</h2><span id="pjLogHead"></span></div>
           <div id="pjDyn"></div>
           <div id="pjLog" class="pjlog"></div>
-          <button class="btn pjlogmore" id="pjLogMore" hidden></button>
+          <button class="btn sm pjlogmore" id="pjLogMore" hidden></button>
         </div>
       </div>
     </div>
@@ -5333,6 +5339,9 @@ const pjType = k => PJ_TYPES.find(t=>t.k===k)
                  || PJ_TYPES_BASE.find(t=>t.k===k)
                  || {k, n:k || 'Інше', c:'--s2'};
 const PJ_PAL = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+/* Колір типу — клас-слот cN, а не інлайновий var(--sN): заливка живе в CSS
+   (.dot.cN, смуги .pjbar/.split), тут лише номер серії з поля t.c. */
+const pjCls = t => 'c' + (String(t.c).replace(/\D/g, '') || '2');
 
 async function pjAddType(){
   const n = await uiAsk({title:'Новий тип робіт', label:'Назва',
@@ -5348,9 +5357,8 @@ function renderPjTypes(){
   const own = PJ_TYPES.filter(t=>t.own);
   const host = el('pjTypes'); if(!host) return;
   host.innerHTML = own.length
-    ? own.map(t=>`<span class="tplchip"><button disabled style="cursor:default">
-        <i style="width:8px;height:8px;border-radius:50%;background:var(${t.c})"></i>${esc(t.n)}</button>
-        <button class="tplx" data-tdel="${t.k}" data-tip="Прибрати тип">✕</button></span>`).join('')
+    ? own.map(t=>`<span class="tplchip"><span class="tplname"><span class="dot ${pjCls(t)}"></span>${esc(t.n)}</span>
+        <button class="tplx" data-tdel="${t.k}" data-tip="Прибрати тип" aria-label="Прибрати тип">✕</button></span>`).join('')
     : '<span class="muted">Свої типи можна додати у випадайці «Тип» — останній пункт списку.</span>';
   host.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=()=>{
     const k = b.dataset.tdel;
@@ -5441,10 +5449,12 @@ function pjTotals(){
    саме проміжок між ними цікавить найбільше. Оплачений проєкт більше
    не висить у «в роботі», але й не змішується з тим, за що ще чекають
    грошей. */
+/* dot — клас крапки (.dot.st-…): колір стану лише в ній, текст чипа
+   нейтральний; інлайнового --stc більше нема. */
 const PJ_ST = {
-  active: { n:'В роботі',      c:'var(--accent)',    next:'done'   },
-  done:   { n:'Чекає оплати',  c:'var(--warn)',      next:'paid'   },
-  paid:   { n:'Оплачено',      c:'var(--good)',      next:'active' },
+  active: { n:'В роботі',      dot:'st-active', next:'done'   },
+  done:   { n:'Чекає оплати',  dot:'st-done',   next:'paid'   },
+  paid:   { n:'Оплачено',      dot:'st-paid',   next:'active' },
 };
 const pjSt = p => PJ_ST[p.status] || PJ_ST.active;
 let PJ_FILTER = 'all';                      // all | active | done | paid
@@ -5460,23 +5470,25 @@ function renderPjList(){
   el('pjList').innerHTML = [...byClient.entries()].map(([c, list])=>{
     const open = !PJ_FOLD.has(c);
     return `<div class="pjgrp${open?' open':''}">
-      <button class="pjgrph" data-fold="${esc(c)}">
-        <span class="ar">${open?'▾':'▸'}</span>
-        <span class="nm">${esc(c)}</span>
+      <button class="pjgrph" data-fold="${esc(c)}" aria-expanded="${open}">
+        <svg class="ic invchev" aria-hidden="true"><use href="#i-chevron"/></svg>
+        <span class="nm lbl">${esc(c)}</span>
         <span class="cnt">${list.length} проєкт${list.length===1?'':(list.length<5?'и':'ів')}</span>
         <span class="amt">${usd(sumOf(list))}</span>
       </button>
       <div class="pjgrpl">${list.map(p=>{
-        const by = pjBy(p), tot = by.reduce((s,x)=>s+x.v,0) || 1;
+        const by = pjBy(p);
         const st = pjSt(p);
+        /* Інлайн лише у сегментів смуги: flex = частка типу в сумі — дані,
+           а колір сегмента дає клас cN. */
         return `<div class="pjitem" data-open="${p.id}" role="button" tabindex="0">
-          <span class="stchip" data-pjst="${p.id}" style="--stc:${st.c}"
-            data-tip="Змінити стан проєкту">${esc(st.n)} <i style="opacity:.55;font-size:9px">▾</i></span>
-          <span class="nm">${esc(p.name)}${p.paidAt ? ` <span class="muted" style="font-weight:400;font-size:11px">· ${dmy(p.paidAt)}</span>` : ''}</span>
+          <span class="tag pjst" data-pjst="${p.id}"
+            data-tip="Змінити стан проєкту"><i class="dot ${st.dot}"></i>${esc(st.n)}</span>
+          <span class="nm">${esc(p.name)}${p.paidAt ? ` <span class="muted pjpaid">· ${dmy(p.paidAt)}</span>` : ''}</span>
           <span class="meta">${p.rows.length} позиц${p.rows.length===1?'ія':'ій'}${
             pjDays(p) ? ' · '+pjDays(p)+' дн.' : ''}</span>
           <span class="split">${by.map(x=>
-            `<i style="flex:${x.v};background:var(${x.t.c})"></i>`).join('') || '<i class="empty"></i>'}</span>
+            `<i class="${pjCls(x.t)}" style="flex:${x.v}"></i>`).join('') || '<i class="empty"></i>'}</span>
           <span class="usd">${usd(pjSum(p,pjTax))}</span>
           <span class="uah">${money(pjSum(p,pjUAH))}</span>
           <span class="go">›</span>
@@ -5524,37 +5536,39 @@ function renderPjList(){
    а далі міняється тільки текст і value: жоден прямокутник не рухається. */
 
 const PJ_HEAD_HTML = `
-    <label class="pjf grow"><span>Проєкт</span>
+    <label class="mf grow"><span>Проєкт</span>
       <input id="pjName" placeholder="назва"></label>
-    <label class="pjf grow"><span>Клієнт</span>
+    <label class="mf grow"><span>Клієнт</span>
       <input id="pjClient" list="pjClients" placeholder="клієнт"></label>
-    <label class="pjf"><span>Ставка/день</span>
+    <label class="mf w110"><span>Ставка/день</span>
       <input id="pjRate" type="number" min="0" step="10" inputmode="decimal"></label>
-    <label class="pjf"><span>Податок, %</span>
+    <label class="mf w110"><span>Податок, %</span>
       <input id="pjTax" type="number" min="0" step="0.5" inputmode="decimal"></label>
-    <label class="pjf"><span>Курс ₴</span>
+    <label class="mf w110"><span>Курс ₴</span>
       <input id="pjUsd" type="number" min="0" step="0.5" inputmode="decimal"></label>
-    <label class="pjf"><span>Стан</span>
+    <label class="mf"><span>Стан</span>
       <select id="pjStatus">
         <option value="active">В роботі</option>
         <option value="done">Виконано, чекає оплати</option>
         <option value="paid">Оплачено</option>
       </select></label>
-    <div class="pjf pjend"><span>&nbsp;</span><div class="pjacts">
+    <div class="pjacts">
       <button class="btn pri" id="pjShare">Поділитись</button>
       <button class="btn" id="pjInvoice" data-tip="Рахунок клієнту з цього прорахунку">Рахунок</button>
       <button class="btn" id="pjTplSave" data-tip="Зберегти як шаблон">Шаблон</button>
       <button class="btn" id="pjCopy">Копіювати</button>
-      <button class="btn" id="pjDel" data-tip="Видалити проєкт">✕</button>
-    </div></div>
+      <button class="btn danger" id="pjDel" data-tip="Видалити проєкт" aria-label="Видалити проєкт">✕</button>
+    </div>
     <datalist id="pjClients"></datalist>`;
 
 const PJ_TABLE_HTML = `
     <table class="pjt">
+      <colgroup><col><col class="cw-type"><col class="cw-rate"><col class="cw-days"><col class="cw-ot">
+        <col class="cw-ind"><col class="cw-usd"><col class="cw-uah"><col class="cw-note"><col class="cw-x"></colgroup>
       <thead><tr>
-        <th style="min-width:160px">Задача</th><th style="min-width:112px">Тип</th>
+        <th>Задача</th><th>Тип</th>
         <th class="num rate">Ставка</th><th class="num">Обсяг</th><th class="num">ОТ</th><th class="num">Окремі</th>
-        <th class="num calc">USD</th><th class="num calc">₴ з податком</th><th style="min-width:150px">Коментар</th><th></th>
+        <th class="num calc">USD</th><th class="num calc">₴ з податком</th><th>Коментар</th><th></th>
       </tr></thead>
       <tbody></tbody>
       <tfoot><tr>
@@ -5575,7 +5589,7 @@ const PJ_ROW_HTML = `
     <td class="num calc" data-c="usd"></td>
     <td class="num calc uah" data-c="uah"></td>
     <td class="pjnotec"><input data-f="note" class="pjnote" placeholder="за що саме"></td>
-    <td><button class="pjx" data-del data-tip="Прибрати рядок">✕</button></td>`;
+    <td><button class="pjx" data-del data-tip="Прибрати рядок" aria-label="Прибрати рядок">✕</button></td>`;
 
 /* Поле, у якому зараз друкують, не чіпаємо: інакше з-під пальців зникає
    каретка. І не пишемо те саме значення вдруге — це зайва мутація. */
@@ -5605,7 +5619,9 @@ function pjFillRow(tr, r, p){
   const ub = tr.querySelector('[data-unit]');
   if(ub) pjSetTxt(ub, r.unit==='u' ? 'од' : 'дн');
   const otIn = tr.querySelector('[data-f="ot"]');
-  if(otIn){ otIn.disabled = r.unit==='u'; otIn.style.opacity = r.unit==='u' ? .35 : 1; }
+  /* Приглушення дає глобальне input:disabled; інлайнова opacity лишалась би на полі
+     після повернення з «од» у «дн». */
+  if(otIn) otIn.disabled = r.unit==='u';
   pjSetVal(tr.querySelector('[data-f="ot"]'),   r.ot   ?? '');
   pjSetVal(tr.querySelector('[data-f="ind"]'),  r.ind  ?? '');
   pjSetVal(tr.querySelector('[data-f="note"]'), r.note || '');
@@ -5637,21 +5653,21 @@ function renderProjects(){
     <div class="pjsum">
       <div class="pjbig">
         <span class="lbl">Ціна проєкту</span>
-        <span class="val">${usd(pjSum(p,pjTax))}</span>
+        <span class="num-lg">${usd(pjSum(p,pjTax))}</span>
         <span class="sub">${money(pjSum(p,pjUAH))} · за курсом ${p.usd}</span>
       </div>
       <div class="pjrow2">
-        <div><span class="lbl">Без податку</span><b>${usd(pjSum(p,pjUSD))}</b></div>
-        <div><span class="lbl">Податок ${p.tax}%</span><b>${usd(pjSum(p,pjTax)-pjSum(p,pjUSD))}</b></div>
-        <div><span class="lbl">Днів роботи</span><b>${days || '—'}</b></div>
-        <div><span class="lbl">Позицій</span><b>${p.rows.length}</b></div>
+        <div><span class="lbl">Без податку</span><b class="num-md">${usd(pjSum(p,pjUSD))}</b></div>
+        <div><span class="lbl">Податок ${p.tax}%</span><b class="num-md">${usd(pjSum(p,pjTax)-pjSum(p,pjUSD))}</b></div>
+        <div><span class="lbl">Днів роботи</span><b class="num-md">${days || '—'}</b></div>
+        <div><span class="lbl">Позицій</span><b class="num-md">${p.rows.length}</b></div>
       </div>
     </div>
     ${by.length ? `<div class="pjbar">${by.map(x=>
-        `<i style="flex:${x.v};background:var(${x.t.c})" data-tip="${x.t.n}"></i>`).join('')}</div>
+        `<i class="${pjCls(x.t)}" style="flex:${x.v}" data-tip="${x.t.n}"></i>`).join('')}</div>
       <div class="pjleg">${by.map(x=>
-        `<span><i style="background:var(${x.t.c})"></i>${x.t.n} · ${usd(x.v)} · ${(x.v/tot*100).toFixed(0)}%</span>`
-      ).join('')}</div>` : '<p class="muted" style="margin:12px 0 0">Додайте рядки — тут зʼявиться ціна й розклад за типом робіт.</p>'}`;
+        `<span><i class="dot ${pjCls(x.t)}"></i>${x.t.n} · ${usd(x.v)} · ${(x.v/tot*100).toFixed(0)}%</span>`
+      ).join('')}</div>` : '<p class="muted pjhint">Додайте рядки — тут зʼявиться ціна й розклад за типом робіт.</p>'}`;
 
   /* ── шапка: каркас один раз, далі тільки значення ── */
   const head = el('pjHead');
@@ -5680,7 +5696,7 @@ function renderProjects(){
 
   if(!p.rows.length){
     old.forEach(pjDropRow);
-    const stub = '<tr><td colspan="10" class="muted" style="padding:16px 0">'
+    const stub = '<tr><td colspan="10" class="muted pjnorows">'
                + 'Рядків ще немає — почніть із «+ Рядок».</td></tr>';
     if(tb.innerHTML !== stub) tb.innerHTML = stub;   // без потреби не мутуємо
   } else {
@@ -5948,13 +5964,13 @@ async function clientAsk(key){
 function bizUi(){
   const host = el('bizProfList'); if(!host) return;
   host.innerHTML = BIZPROF.length ? BIZPROF.map((b,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0">
-      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-        <b>${esc(b.label)}</b> <span class="muted" style="font-size:11.5px">· ${esc(b.name)} · …${esc((b.iban||'').slice(-6))}</span></span>
-      <button class="btn" data-bedit="${i}" style="padding:2px 10px;height:auto;font-size:11px">Змінити</button>
-      <button class="btn" data-bdel="${i}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
+    <div class="row pjline">
+      <span class="pjtxt">
+        <b>${esc(b.label)}</b> <span class="muted">· ${esc(b.name)} · …${esc((b.iban||'').slice(-6))}</span></span>
+      <button class="btn sm" data-bedit="${i}">Змінити</button>
+      <button class="btn sm ghost danger" data-bdel="${i}" aria-label="Прибрати реквізити">✕</button>
     </div>`).join('')
-    : '<span class="muted" style="font-size:12px">Ще нема — додайте: назва з банку, РНОКПП, IBAN, SWIFT. Профілів може бути кілька (валютний і гривневий рахунки).</span>';
+    : '<span class="muted pjsm">Ще нема — додайте: назва з банку, РНОКПП, IBAN, SWIFT. Профілів може бути кілька (валютний і гривневий рахунки).</span>';
   host.querySelectorAll('[data-bedit]').forEach(x=>x.onclick=()=>bizAsk(+x.dataset.bedit));
   host.querySelectorAll('[data-bdel]').forEach(x=>x.onclick=async ()=>{
     const b = BIZPROF[+x.dataset.bdel];
@@ -5968,13 +5984,13 @@ function bizUi(){
   const cl = el('clientList');
   const keys = Object.keys(CLIENTS);
   cl.innerHTML = keys.length ? keys.map(k=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0">
-      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-        <b>${esc(k)}</b> <span class="muted" style="font-size:11.5px">· ${esc(CLIENTS[k].name||'')}${CLIENTS[k].reg?` · ${esc(CLIENTS[k].reg)}`:''} · ${esc(CLIENTS[k].ccy||'USD')}</span></span>
-      <button class="btn" data-cedit="${esc(k)}" style="padding:2px 10px;height:auto;font-size:11px">Змінити</button>
-      <button class="btn" data-cdel="${esc(k)}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
+    <div class="row pjline">
+      <span class="pjtxt">
+        <b>${esc(k)}</b> <span class="muted">· ${esc(CLIENTS[k].name||'')}${CLIENTS[k].reg?` · ${esc(CLIENTS[k].reg)}`:''} · ${esc(CLIENTS[k].ccy||'USD')}</span></span>
+      <button class="btn sm" data-cedit="${esc(k)}">Змінити</button>
+      <button class="btn sm ghost danger" data-cdel="${esc(k)}" aria-label="Прибрати клієнта">✕</button>
     </div>`).join('')
-    : '<span class="muted" style="font-size:12px">Поки порожньо — клієнт запишеться сам після першого рахунку.</span>';
+    : '<span class="muted pjsm">Поки порожньо — клієнт запишеться сам після першого рахунку.</span>';
   cl.querySelectorAll('[data-cedit]').forEach(x=>x.onclick=()=>clientAsk(x.dataset.cedit));
   cl.querySelectorAll('[data-cdel]').forEach(x=>x.onclick=async ()=>{
     if(!await uiConfirm({title:'Прибрати клієнта з бази?', text:x.dataset.cdel, ok:'Прибрати'})) return;
@@ -6164,16 +6180,16 @@ function renderInvcLog(){
   const dnum = d => Math.floor((Date.now() - new Date(d+'T12:00:00'))/864e5);
   el('invcLogHint').textContent = `${INVCLOG.filter(x=>!x.paid).length} очікує оплати`;
   el('invcLogList').innerHTML = INVCLOG.slice(0,20).map((x,i)=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:4px 0;min-width:0">
-      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-        <b>${esc(x.no)}</b> <span class="muted" style="font-size:11.5px">· ${esc(x.client)} · ${x.date}</span></span>
-      <span style="margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap">${fmt2(x.total)} ${esc(x.ccy)}</span>
+    <div class="row pjline">
+      <span class="pjtxt">
+        <b>${esc(x.no)}</b> <span class="muted">· ${esc(x.client)} · ${x.date}</span></span>
+      <span class="num pjamt">${fmt2(x.total)} ${esc(x.ccy)}</span>
       ${x.paid
-        ? `<span style="color:var(--good);font-size:12px;white-space:nowrap">✓ ${x.paid.date}${x.paid.auto?'':' (руками)'}</span>
-           <button class="btn" data-iunpay="${i}" style="padding:2px 8px;height:auto;font-size:11px" data-tip="Зняти позначку">↺</button>`
-        : `<span class="muted" style="font-size:12px;white-space:nowrap">очікує ${plural(Math.max(0,dnum(x.date)),'день','дні','днів')}</span>
-           <button class="btn" data-ipay="${i}" style="padding:2px 8px;height:auto;font-size:11px">Оплачено</button>`}
-      <button class="btn" data-idel="${i}" style="padding:2px 8px;height:auto;font-size:11px">✕</button>
+        ? `<span class="tag"><i class="dot ok"></i>${x.paid.date}${x.paid.auto?'':' (руками)'}</span>
+           <button class="btn sm ghost" data-iunpay="${i}" data-tip="Зняти позначку" aria-label="Зняти позначку">↺</button>`
+        : `<span class="muted pjwait">очікує ${plural(Math.max(0,dnum(x.date)),'день','дні','днів')}</span>
+           <button class="btn sm" data-ipay="${i}">Оплачено</button>`}
+      <button class="btn sm ghost danger" data-idel="${i}" aria-label="Прибрати з журналу">✕</button>
     </div>`).join('');
   el('invcLogList').querySelectorAll('[data-ipay]').forEach(b=>b.onclick=()=>{
     INVCLOG[+b.dataset.ipay].paid = { date: todayISO(), auto:false };
@@ -6887,9 +6903,10 @@ function renderPjLog(p){
     `<span class="hint">${log.length} запис${log.length===1?'':(log.length<5?'и':'ів')}</span>`;
   el('pjDyn').innerHTML = first && last && first !== last
     ? `<div class="pjdyn">
-         <div><span class="lbl">Початкова ціна</span><b>${usd(first.price)}</b></div>
-         <div><span class="lbl">Зараз</span><b>${usd(last.price)}</b></div>
-         <div><span class="lbl">Зміна</span><b class="${delta>0?'up':delta<0?'down':''}">${
+         <div><span class="lbl">Початкова ціна</span><b class="num-md">${usd(first.price)}</b></div>
+         <div><span class="lbl">Зараз</span><b class="num-md">${usd(last.price)}</b></div>
+         <div><span class="lbl">Зміна</span><b class="num-md pjdelta">${
+           delta ? `<i class="dot ${delta>0?'warn':'ok'}"></i>` : ''}${
            delta>0?'+':delta<0?'−':''}${usd(Math.abs(delta))}${
            first.price? ' · '+(delta/first.price*100).toFixed(0)+'%':''}</b></div>
          ${pjSpark(log, 260, 54)}
@@ -6903,7 +6920,7 @@ function renderPjLog(p){
       <span class="t">${pjLogDate(x.t)}</span>
       <span class="txt">${esc(x.txt)}</span>
       <span class="pr">${usd(x.price)}</span>
-      <span class="dl ${d>0?'up':d<0?'down':''}">${d? (d>0?'+':'−')+usd(Math.abs(d)) : ''}</span>
+      <span class="chg">${d? (d>0?'+':'−')+usd(Math.abs(d)) : ''}</span>
     </div>`;
   }).join('');
   el('pjLogMore').hidden = log.length <= 6;
