@@ -142,7 +142,10 @@ export async function openDesktop(browser, {width, height = 900, theme = 'dark'}
       if (['cryhist_all', 'nw_all', 'accounts_list'].includes(command)) return [];
       if (command === 'inv_raw') return {ibkr: {xml: b.xml, extra: [], fetched: b.fetched}, binance: b.binance};
       if (command === 'inv_cache') return null;
-      if (command === 'inv_cache_set' || command === 'cryhist_add') return;
+      // Записи на диск — без наслідків. nw_add — денна точка історії
+      // капіталу (nwKick), щойно капітал більший за нуль: зі штучними
+      // інвестиціями так буває на «Огляді», який обходить snap.mjs.
+      if (['inv_cache_set', 'cryhist_add', 'nw_add'].includes(command)) return;
       if (command === 'quotes_cached') return b.quotes;
       if (command === 'logos_cached') return {TSTA: b.logo};
       // Курс НБУ на кожну запитану дату: порожня відповідь змусила б

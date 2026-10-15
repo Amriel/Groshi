@@ -41,16 +41,24 @@ node mcp/selftest.js
 ## Архітектура
 
 **Один шаблон — дві збірки.** Весь інтерфейс і логіка (~10 тис. рядків HTML/CSS/JS)
-живуть в `app/app.template.html`. Підстановки `__GLASSGL__`, `__DESIGNER__`,
-`__DATA__`, `__MCCNAME__`, `__META__` заповнюються складачами:
+живуть в `app/app.template.html`. Підстановки `__DATA__`, `__MCCNAME__`,
+`__META__` заповнюються складачами:
 
-- `app/build_app.py` вшиває `glassgl.js` (WebGL-скло), `designer.js` і дані
-  (`dataset.private.json`, якщо є, інакше порожній публічний `dataset.json`)
-  в один автономний HTML. Стан — у `localStorage`.
+- `app/build_app.py` вшиває дані (`dataset.private.json`, якщо є, інакше
+  порожній публічний `dataset.json`) в один автономний HTML. Стан — у
+  `localStorage`. `--data/--out` збирають окремий HTML зі штучними даними
+  для проб і знімків (`npm test` робить це сам у `pretest`).
 - `desktop/build_desktop.py` робить кілька точкових підмін: `TX` береться з
   `window.__BOOT__`, `store` пише в `state.json` через Tauri (читання синхронне,
   запис із затримкою), додається екран Monobank. Скрипт виноситься в окремий
   `app.js`, бо CSP не допускає inline-скриптів.
+
+**Дизайн-система** (§4б `docs/РОЗРОБКА.md`): один набір токенів у `:root`
+шаблону, плоскі поверхні без скла й `backdrop-filter`, шрифт лише Onest,
+колір категорії лише в `.dot`/`.badge-ico`/`.tag`, екрани — з класів блоку
+«КОМПОНЕНТИ», інлайн `style="…"` лише для даних (ширина, висота, `flex`)
+із коментарем «чому». Сторожать `contrast`, `nav`, `nostripe`, `overflow`,
+`shell-a11y` (зокрема замок поверх модалки), `inv`, `budget`.
 
 Ключова хитрість десктопа: код апки синхронно викликає `store.get()`, тому
 `desktop/dist/desktop.js` спершу асинхронно дочитує всі дані з диска в

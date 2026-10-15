@@ -45,16 +45,11 @@
   --font-display:var(--font-ui);
   --font-mono:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
 
-  /* аліаси старих імен: знімаються екран за екраном, остаточно — Задача 14 */
-  --surface-1:var(--surface); --plane:var(--bg);
-  --ink:var(--text); --ink-2:var(--text-dim); --muted:var(--text-mute);
-  --good:var(--success); --crit:var(--danger); --serious:#EC835A;
-
   /* ── графіки ── Значення не «на око»: валідатор скіла dataviz
      (validate_palette.js — смуга світлоти OKLCH, мінімальна хрома,
      розрізнюваність сусідніх серій для протанопії/дейтеранопії ≥ 8 ΔE,
      звичайний зір ≥ 15 ΔE, ≥ 3:1 до --surface) проходить для кожної теми
-     окремо; вивід — у звіті Задачі 13. Темна тема — власні сходинки тих
+     окремо (методика й межі — §4б docs/РОЗРОБКА.md). Темна тема — власні сходинки тих
      самих відтінків, а не автоматичне віддзеркалення світлої.
      Сітка — ледь помітна волосінь, вісь (нульова лінія) трохи сильніша:
      обидві мусять поступатися стовпчикам, а не змагатися з ними
@@ -184,6 +179,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .modalf > span{display:block;margin-bottom:7px;font-size:11px;font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
 .modalf input{width:100%;height:var(--ctl);font-size:14px}
+.modalf textarea{width:100%}
 /* Системний checkbox малює операційна система: у темній темі він
    світлий, а accent-color лише підфарбовує галочку — коробка лишається
    чужою. Тут своя, тими самими засобами, що й галочки у списку
@@ -306,10 +302,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 #periodWrap[hidden]{display:none}
 /* Геометрія сегмента — у блоці «Контентна область і період» унизу. */
 /* Заїзд розділу пробували — і прибрали. Рух на 22 px тягнув за собою
-   ВЕСЬ текст вкладки, а скляні панелі за ним не встигали: полотно
-   прив'язане до документа, тож на кожному перемиканні панелі спершу
-   зникали, потім проявлялись на новому місці. Ціна «плавності» —
-   екран, який щоразу перезбирається на очах. Перемикання миттєве. */
+   ВЕСЬ текст вкладки, і кожне перемикання виглядало як екран, що
+   перезбирається на очах. Перемикання миттєве (історія — «Перемикання
+   вкладок» у docs/РОЗРОБКА.md). */
 /* Позиція, розмір, фон і рух — у спільному правилі .tab-ind,.chip-ind
    (блок «КАРКАС» унизу); тут лишається тільки те, що специфічне для чипів. */
 .periodbar::-webkit-scrollbar{display:none}
@@ -348,6 +343,8 @@ svg:hover .tdot{opacity:1}
 .barhit:hover{fill:var(--surface-2)}
 .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:13px;font-size:12px;color:var(--text-dim)}
 .legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+.legend i.exp{background:var(--bar-exp)}
+.legend i.inc{background:var(--bar-inc)}
 
 /* ── списки ─────────────────────────────────────────────── */
 /* .row і .dot — у блоці «КОМПОНЕНТИ». */
@@ -440,6 +437,10 @@ svg:hover .tdot{opacity:1}
 .ovrow{display:flex;gap:10px;align-items:baseline;cursor:pointer;border-radius:8px;
   padding:2px 4px;margin:0 -4px}
 .ovrow:hover{background:var(--surface-2)}
+/* «Топ мерчантів» — це ще й .row, а .row зі словника (пізніше в файлі)
+   скидав бічний падинг у 0: від'ємні поля -4 px лишались, і сума
+   виходила на 4 px за край вмісту картки (ловить overflow.mjs). */
+.row.ovrow{padding-left:4px;padding-right:4px}
 .ovrow .tw-go{opacity:0;transition:opacity .12s ease}
 .ovrow:hover .tw-go{opacity:.75}
 .ovsubs{margin:8px 0 2px 26px;border-left:1px solid var(--border-soft);padding-left:12px}
@@ -449,6 +450,16 @@ svg:hover .tdot{opacity:1}
 .ovsub .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-dim)}
 .ovsub .amt{font-family:var(--font-display);font-weight:600;font-variant-numeric:tabular-nums;
   min-width:84px;text-align:right}
+.ovsub .amt.pos{color:var(--success)}
+/* «Куди йдуть гроші» (chartCats): рядок категорії, колонки суми й частки
+   фіксованої ширини — щоб суми стояли одна під одною. */
+.ovcat{padding:7px 0}
+.ovcat .ovrow .dot{align-self:center}
+.ovcat .ovrow .nm{flex:1}
+.ovcat .ovrow .amt{min-width:88px;text-align:right}
+.ovcat .ovrow .cnt.pct{min-width:38px}
+.ovsub .cnt.pct{min-width:34px}
+.ovsubs>.ovnone{margin:6px 0 0}
 
 section[hidden]{display:none}
 /* [hidden] — це лише правило браузера без класу, тож будь-який display у
@@ -751,6 +762,14 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
   font-variant-numeric:tabular-nums;min-height:1.15em}
 .kpi .sub{font-size:var(--fs-sm);color:var(--text-mute);line-height:1.45}
 .dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+/* Крапки стану (підключення, платформа, проєкт). Колір лише в крапці —
+   текст поруч нейтральний: так стан читається однаково на будь-якій
+   поверхні й не додає кольорового тексту. Раніше ці правила жили копіями
+   в блоках «Інвестиції», «Кошториси» й «Ще». */
+.dot.ok{background:var(--success)}
+.dot.off{background:var(--text-mute)}
+.dot.warn{background:var(--warn)}
+.dot.info{background:var(--info)}
 .badge-ico{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;
   font-size:var(--fs-sm);font-weight:700;line-height:1;color:var(--accent-contrast)}
 /* Колір категорії — клас-слот cN (= серія --sN), а не інлайновий background:
@@ -758,18 +777,18 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
    заливці має ≥4,5:1 в обох темах: де темний --accent-contrast не дотягує,
    текст білий (c6 завжди; c1 і c7 у світлій), а «межові» заливки, на яких
    жоден із двох кольорів тексту не давав 4,5 на сирій серії, на 8 %
-   зсунуто до білого чи чорного: c2 і c5 в обох темах (світла s5 після
-   Задачі 13 — та сама #d55181, що й темна), c1 і c8 у світлій.
-   Перераховано під палітру Задачі 13; усі 16 пар (8 слотів × 2 теми)
+   зсунуто до білого чи чорного: c2 і c5 в обох темах (світла s5 — та сама
+   #d55181, що й темна), c1 і c8 у світлій.
+   Пораховано під чинну палітру --s1..--s8; усі 16 пар (8 слотів × 2 теми)
    сторожить tests/contrast.mjs — зміна --s1..--s8 без цих правил упаде там. */
-.dot.c1,.badge-ico.c1{background:var(--s1)}
-.dot.c2,.badge-ico.c2{background:var(--s2)}
-.dot.c3,.badge-ico.c3{background:var(--s3)}
-.dot.c4,.badge-ico.c4{background:var(--s4)}
-.dot.c5,.badge-ico.c5{background:var(--s5)}
-.dot.c6,.badge-ico.c6{background:var(--s6)}
-.dot.c7,.badge-ico.c7{background:var(--s7)}
-.dot.c8,.badge-ico.c8{background:var(--s8)}
+.dot.c1,.badge-ico.c1,.meter>i.c1,.legend i.c1{background:var(--s1)}
+.dot.c2,.badge-ico.c2,.meter>i.c2,.legend i.c2{background:var(--s2)}
+.dot.c3,.badge-ico.c3,.meter>i.c3,.legend i.c3{background:var(--s3)}
+.dot.c4,.badge-ico.c4,.meter>i.c4,.legend i.c4{background:var(--s4)}
+.dot.c5,.badge-ico.c5,.meter>i.c5,.legend i.c5{background:var(--s5)}
+.dot.c6,.badge-ico.c6,.meter>i.c6,.legend i.c6{background:var(--s6)}
+.dot.c7,.badge-ico.c7,.meter>i.c7,.legend i.c7{background:var(--s7)}
+.dot.c8,.badge-ico.c8,.meter>i.c8,.legend i.c8{background:var(--s8)}
 .badge-ico.c2{background:color-mix(in srgb,var(--s2) 92%,#fff)}
 .badge-ico.c5{background:color-mix(in srgb,var(--s5) 92%,#fff)}
 .badge-ico.c6{color:#fff}
@@ -784,10 +803,12 @@ h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;letter-spacing
 .tag{display:inline-block;vertical-align:middle;max-width:100%;padding:3px 10px;border-radius:var(--radius-pill);
   font-size:var(--fs-xs);font-weight:600;color:var(--text-dim);background:var(--surface-2);
   border:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Зміна показника — текстовий колір на прозорому чипі. Спершу прозорий,
-   бо на --surface-2 світлий --success не дотягував до 4,5:1 (з Задачі 13
-   дотягує скрізь); лишився прозорим, щоб кольоровий текст не стояв на
-   сірій пігулці. Колір лише в тексті, фон картки не тонується. */
+/* Крапка всередині чипа (стан проєкту): менша за звичайну й на лінії тексту. */
+.tag>.dot{width:8px;height:8px;margin-right:6px;vertical-align:middle}
+/* Зміна показника — текстовий колір на прозорому чипі, щоб кольоровий
+   текст не стояв на сірій пігулці. Контраст --success/--danger ≥ 4,5:1 на
+   всіх поверхнях сторожить contrast.mjs. Колір лише в тексті, фон картки
+   не тонується. */
 .tag.up,.tag.down,.tag.pos,.tag.neg{background:transparent}
 .tag.up,.tag.neg{color:var(--danger)}
 .tag.down,.tag.pos{color:var(--success)}
@@ -916,9 +937,9 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .side .brand,.side .side-foot{display:none}
   /* Висота задана точно (height, а не min-height): з min-height вміст і
      відступи розпирали панель до 61 px замість 56 + безпечна зона, і
-     Задача 5 не мала б надійного числа для нижнього відступу контенту.
+     нижній відступ контенту (.wrap) не мав би надійного числа.
      Бюджет: 56 − 1 межа − 2×4 відступ = 47; у кнопці 2×3 + іконка 20 +
-     проміжок 3 + рядок підпису 14 = 40 — підпис не обрізається. */
+     проміжок 3 + рядок підпису 14 = 43 ≤ 47 — підпис не обрізається. */
   nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;flex-direction:row;gap:0;
     align-items:stretch;box-sizing:border-box;
     padding:4px 4px calc(env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 4px);
@@ -968,8 +989,8 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
      без цього останні картки ховаються під фіксованими табами. */
   .wrap{padding:calc(env(safe-area-inset-top) + var(--fake-safe-top,0px) + 16px) 16px
     calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--fake-safe-bottom,0px) + 24px);gap:14px}
-  /* Картки на 16 px: після зняття «скла» зайві 22 px з боків віддавали сумі
-     в плитці KPI замало місця, і знак ₴ падав на другий рядок. */
+  /* Картки на 16 px: із десктопними 22 px з боків сумі в плитці KPI
+     лишалось замало місця, і знак ₴ падав на другий рядок. */
   .card,.det{padding:16px}
   .kpi .val{font-size:clamp(15px,12cqw,var(--fs-xl))}
   /* Бейдж режиму скріншоту й тост — над нижньою панеллю. */
@@ -1013,6 +1034,11 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   padding:3px 0;font-size:var(--fs-sm)}
 .ovline>:first-child{min-width:0}
 .ovline .num{white-space:nowrap}
+/* Податки кварталу ФОП (третя колонка): на 390 px із семизначною сумою
+   рядок був на межі переповнення, а nowrap не давав йому перенестись.
+   Переноситься між частинами («ЄП 5%», сума, «· ВЗ …»), а самі суми —
+   .num усередині — лишаються цілими. */
+.ovline .ovfee{text-align:right}
 .ovline.sub{align-items:center}
 .ovline.tot{padding-top:8px;font-weight:700}
 /* Головна цифра картки й пояснення поруч із нею. */
@@ -1076,6 +1102,10 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
    рядку без сегмента не читався б як кнопка. */
 #qSaved .chip{max-width:100%;gap:8px;background:var(--surface-2);border:1px solid var(--border)}
 #qSaved .chip:hover{background:var(--surface-3)}
+/* Натиск — на тон назад від наведення. Загальне .chip:active (0,2,0)
+   програє #qSaved .chip:hover і .sortbar .chip:hover за специфічністю,
+   і натиснутий чип виглядав так само, як під курсором. */
+#qSaved .chip:active{background:var(--surface-2)}
 #qSaved .chipt{min-width:0;overflow:hidden;text-overflow:ellipsis}
 #qSaved .chipx{flex:none;color:var(--text-mute)}
 #qSaved .chipx:hover{color:var(--danger)}
@@ -1083,6 +1113,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .sortbar{padding-bottom:12px;border-bottom:1px solid var(--border)}
 .sortbar .chip{background:var(--surface-2);border:1px solid var(--border);padding:0 10px 0 14px}
 .sortbar .chip:hover{background:var(--surface-3)}
+.sortbar .chip:active{background:var(--surface-2)}
 /* Активний порядок — акцент (єдиний активний стан у рядку). */
 .sortbar .chip[aria-pressed="true"]{background:var(--accent);border-color:transparent;color:var(--accent-contrast)}
 .sortbar .arr{display:inline-block;width:12px;margin-left:2px;font-style:normal;text-align:center}
@@ -1347,9 +1378,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .badge-ico.sm.ivlogo img{width:16px;height:16px}
 .invdel{margin-left:-4px}
 .invdel:hover{color:var(--danger)}
-/* Платформа: крапка стану й текст; колір — лише в крапці. */
-.dot.ok{background:var(--success)}
-.dot.off{background:var(--text-mute)}
+/* Платформа: крапка стану (.dot.ok/.off — у «КОМПОНЕНТАХ») і текст. */
 /* Легенда міток угод на графіках. */
 .invlegend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:4px;
   font-size:10.5px;color:var(--text-mute)}
@@ -1458,10 +1487,9 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   transition:background var(--dur) var(--ease)}
 .tag.pjst:hover{background:var(--surface-3)}
 .tag.pjst::after{content:'▾';margin-left:2px;font-size:9px;color:var(--text-mute)}
-.tag>.dot{width:8px;height:8px;margin-right:6px;vertical-align:middle}
 .tag.pjst>.dot{margin-right:0}
 .dot.st-active{background:var(--accent-ink)}
-.dot.st-done,.dot.warn{background:var(--warn)}
+.dot.st-done{background:var(--warn)}
 .dot.st-paid{background:var(--success)}
 /* Смуга розкладу за типами: flex = частка (дані, інлайн), колір — клас cN. */
 .pjitem .split{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden}
@@ -1611,6 +1639,9 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   #pjHead .mf.w110{flex:1 1 90px;width:auto}
   .pjacts{width:100%;margin-left:0}
   .pjacts .btn{flex:1 1 auto}
+  /* ✕ — кнопка з одним символом: з flex:1 1 auto вона розтягувалась на
+     весь залишок ряду, і самотній хрестик стояв посеред широкої кнопки. */
+  .pjacts #pjDel{flex:none}
   .lgrow{grid-template-columns:1fr auto;gap:4px 10px}
   /* Явні рядки: без них авторозміщення кидало суму в третій рядок під текст. */
   .lgrow .t{grid-column:1;grid-row:1} .lgrow .pr{grid-column:2;grid-row:1}
@@ -1665,14 +1696,10 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .mf > .mfval{line-height:var(--ctl);font-size:var(--fs-sm);font-weight:400;
   letter-spacing:normal;text-transform:none;color:var(--text-mute)}
 .mf > .mfval.xs{font-size:var(--fs-xs)}
-/* Стан підключення — крапка й текст; колір лише в крапці: дрібний
-   --success/--warn на картці світлої теми не тримає 4,5:1. */
+/* Стан підключення — крапка й нейтральний текст: колір лише в крапці
+   (.dot.ok/.off/.warn/.info — у «КОМПОНЕНТАХ»), як і в решті станів апки. */
 .stat{display:inline-flex;align-items:center;gap:7px}
 .stat .dot{width:8px;height:8px}
-.dot.ok{background:var(--success)}
-.dot.off{background:var(--text-mute)}
-.dot.warn{background:var(--warn)}
-.dot.info{background:var(--info)}
 .mfval.bad::before{content:'';display:inline-block;width:8px;height:8px;margin-right:7px;
   border-radius:50%;background:var(--warn);vertical-align:1px}
 /* Правила і виключення — рядки .row; лічильник збігів одразу за текстом. */
@@ -1713,12 +1740,14 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 #lockMsg{min-height:1.5em;font-size:var(--fs-sm)}
 #lockPin{width:180px;text-align:center;font-size:var(--fs-xl);letter-spacing:6px}
 .lockcard .btn{width:180px}
+/* Спрайт іконок: атрибути width/height="0" перебиває глобальне svg{width:100%}. */
+svg.sprite{position:absolute;width:0;height:0}
 </style>
 </head>
 <body>
-<!-- width/height продубльовано в style: глобальне svg{width:100%} перекриває
-     атрибути, і невидимий спрайт займав би всю ширину сторінки. -->
-<svg width="0" height="0" style="position:absolute;width:0;height:0" aria-hidden="true" focusable="false">
+<!-- width/height продубльовано класом .sprite: глобальне svg{width:100%}
+     перекриває атрибути, і невидимий спрайт займав би всю ширину сторінки. -->
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
   <defs>
     <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
     <symbol id="i-cats" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12h8.5"/></symbol>
@@ -2179,20 +2208,20 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   <div class="card">
     <div class="cardhead"><h2>Нагадування</h2></div>
     <div class="stack">
-    <div class="fieldrow subleadrow">
-      <label>Попереджати за</label>
-      <input id="subLead" type="number" min="0" max="30" step="1" inputmode="numeric">
-      <span class="muted">дн. до списання</span>
-      <button class="btn" id="subNotify">Увімкнути сповіщення</button>
-      <span class="muted" id="subNotifyState"></span>
-    </div>
-    <p class="muted subhint">Сторінка може сповістити лише поки вона відкрита — це обмеження
-      браузера, а не налаштування. Щоб нагадування приходили й тоді, коли апку закрито,
-      експортуйте підписки в календар: у файлі є правило повтору й будильник за вказану кількість днів.</p>
-    <div class="fieldrow">
-      <button class="btn pri" id="subIcs">Експорт у календар (.ics)</button>
-      <span class="muted" id="subMsg" hidden></span>
-    </div>
+      <div class="fieldrow subleadrow">
+        <label>Попереджати за</label>
+        <input id="subLead" type="number" min="0" max="30" step="1" inputmode="numeric">
+        <span class="muted">дн. до списання</span>
+        <button class="btn" id="subNotify">Увімкнути сповіщення</button>
+        <span class="muted" id="subNotifyState"></span>
+      </div>
+      <p class="muted subhint">Сторінка може сповістити лише поки вона відкрита — це обмеження
+        браузера, а не налаштування. Щоб нагадування приходили й тоді, коли апку закрито,
+        експортуйте підписки в календар: у файлі є правило повтору й будильник за вказану кількість днів.</p>
+      <div class="fieldrow">
+        <button class="btn pri" id="subIcs">Експорт у календар (.ics)</button>
+        <span class="muted" id="subMsg" hidden></span>
+      </div>
     </div>
   </div>
 </section>
@@ -2391,8 +2420,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
     <p class="muted modaltxt" id="modalM" hidden></p>
     <label class="modalf" id="modalFW"><span id="modalL"></span>
       <input id="modalI" autocomplete="off">
-      <textarea id="modalA" rows="5" autocomplete="off" hidden
-        style="width:100%"></textarea></label>
+      <textarea id="modalA" rows="5" autocomplete="off" hidden></textarea></label>
     <div class="modalpick" id="modalPick" hidden></div>
     <div id="modalForm" hidden></div>
     <div class="modalrows" id="modalRows" hidden></div>
@@ -2893,7 +2921,7 @@ function chartMonths(host, data, grain='month'){
   host.appendChild(svg);
   if(hasInc){
     host.insertAdjacentHTML('beforeend',
-      `<div class="legend"><span><i style="background:var(--bar-exp)"></i>Витрати</span><span><i style="background:var(--bar-inc)"></i>Надходження</span></div>`);
+      `<div class="legend"><span><i class="exp"></i>Витрати</span><span><i class="inc"></i>Надходження</span></div>`);
   }
   /* Клік по колонці — усі операції цього проміжку, і витрати, і
      надходження. Побачив сплеск — маєш побачити, з чого він. */
@@ -2941,15 +2969,14 @@ function ovOpRow(t){
   const open = S.ovOp === t.id;
   return `<div class="ovsub ovop" data-ovop="${esc(t.id)}">
       <span class="nm">${open?'▾':'▸'} ${t.date}${t.time?' '+t.time.slice(11,16):''} · ${esc(t.merchant)}</span>
-      <span class="amt" style="${t.dir==='income'?'color:var(--good)':''}">${t.dir==='income'?'+':'−'}${num2(t.amount)}</span>
+      <span class="amt${t.dir==='income'?' pos':''}">${t.dir==='income'?'+':'−'}${num2(t.amount)}</span>
     </div>` + (open ? `<div class="txdetail">${detailCard(t)}</div>` : '');
 }
 function ovOpList(ops, label){
   const shown = ops.slice(0, OV_CAP);
   return shown.map(ovOpRow).join('')
     + (ops.length > OV_CAP
-       ? `<div class="ovsub"><span class="nm muted" data-ovgo="${esc(label)}"
-            style="cursor:pointer">…показати всі ${nOps(ops.length)} в «Операціях» →</span></div>` : '');
+       ? `<div class="ovsub"><span class="nm muted" data-ovgo="${esc(label)}">…показати всі ${nOps(ops.length)} в «Операціях» →</span></div>` : '');
 }
 
 /* Картка «Куди йдуть гроші» розгортається на місці. Раніше клік по
@@ -2965,22 +2992,24 @@ function chartCats(host, rows){
   const frag = document.createDocumentFragment();
   g.forEach((d,i)=>{
     const div = document.createElement('div');
-    div.style.padding='7px 0';
-    const col = `var(${PAL[i%8]})`;
+    div.className = 'ovcat';
+    const slot = i%8+1;
     const open = S.ovOpen.has(d.k);
     const subs = open ? subsOfCat(rows, d.k) : [];
     const catRows = open ? rowsOfCat(rows, d.k) : [];
+    /* Інлайн лише ширина смуги — частка від найбільшої категорії (дані,
+       відомі тільки тут); колір смуги й крапки — клас-слот cN. */
     div.innerHTML =
       `<div class="ovrow">
          <span class="tw-arrow">${open?'▾':'▸'}</span>
-         <span class="dot" style="background:${col};align-self:center"></span>
-         <span class="nm" style="flex:1">${esc(d.k)}</span>
+         <span class="dot c${slot}"></span>
+         <span class="nm">${esc(d.k)}</span>
          <span class="tw-go" data-go="1" data-tip="Показати в «Категоріях»">↗</span>
          <span class="cnt">${d.n}&times;</span>
-         <span class="amt" style="min-width:88px;text-align:right">${money(d.v)}</span>
-         <span class="cnt" style="min-width:38px">${(d.v/total*100).toFixed(0)}%</span>
+         <span class="amt">${money(d.v)}</span>
+         <span class="cnt pct">${(d.v/total*100).toFixed(0)}%</span>
        </div>
-       <div class="meter"><i style="width:${(Math.max(d.v,0)/Math.max(g[0].v,1)*100).toFixed(1)}%;background:${col}"></i></div>`
+       <div class="meter"><i class="c${slot}" style="width:${(Math.max(d.v,0)/Math.max(g[0].v,1)*100).toFixed(1)}%"></i></div>`
       + (open ? `<div class="ovsubs">${subs.map(s=>{
           const ks = d.k + '¦' + s.k;
           const so = S.ovOpen.has(ks);
@@ -2990,10 +3019,10 @@ function chartCats(host, rows){
              <span class="nm">${so?'▾':'▸'} ${esc(s.k)}</span>
              <span class="cnt">${s.n}&times;</span>
              <span class="amt">${money(s.v)}</span>
-             <span class="cnt" style="min-width:34px">${d.v ? (s.v/d.v*100).toFixed(0) : 0}%</span>
+             <span class="cnt pct">${d.v ? (s.v/d.v*100).toFixed(0) : 0}%</span>
            </div>` + (so ? `<div class="ovsubs">${ovOpList(ops, d.k+'→'+s.k)}</div>` : '');
         }).join('')
-        || '<p class="muted" style="margin:6px 0 0">Тут лише одна підкатегорія.</p>'}</div>` : '');
+        || '<p class="muted ovnone">Тут лише одна підкатегорія.</p>'}</div>` : '');
     div.querySelector('.ovrow').onclick = e=>{
       if(e.target.dataset.go){ S.open.add(d.k); go('cats'); return; }
       S.ovOpen.has(d.k) ? S.ovOpen.delete(d.k) : S.ovOpen.add(d.k);
@@ -3062,7 +3091,7 @@ function chartTrend(host, legendHost, rows){
     }
   });
   host.appendChild(svg);
-  legendHost.innerHTML = series.map((s,i)=>`<span><i style="background:var(${PAL[i%8]})"></i>${esc(s.name)}</span>`).join('');
+  legendHost.innerHTML = series.map((s,i)=>`<span><i class="c${i%8+1}"></i>${esc(s.name)}</span>`).join('');
   wireHovers(svg);
 }
 
@@ -3851,7 +3880,7 @@ function renderFop(){
     <div class="ovline">
       <span class="muted">Q${x.q+1}</span>
       <span class="num">${money(x.inc)}</span>
-      <span class="muted num">${c.mode==='fix'?'ЄП':'ЄП '+c.pct+'%'} ${money(x.ep)}${x.vz?` · ВЗ ${money(x.vz)}`:''}</span>
+      <span class="muted ovfee">${c.mode==='fix'?'ЄП':'ЄП '+c.pct+'%'} <span class="num">${money(x.ep)}</span>${x.vz?` · ВЗ <span class="num">${money(x.vz)}</span>`:''}</span>
     </div>`).join('')
     + `<div class="ovline tot">
         <span>Разом за рік</span><span class="num">${money(tot.inc)}</span></div>
@@ -5293,6 +5322,8 @@ function dpMonth(ym){
     if(iso === selA) cls += ' a s';
     if(iso === selB) cls += ' a e';
     if(selA && selA === selB && iso === selA) cls = 'dpd a s e';
+    /* Непрозорість мітки — витрати дня відносно найдорожчого дня
+       (неперервна величина, класами не перелічити), тому інлайн. */
     cells += `<button class="${cls}" data-d="${iso}"${off?' tabindex="-1"':''}>${d}`
            + (k ? `<i style="opacity:${(0.25 + 0.6*k).toFixed(2)}"></i>` : '')
            + '</button>';
@@ -5799,7 +5830,9 @@ function renderProjects(){
   el('pjCrumb').innerHTML = `<span class="cl">${esc(p.client)}</span><span class="sep">›</span>`
     + `<span class="pn">${esc(p.name)}</span>`;
 
-  /* ── попередній перегляд ціни: головне число зверху, а не в підвалі ── */
+  /* ── попередній перегляд ціни: головне число зверху, а не в підвалі ──
+     У смузі .pjbar інлайн лише flex сегмента: частка типу в сумі — дані,
+     відомі тільки тут; колір сегмента дає клас cN (pjCls). */
   const by = pjBy(p), tot = by.reduce((s,x)=>s+x.v,0) || 1;
   const days = pjDays(p);
   el('pjPrice').innerHTML = `
@@ -6551,7 +6584,8 @@ function uiAsk(o){
     uiInert(true);
     requestAnimationFrame(()=>{ box.classList.add('on');
       /* cselScan проходить УСІ селекти документа — з відкритим кошторисом
-         на десятки рядків це сотні мілісекунд блокування (чорніло скло).
+         на десятки рядків це сотні мілісекунд блокування: вікно з'являлось
+         із помітною затримкою.
          Формі без <select> сканування не потрібне взагалі. */
       if(o.fields){ if(window.cselScan && fm.querySelector('select')) cselScan();
                     const f0 = el('mff0');
@@ -6642,12 +6676,12 @@ function uiAsk(o){
           return;
         }
         e.preventDefault(); e.stopPropagation(); submit(); }
-      else if(e.key === 'Tab' && el('lockScreen').hidden){
+      else if(e.key === 'Tab'){
         /* Пастка фокуса: по колу лише між видимими елементами вікна.
            Рідний Tab лишаємо всередині, перехоплюємо тільки краї й випадок,
            коли фокус уже поза вікном. select[data-csel] — схований носій
            значення .csel: offsetParent у нього є, але фокус на ньому
-           невидимий. Екран блокування накриває вікно — тоді Tab його. */
+           невидимий. (Під замком сюди не доходить — див. перевірку вище.) */
         e.stopPropagation();
         const f = [...box.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')]
           .filter(n => n.offsetParent !== null && !n.disabled && !n.matches('select[data-csel]'));
@@ -9910,6 +9944,10 @@ Shift-клік — діапазон у виборі кількох операц�
 У дужках — та сама клавіша в українській розкладці.` });
 }
 addEventListener('keydown', e=>{
+  /* Під замком жодних гарячих клавіш: фокус не завжди в полі коду (клік
+     по тлу замка кидає його в <body>), і тоді «3» перемикала вкладку,
+     а Esc знімав вибір — дії під екраном, якого людина не бачить. */
+  if(!el('lockScreen').hidden) return;
   const t = e.target;
   if(t && (t.tagName==='INPUT' || t.tagName==='SELECT' || t.isContentEditable)){
     if(e.key==='Escape') t.blur();

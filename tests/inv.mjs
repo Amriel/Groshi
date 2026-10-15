@@ -130,7 +130,12 @@ try {
       INVSEG = 'cry'; renderInv();
       const t2 = t + '\n' + document.getElementById('tab-inv').innerText;
       INVSEG = 'sec'; renderInv();
-      const out = {sums: t2.match(/\d[\d\s.,]*\s*[₴$€]/g) || [], qty: t2.match(/\d+(?:[.,]\d+)?\s*×/g) || []};
+      // Суми бувають і з кодом валюти після числа («12,5 USDT»), і зі знаком
+      // перед ним («$ 120»): обидві форми — видима сума. Після знака — лише
+      // пробіли того ж рядка: «$» у кінці рядка й цифра на наступному — це
+      // дві різні клітинки, а не сума.
+      const out = {sums: t2.match(/\d[\d\s.,]*\s*(?:[₴$€]|USDT|USD|EUR)|[$€][   ]*\d/g) || [],
+        qty: t2.match(/\d+(?:[.,]\d+)?\s*×/g) || []};
       scrnToggle(false);
       return out;
     });

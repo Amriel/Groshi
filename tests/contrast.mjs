@@ -85,9 +85,8 @@ try {
     }, [theme, PAIRS]);
     for (const v of res.missing) bad.push(`${theme}: токена ${v} немає`);
     for (const x of res.out) if (x.r < x.min) bad.push(`${theme}: ${x.fg} на ${x.bg} = ${x.r} < ${x.min}`);
-    console.log(`${theme}: ${res.out.length} пар, найменше — ` +
-      res.out.reduce((a, x) => (x.r / x.min < a.r / a.min ? x : a)).fg + ' ' +
-      res.out.reduce((a, x) => (x.r / x.min < a.r / a.min ? x : a)).r);
+    const worst = res.out.reduce((a, x) => (x.r / x.min < a.r / a.min ? x : a));
+    console.log(`${theme}: ${res.out.length} пар, найменше — ${worst.fg} ${worst.r}`);
   }
   assert.deepEqual(bad, [], 'контраст токенів:\n' + bad.join('\n'));
   console.log('контраст токенів у двох темах — OK');

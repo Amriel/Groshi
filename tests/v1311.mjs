@@ -2,6 +2,7 @@
 // зі склом у 1.33; проба тепер сторожить лише маскування кошторису в режимі
 // скріншоту (B) і випадайку стану проєкту (C). Літери блоків лишено, щоб
 // посилання в історії РОЗРОБКА.md не розійшлись.
+import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 const b=await chromium.launch({executablePath: process.env.CHROMIUM || undefined});
 const p=await b.newPage({viewport:{width:1400,height:950}});
@@ -46,3 +47,6 @@ console.log('випадайка стану:', await p.evaluate(async ()=>{
 }));
 console.log(errs.length?'ПОМИЛКИ: '+errs.slice(0,4).join(' | '):'без помилок');
 await b.close();
+// Блоки B і C лише друкують: помилка сторінки чи консолі — єдине, що тут
+// валить пробу (без цього рядка вона проходила б і з винятком у renderProjects).
+assert.equal(errs.length, 0, 'помилки сторінки/консолі: ' + errs.slice(0, 4).join(' | '));

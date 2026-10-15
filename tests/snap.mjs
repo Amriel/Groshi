@@ -57,6 +57,12 @@ for (const [w, h] of WIDTHS) {
         await page.screenshot({path: path.join(outDir, `${theme}-${w}-inv-full.png`), fullPage: true});
     }
   }
+  // Десктопна фікстура відповідає лише на відомі IPC-команди; нова команда
+  // в апці означала б знімки зі станом «помилка завантаження», а не екран.
+  if (DESKTOP) {
+    const u = await page.evaluate(() => window.__unexpectedCommands || []);
+    if (u.length) errors.push(`${w}px: неочікувані IPC-команди: ${u.join(', ')}`);
+  }
   await ctx.close();
 }
 await browser.close();

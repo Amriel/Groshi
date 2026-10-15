@@ -1,6 +1,12 @@
 // Правило проєкту: жодних кольорових смуг збоку карток, рядків і панелей.
 // Для кожного видимого елемента порівнюємо ліву межу з іншими: товста й
 // інакше забарвлена ліва межа — це смуга.
+// Відомі сліпі плями (смугу в такій формі проба НЕ побачить — їх ловить
+// рецензія й ручний огляд знімків): псевдоелементи ::before/::after
+// (getComputedStyle самого елемента їх не містить); outline; градієнт у
+// background-image (linear-gradient із різкою межею); окремий вузький
+// елемент position:fixed/absolute поза section і #side; правила лише для
+// вузьких екранів — проба ганяє тільки 1400 px.
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {fileURLToPath, pathToFileURL} from 'node:url';

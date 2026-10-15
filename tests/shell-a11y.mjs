@@ -1,4 +1,5 @@
-// Системна тема без збереженого вибору, reduced-motion, фокус під модалкою.
+// Системна тема без збереженого вибору, reduced-motion, фокус під модалкою,
+// замок (PIN) поверх відкритого вікна.
 // Кожен блок має контрольну умову, без якої він пройшов би порожньо:
 // тема перевіряється в ОБОХ схемах (жорсткий 'dark' провалює світлу),
 // reduced-motion порівнюється зі звичайним контекстом (180 мс), а модалка
@@ -179,6 +180,53 @@ try {
       'Tab після вибору мишею пішов не на хрестик того ж рядка');
     await page.keyboard.press('Escape'); await modalClosed(page);
     await ctx.close(); }
+  // 5. замок поверх відкритого вікна: блокування за бездіяльністю настає
+  //    будь-коли, зокрема з відкритою модалкою. Під замком каркас і вікно
+  //    inert, Esc не закриває вікно, гарячі клавіші не перемикають вкладку
+  //    (фокус навмисно НЕ в полі коду: інакше обробник клавіш пропустив би
+  //    натискання як введення в поле й проба нічого б не перевірила);
+  //    правильний код знімає inert, і вікно знову живе.
+  { const {ctx, page} = await open({});
+    // Код — штучний, хешується власною функцією апки (сіль + SHA-256).
+    const PIN = '1234';
+    await page.evaluate(async pin => {
+      const salt = '00112233aabbccdd';
+      store.set('pinSalt', salt); store.set('pinHash', await pinHash(pin, salt));
+    }, PIN);
+    const lockState = () => page.evaluate(() => ({
+      lock: !document.getElementById('lockScreen').hidden,
+      shell: document.getElementById('shell').inert, modal: document.getElementById('modal').inert,
+      open: !document.getElementById('modal').hidden, tab: S.tab}));
+    await page.evaluate(() => go('overview'));
+    await page.evaluate(() => { window.__r = 'чекаю'; uiAsk({title: 'Проба замка', value: 'x'}).then(v => window.__r = v); });
+    await modalOpen(page);
+    await page.evaluate(() => pinLock());
+    await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'lockPin',
+      null, {timeout: 3000});
+    let st = await lockState();
+    assert.deepEqual([st.lock, st.shell, st.modal], [true, true, true], 'під замком каркас і вікно не inert: ' + JSON.stringify(st));
+    // фокус поза полем коду — як після кліку по тлу замка
+    await page.evaluate(() => document.activeElement.blur());
+    await page.keyboard.press('Escape'); await frame(page);
+    await page.keyboard.press('3'); await frame(page);
+    st = await lockState();
+    assert.ok(st.open, 'Esc під замком закрив вікно, якого людина не бачить');
+    assert.equal(await page.evaluate(() => window.__r), 'чекаю', 'вікно під замком отримало відповідь');
+    assert.equal(st.tab, 'overview', `гаряча клавіша «3» під замком перемкнула вкладку на ${st.tab}`);
+    // неправильний код — замок стоїть; правильний — inert знято, вікно відкрите й у фокусі
+    await page.fill('#lockPin', '0000'); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => /не підходить/.test(document.getElementById('lockMsg').textContent),
+      null, {timeout: 3000});
+    assert.ok((await lockState()).lock, 'неправильний код зняв замок');
+    await page.fill('#lockPin', PIN); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.getElementById('lockScreen').hidden, null, {timeout: 3000});
+    st = await lockState();
+    assert.deepEqual([st.shell, st.modal, st.open], [false, false, true], 'після коду inert лишився або вікно зникло: ' + JSON.stringify(st));
+    assert.ok((await where(page)).modal, 'після розблокування фокус не повернувся у вікно');
+    // вікно знову керується клавішами: Esc закриває його
+    await page.keyboard.press('Escape'); await modalClosed(page);
+    assert.equal(await page.evaluate(() => window.__r), null, 'Esc після розблокування не скасував вікно');
+    await ctx.close(); }
   assert.deepEqual(errors, [],'помилки сторінки: ' + errors.join(' | '));
-  console.log('системна тема, reduced-motion, фокус під модалкою — OK');
+  console.log('системна тема, reduced-motion, фокус під модалкою, замок над вікном — OK');
 } finally { await browser.close(); }

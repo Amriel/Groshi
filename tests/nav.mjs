@@ -112,7 +112,7 @@ try {
     });
     assert.ok(/3/.test(shown.content) && shown.display !== 'none', `${w}px: бейдж не видно (${JSON.stringify(shown)})`);
     // aria-label перекриває ::after, тож кількість мусить бути в мітці
-    assert.equal(shown.label, 'Підписки, 3 до сплати', `${w}px: мітка «Підписок» без кількості`);
+    assert.equal(shown.label, 'Підписки, 3 до сплати', `${w}px: мітка «Підписки» без кількості`);
     if (w === 390) {
       await page.evaluate(() => setSubsBadge(0));
       assert.equal(await page.evaluate(() => document.querySelector('#tabs [data-tab="subs"]').getAttribute('aria-label')),

@@ -70,7 +70,6 @@ try {
     await seed('list');
     const list = await page.evaluate(() => {
       const tags = [...document.querySelectorAll('.tag.pjst')];
-      const dim = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim();
       const inline = [...document.querySelectorAll('#tab-budget [style]')].map(n => ({
         ok: n.matches('.pjitem .split > i, .pjbar > i'),
         props: n.getAttribute('style').split(';').filter(Boolean).map(x => x.split(':')[0].trim())}));
@@ -78,7 +77,6 @@ try {
         tags: tags.length,
         dots: new Set(tags.map(t => getComputedStyle(t.querySelector('.dot')).backgroundColor)).size,
         textNeutral: tags.every(t => getComputedStyle(t).color === getComputedStyle(tags[0]).color),
-        dim,
         inline,
       };
     });
@@ -126,8 +124,10 @@ try {
     await seed('list');
     await page.evaluate(() => scrnToggle(true));
     await page.waitForTimeout(300);
+    // І «123 $», і «$ 123»: знак валюти буває з обох боків числа (після
+    // знака — лише пробіли того ж рядка, без переносу).
     const maskedList = await page.evaluate(() =>
-      (document.getElementById('tab-budget').innerText.match(/\d[\d\s.,  ]*\s*[₴$€]/g) || []).length);
+      (document.getElementById('tab-budget').innerText.match(/\d[\d\s.,  ]*\s*[₴$€]|[$€][   ]*\d/g) || []).length);
     assert.equal(maskedList, 0, `${mode}: у списку в режимі скріншоту видно ${maskedList} сум`);
     await seed('one');
     await page.waitForTimeout(300);

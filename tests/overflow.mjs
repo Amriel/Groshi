@@ -1,7 +1,7 @@
 // 390 px: горизонтального скролу сторінки немає, великі суми не виходять
 // за картку, «Інвестиції» вміщується в слот нижньої панелі.
-// Плюс три випадки з рецензії Задачі 5: довгий «найближче» у плитці
-// Підписок, відступ рядка власного періоду, тост і бейдж над нижньою панеллю.
+// Плюс три окремі випадки: (а) довгий «найближче» у плитці Підписок,
+// (б) відступ рядка власного періоду, (в) тост і бейдж над нижньою панеллю.
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {fileURLToPath, pathToFileURL} from 'node:url';
@@ -21,13 +21,31 @@ try {
     await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
     for (const tab of ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'settings']) {
       await page.evaluate(t => go(t), tab); await page.waitForTimeout(400);
+      // Правий край суми (з урахуванням тексту, що вилазить із її власної
+      // коробки при nowrap) порівнюється з правим краєм ВМІСТУ картки —
+      // без падингу й рамки. Колишнє «scrollWidth суми > clientWidth картки»
+      // не бачило суми, вужчої за картку, але зсунутої за її край.
+      // Пропускаються суми всередині власного прокручуваного або обрізаного
+      // контейнера (широка таблиця гортається вбік — це задумано) і ті, що
+      // самі обрізають текст (overflow:hidden з «…»).
       const r = await page.evaluate(() => {
         const h = document.documentElement.scrollWidth > innerWidth;
         const clipped = [...document.querySelectorAll('section:not([hidden]) .card, section:not([hidden]) .det')]
           .filter(c => c.offsetParent !== null)
-          .flatMap(c => [...c.querySelectorAll('.num-lg,.num-md,.kpi .val,.amt')]
-            .filter(n => n.offsetParent !== null && n.scrollWidth > c.clientWidth + 1)
-            .map(n => n.className));
+          .flatMap(c => {
+            const cs = getComputedStyle(c), cr = c.getBoundingClientRect();
+            const right = cr.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+            return [...c.querySelectorAll('.num-lg,.num-md,.kpi .val,.amt')]
+              .filter(n => {
+                if (n.offsetParent === null) return false;
+                for (let a = n.parentElement; a && a !== c; a = a.parentElement)
+                  if (getComputedStyle(a).overflowX !== 'visible') return false;
+                const nr = n.getBoundingClientRect();
+                const w = getComputedStyle(n).overflowX === 'visible' ? Math.max(nr.width, n.scrollWidth) : nr.width;
+                return nr.left + w > right + 1;
+              })
+              .map(n => `${n.className} (${n.textContent.trim().slice(0, 24)})`);
+          });
         return {h, clipped};
       });
       if (r.h) problems.push(`${theme}/${tab}: горизонтальний скрол сторінки`);
