@@ -14,6 +14,9 @@ const PAIRS = [
   ['--accent-contrast', '--accent', TEXT], ['--accent-ink', '--surface', TEXT],
   ['--success', '--surface', NONTEXT], ['--warn', '--surface', NONTEXT],
   ['--danger', '--surface', NONTEXT], ['--info', '--surface', NONTEXT],
+  // кнопка небезпечної дії у вікні: текст кольору --bg на заливці --danger
+  // (світла тема ≈ 4,7 — близько до межі, тому сторожимо)
+  ['--bg', '--danger', TEXT],
 ];
 const browser = await chromium.launch({executablePath: process.env.CHROMIUM || undefined});
 try {

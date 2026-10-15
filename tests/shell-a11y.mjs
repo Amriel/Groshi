@@ -32,6 +32,12 @@ const inertState = page => page.evaluate(() => ({
 const modalOpen = page => page.waitForFunction(() => {
   const m = document.getElementById('modal'); return !m.hidden && m.classList.contains('on'); },
   null, {timeout: 5000});
+// Кадр після кожного Tab: обробники фокуса апки відкладають роботу на rAF
+// (виділення числового поля), і без цього проба міряла б стан посеред кадру.
+const frame = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
+const tab = async (page, key = 'Tab') => { await page.keyboard.press(key); await frame(page); };
+const themeIs = (page, want, timeout = 3000) => page.waitForFunction(w => document.documentElement.dataset.theme === w,
+  want, {timeout}).then(() => true, () => false);
 const modalClosed = page => page.waitForFunction(() => document.getElementById('modal').hidden,
   null, {timeout: 5000});
 try {
@@ -50,8 +56,7 @@ try {
   { const {ctx, page} = await open({colorScheme: 'light'});
     assert.equal(await theme(page), 'light');
     await page.emulateMedia({colorScheme: 'dark'});
-    await page.waitForTimeout(100);
-    assert.equal(await theme(page), 'dark', 'зміна теми ОС не підхопилась без збереженого вибору');
+    assert.ok(await themeIs(page, 'dark'), 'зміна теми ОС не підхопилась без збереженого вибору');
     assert.equal(await page.evaluate(() => localStorage.getItem('theme')), null,
       'стеження за ОС не сміє записувати вибір — інакше воно вимкнеться саме');
     // кнопка теми — явний вибір: записується й зупиняє стеження
@@ -61,8 +66,8 @@ try {
       'кнопка теми не зберегла явний вибір');
     await page.emulateMedia({colorScheme: 'light'});
     await page.emulateMedia({colorScheme: 'dark'});
-    await page.waitForTimeout(100);
-    assert.equal(await theme(page), 'light', 'зміна теми ОС перебила явний вибір користувача');
+    // чекаємо «неправильного» значення: якщо воно так і не настало — вибір устояв
+    assert.ok(!(await themeIs(page, 'dark', 600)), 'зміна теми ОС перебила явний вибір користувача');
     await ctx.close(); }
   // 2. reduced-motion: переходи практично миттєві (контроль — звичайний контекст)
   const tabDur = page => page.evaluate(() =>
@@ -94,7 +99,7 @@ try {
     assert.deepEqual(await inertState(page), {side: true, wrap: true}, 'панель і контент під вікном не inert');
     const seen = new Set();
     for (const key of ['Tab', 'Tab', 'Tab', 'Tab', 'Tab', 'Tab', 'Shift+Tab', 'Shift+Tab', 'Shift+Tab']) {
-      await page.keyboard.press(key);
+      await tab(page, key);
       const w = await where(page);
       assert.ok(!w.side, `${key} під модалкою потрапив у навігацію (${w.tag})`);
       assert.ok(!w.wrap, `${key} під модалкою потрапив у контент (${w.tag})`);
@@ -126,7 +131,7 @@ try {
       assert.equal(await page.evaluate(() => uiAsk({title: 'Зайве'})), null);
       assert.deepEqual(await inertState(page), {side: true, wrap: true}, 'відмова другому вікну зняла inert першого');
       for (let i = 0; i < 4; i++) {
-        await page.keyboard.press('Tab');
+        await tab(page);
         assert.ok((await where(page)).modal, `Tab у вікні з полем вивів фокус назовні (${how}, крок ${i})`);
       }
       await page.click(how, {position: how === '#modalBd' ? {x: 5, y: 5} : undefined});
@@ -146,12 +151,32 @@ try {
     for (let i = 0; i < 8; i++) {
       steps.push(await page.evaluate(() => { const a = document.activeElement, r = a.closest('.mrrow');
         return {tag: a.tagName, cls: a.className, row: r ? [...r.parentNode.children].indexOf(r) : -1}; }));
-      await page.keyboard.press('Tab');
+      await tab(page);
     }
     assert.ok(!steps.some(s => s.tag === 'SELECT'), 'Tab зупинився на схованому select: ' + JSON.stringify(steps));
     assert.deepEqual(steps.map(s => s.row), [0, 0, 0, 0, 1, 1, 1, 1],
       'Tab не йде рядок за рядком (поле, сума, валюта, хрестик): ' + JSON.stringify(steps));
     assert.ok(steps.some(s => s.cls.includes('cselb')), 'кнопка випадайки валюти недосяжна з клавіатури');
+    // Два «Tab» за один кадр: відкладене виділення числового поля не сміє
+    // тягнути фокус назад (select() у Chromium переносить фокус). Детерміновано,
+    // без покладання на швидкість headless.
+    const back = await page.evaluate(async () => {
+      const num = document.querySelector('.mrrow input.mrc-n'), del = document.querySelector('.mrrow .mrdel');
+      num.focus(); del.focus();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return document.activeElement === del ? 'ok' : document.activeElement.className;
+    });
+    assert.equal(back, 'ok', 'відкладений select() повернув фокус на числове поле');
+    // Вибір валюти мишею: фокус лишається на кнопці випадайки, наступний Tab — далі в рядку
+    const row0 = page.locator('.mrrow').first();
+    await row0.locator('.cselb').click();
+    await page.locator('.cselm:not([hidden]) .cselo').nth(1).click();
+    assert.ok(await page.evaluate(() => document.activeElement.classList.contains('cselb')),
+      'після вибору мишею фокус не повернувся на кнопку випадайки');
+    await tab(page);
+    assert.ok(await page.evaluate(() => document.activeElement.classList.contains('mrdel') &&
+      [...document.querySelectorAll('.mrrow')].indexOf(document.activeElement.closest('.mrrow')) === 0),
+      'Tab після вибору мишею пішов не на хрестик того ж рядка');
     await page.keyboard.press('Escape'); await modalClosed(page);
     await ctx.close(); }
   assert.deepEqual(errors, [],'помилки сторінки: ' + errors.join(' | '));

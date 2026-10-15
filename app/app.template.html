@@ -185,9 +185,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
    адресним рядком, який не піддається жодному стилю й не має нічого
    спільного з апкою. Тут своя картка з тим самим матеріалом, що й
    підказки. */
-/* z-index 300 — вище за панель і нижні таби (40), але нижче за списки
-   .cselm (400) і календар #sdp (410): ті відкриваються З вікна й мусять
-   лягати поверх нього. Затемнення — простий --scrim, без розмиття. */
+/* z-index 300, а не 100: за 100 вікно лягало б ПІД #kbtip (120) і
+   #phoneOverlay (200). Водночас воно нижче за списки .cselm (400) і
+   календар #sdp (410) — ті відкриваються З вікна й мусять бути поверх нього.
+   Затемнення — простий --scrim, без розмиття. */
 .modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px}
 .modal[hidden]{display:none}
 .modalbd{position:absolute;inset:0;background:var(--scrim);
@@ -6248,7 +6249,11 @@ function appToast(m){
 addEventListener('focusin', e=>{
   const n = e.target;
   if(!(n instanceof HTMLInputElement) || n.type !== 'number') return;
-  requestAnimationFrame(()=>{ try{ n.select(); }catch(_){} });
+  /* Лише якщо фокус досі тут: select() у Chromium ПЕРЕНОСИТЬ фокус, і
+     відкладений на кадр виклик після швидкого Tab (два натискання за кадр)
+     тягнув фокус назад на поле, з якого вже пішли. */
+  requestAnimationFrame(()=>{ if(document.activeElement !== n) return;
+    try{ n.select(); }catch(_){} });
   n.addEventListener('mouseup', ev=>ev.preventDefault(), {once:true});
 });
 
@@ -6302,6 +6307,11 @@ addEventListener('focusin', e=>{
         sel.dispatchEvent(new Event('input',  {bubbles:true}));
         sel.dispatchEvent(new Event('change', {bubbles:true}));
         close(); sync();
+        /* Фокус — назад на кнопку: інакше після вибору мишею він падав у
+           <body>, і наступний Tab у вікні йшов на перше поле, а не далі від
+           випадайки. Обробник change міг перемалювати рядок — тоді кнопки
+           вже немає в документі, і фокусувати нічого. */
+        if(btn.isConnected) btn.focus({preventScroll:true});
       });
     };
     const close = ()=>{ menu.hidden = true; wrap.classList.remove('open'); };
