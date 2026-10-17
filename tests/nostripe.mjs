@@ -24,7 +24,7 @@ try {
   await page.waitForFunction(() => typeof window.go === 'function');
   for (const theme of ['dark', 'light']) {
     await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
-    for (const tab of ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'settings']) {
+    for (const tab of ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'advisor', 'settings']) {
       await page.evaluate(t => go(t), tab); await page.waitForTimeout(400);
       const hits = await page.evaluate(() => {
         const out = [];

@@ -94,7 +94,7 @@ try {
     const url=new URL(route.request().url());
     if(url.origin!==privacyOrigin)return route.abort();
     const name=url.pathname.slice(1);
-    if(!['index.html','desktop.js','app.js','mononorm.js','invnorm.js'].includes(name))return route.abort();
+    if(!['index.html','desktop.js','app.js','mononorm.js','pseudo.js','invnorm.js'].includes(name))return route.abort();
     return route.fulfill({contentType:name.endsWith('.html')?'text/html':'application/javascript',
       body:fs.readFileSync(path.join(root,'desktop/dist',name))});
   });

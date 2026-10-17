@@ -1,0 +1,6 @@
+{"type":"system","subtype":"init","cwd":"advisor","session_id":"00000000-0000-4000-8000-000000000001","tools":["WebSearch","mcp__groshi__subscriptions"],"mcp_servers":[{"name":"groshi","status":"connected"}],"model":"claude-sonnet"}
+{"type":"stream_event","event":{"type":"message_start","message":{"role":"assistant"}},"session_id":"00000000-0000-4000-8000-000000000001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"WebSearch","input":{"query":"курс долара сьогодні"}}]},"session_id":"00000000-0000-4000-8000-000000000001"}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Привіт"}},"session_id":"00000000-0000-4000-8000-000000000001"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Привіт"}]},"session_id":"00000000-0000-4000-8000-000000000001"}
+{"type":"result","subtype":"success","is_error":false,"result":"Привіт","session_id":"00000000-0000-4000-8000-000000000001"}

@@ -25,7 +25,7 @@ try {
     await page.goto(pathToFileURL(path.join(root,
       mode==='browser' ? 'app/Groshi_app.html' : 'desktop/dist/index.html')).href);
     await page.waitForFunction(() => typeof window.go==='function');
-    for (const tab of ['overview','cats','tx','budget','inv','subs','settings']) {
+    for (const tab of ['overview','cats','tx','budget','inv','subs', 'advisor', 'settings']) {
       await page.evaluate(value => go(value), tab);
       await page.locator(`#tab-${tab}`).waitFor({state:'visible'});
       assert.equal(await page.evaluate(() => [...document.querySelectorAll('section[id^="tab-"]')]
@@ -42,7 +42,7 @@ try {
     await page.locator('#dp').waitFor({state:'visible'});
     await page.screenshot({path:path.join(output, `allcheck-${mode}-dates.png`)});
     assert.deepEqual(errors, [], `${mode}: помилки JavaScript або консолі`);
-    console.log(`${mode}: 7 вкладок, тема й вибір періоду — OK`);
+    console.log(`${mode}: 8 вкладок, тема й вибір періоду — OK`);
     await context.close();
   }
 } finally {

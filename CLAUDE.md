@@ -73,14 +73,17 @@ node mcp/selftest.js
 автозапуск, синхронізація за розкладом; `mono.rs` — клієнт Monobank (ліміт
 1 запит/60 с, вікна по 30 діб, опитування, не вебхук); `ibkr.rs`, `binance.rs`,
 `quotes.rs` (Yahoo), `nbu.rs` (курси НБУ); `store.rs` — JSON на диску через
-тимчасовий файл; `update.rs` — оновлення з перевіркою Ed25519-підпису
+тимчасовий файл; `advisor.rs` — запуск `claude` для вкладки «Порадник»; `update.rs` — оновлення з перевіркою Ed25519-підпису
 (`update-key.pub`); `native_csp.rs` + `safety.rs` — CSP і захисні перевірки.
 Токени — лише в Диспетчері облікових даних Windows.
 
-**MCP** (`mcp/groshi-mcp.js`) — сервер лише для читання даних апки, без
-мережевого коду й без коду запису. `mcp/mononorm.js` — копія
-`desktop/dist/mononorm.js` (джерело); змінюючи одну, синхронізувати другу —
-рівність сторожить `tests/test_mononorm_sync.py`.
+**MCP** (`mcp/groshi-mcp.js` — лише stdio-протокол, `mcp/tools.js` — 11
+інструментів) — сервер лише для читання даних апки, без мережевого коду й без
+коду запису. `mcp/mononorm.js` — копія `desktop/dist/mononorm.js` (джерело);
+змінюючи одну, синхронізувати другу — рівність сторожить
+`tests/test_mononorm_sync.py`. `mcp/pseudo.js` — знеособлювач для «Порадника»
+(джерело), `desktop/dist/pseudo.js` — його копія для вебвʼю; рівність сторожить
+`tests/test_pseudo_sync.py`.
 
 **Приватність.** `scripts/privacy_check.py` блокує коміт приватних файлів
 (`*.private.*`, `*_raw.json`, `state.json`, CSV/XML виписок тощо) і секретів;

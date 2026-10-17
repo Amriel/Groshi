@@ -38,9 +38,9 @@ const layout = page => page.evaluate(() => {
 try {
   // межі: 759 нижні таби, 760 і 999 іконкова панель, 1000 повна
   const cases = [
-    [759, {n: 5, fixed: true}], [760, {n: 7, w: 64, labels: false}],
-    [999, {n: 7, w: 64, labels: false}], [1000, {n: 7, w: 220, labels: true}],
-    [1400, {n: 7, w: 220, labels: true}],
+    [759, {n: 5, fixed: true}], [760, {n: 8, w: 64, labels: false}],
+    [999, {n: 8, w: 64, labels: false}], [1000, {n: 8, w: 220, labels: true}],
+    [1400, {n: 8, w: 220, labels: true}],
   ];
   for (const [w, exp] of cases) {
     const {ctx, page} = await open(w);
@@ -75,7 +75,7 @@ try {
         missing: [...nav, ...foot].filter(b => !(b.getAttribute('aria-label') || '').trim()).map(b => b.dataset.tab || b.id)};
     });
     // кількість — щоб перевірка не пройшла на порожній вибірці
-    assert.equal(aria.nav, 7, `кнопок навігації ${aria.nav}, очікувано 7`);
+    assert.equal(aria.nav, 8, `кнопок навігації ${aria.nav}, очікувано 8`);
     assert.equal(aria.foot, 4, `кнопок підвалу ${aria.foot}, очікувано 4`);
     assert.deepEqual(aria.missing, [], 'кнопки навігації без aria-label: ' + aria.missing.join(', '));
     for (const tab of ['overview', 'tx', 'settings']) {
@@ -87,8 +87,8 @@ try {
       });
       assert.ok(d.dy <= 1 && d.dh <= 1, `індикатор поза активним пунктом (${tab}): ${JSON.stringify(d)}`);
     }
-    // клавіші 1–7 у порядку TABKEYS
-    const keys = ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'settings'];
+    // клавіші 1–8 у порядку TABKEYS
+    const keys = ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'advisor', 'settings'];
     for (let i = 0; i < keys.length; i++) {
       await page.keyboard.press(String(i + 1)); await page.waitForTimeout(150);
       assert.equal(await page.evaluate(() => S.tab), keys[i], `клавіша ${i + 1} → ${keys[i]}`);
@@ -125,7 +125,7 @@ try {
   { const {ctx, page} = await open(390, 844);
     await page.click('#tabs [data-tab="settings"]'); await page.waitForTimeout(300);
     const rows = await page.evaluate(() => [...document.querySelectorAll('#modal .pickrow')].map(r => r.dataset.v));
-    assert.deepEqual(rows, ['cats', 'budget', 'settings', 'theme', 'scrn'], 'склад меню «Ще»');
+    assert.deepEqual(rows, ['cats', 'budget', 'advisor', 'settings', 'theme', 'scrn'], 'склад меню «Ще»');
     await page.keyboard.press('Escape');
     // модалка ховається з затримкою 220 мс після анімації — чекаємо стан, а не час
     await page.waitForSelector('#modal', {state: 'hidden', timeout: 2000}).catch(() => {});

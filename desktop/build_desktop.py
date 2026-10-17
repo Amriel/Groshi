@@ -1062,6 +1062,7 @@ tpl = sub(tpl, '\nrender();\n', MONO_JS + '\nrender();\n', 'tail')
 tpl = tpl.replace('__MCCNAME__', script_json(mcc))
 
 BOOT = """<script src="mononorm.js"></script>
+<script src="pseudo.js"></script>
 <script src="invnorm.js"></script>
 <script src="desktop.js"></script>"""
 # останній <script> у файлі — головний

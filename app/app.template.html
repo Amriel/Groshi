@@ -948,7 +948,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   nav.tabs button{flex:1;min-width:0;flex-direction:column;justify-content:center;gap:3px;
     height:auto;padding:3px 2px;font-size:var(--fs-xs);line-height:14px;font-weight:600}
   nav.tabs button .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;line-height:14px}
-  nav.tabs button[data-tab="cats"],nav.tabs button[data-tab="budget"]{display:none}
+  nav.tabs button[data-tab="cats"],nav.tabs button[data-tab="budget"],nav.tabs button[data-tab="advisor"]{display:none}
   nav.tabs button[data-tab="settings"]{margin-top:0}
   nav.tabs button[aria-current="true"],nav.tabs button:hover{background:none}
   nav.tabs button[aria-current="true"] .ic{color:var(--accent-ink)}
@@ -1657,6 +1657,53 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   .pjspark{margin-left:0;margin-top:12px}
 }
 
+/* ── Порадник ── */
+/* Вікно повідомлень має ФІКСОВАНУ висоту й гортається всередині: потік
+   дописує текст у ньому, а шапка й поле вводу стоять на місці (проба
+   advisor.mjs порівнює їхні прямокутники до й після). Колонка кнопок
+   теж фіксована, щоб поява «Стоп» не звужувала поле вводу. */
+#tab-advisor{display:flex;flex-direction:column;gap:12px}
+.advhead{display:flex;align-items:center;gap:10px;min-height:var(--ctl-sm);margin-bottom:12px}
+.advhead h2{font-size:var(--fs-lg);font-weight:600}
+.advmsgs{height:clamp(300px,calc(100vh - 380px),640px);overflow-y:auto;overscroll-behavior:contain;
+  display:flex;flex-direction:column;gap:14px;padding:4px 2px 12px}
+.advmsg{max-width:min(46rem,92%);line-height:1.55;overflow-wrap:anywhere}
+.advmsg.user{align-self:flex-end;background:var(--surface-3);border-radius:var(--radius-sm);padding:10px 14px;white-space:pre-wrap}
+.advmsg.bot{align-self:flex-start}
+.advmsg.bot p{margin:0 0 8px}
+.advmsg.bot h3,.advmsg.bot h4{font-size:var(--fs-md);margin:12px 0 6px}
+.advmsg.bot ul,.advmsg.bot ol{margin:0 0 8px;padding-left:22px}
+.advmsg.bot pre{margin:0 0 8px;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-sm);overflow-x:auto}
+.advmsg.bot pre code{background:none;padding:0}
+.advmsg.bot .tablewrap{margin:0 0 8px}
+.advstat,.advcap{font-size:var(--fs-xs);color:var(--text-mute);margin-top:4px}
+.adverr{margin-top:6px;color:var(--danger)}
+.advempty{margin:auto;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.advempty .cluster{justify-content:center}
+.advcomp{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.advcomp textarea{flex:1 1 280px;min-width:0;min-height:var(--ctl);height:64px}
+/* Одне місце праворуч від поля: «Надіслати» на час потоку підміняє «Стоп»
+   (однакова ширина, без зсуву й порожнини); кнопка тягнеться на висоту поля. */
+.advbtns{flex:none;width:128px;display:flex}
+.advbtns .btn{flex:1;height:auto;min-height:var(--ctl)}
+.advsteps{margin:8px 0 14px;padding-left:22px;line-height:1.7}
+.advset summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+.advset summary::-webkit-details-marker{display:none}
+.advset summary::before{content:'+';font-size:17px;line-height:1;width:12px}
+.advset[open] summary::before{content:'−'}
+.advset .stack{margin-top:14px}
+.advset textarea{width:100%;min-height:200px}
+.advrow{cursor:pointer}
+.advrow .advt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.advrow[aria-current="true"] .advt{color:var(--accent-ink)}
+/* Бейдж приватності — це заява, її не можна обрізати: на вузькому екрані
+   шапка переноситься, а бейдж не стискається й не ховає текст. */
+.advhead .tag{flex:none;max-width:none;overflow:visible}
+@media (max-width:759px){
+  .advhead{flex-wrap:wrap}
+  .advbtns{width:100%}
+  .advbtns .btn{height:var(--ctl)}
+}
 /* ── Ще (налаштування) ── */
 /* Проміжок між картками — gap колонки, а не margin-bottom кожної: картки
    розділу ховаються атрибутом hidden ([hidden] display:none !important),
@@ -1763,6 +1810,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <symbol id="i-budget" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4"/></symbol>
     <symbol id="i-inv" viewBox="0 0 24 24"><path d="M3.5 17l5.5-5.5 4 4 7.5-8"/><path d="M15 7.5h5.5V13"/></symbol>
     <symbol id="i-subs" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/></symbol>
+    <symbol id="i-advisor" viewBox="0 0 24 24"><path d="M5 5.5h14A1.5 1.5 0 0 1 20.5 7v8a1.5 1.5 0 0 1-1.5 1.5h-7.5L7 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8 10h8M8 13h5"/></symbol>
     <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></symbol>
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
     <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
@@ -1794,7 +1842,8 @@ svg.sprite{position:absolute;width:0;height:0}
     <button data-tab="budget" aria-label="Кошториси" data-tip="Кошториси" data-key="4"><svg class="ic" width="20" height="20"><use href="#i-budget"/></svg><span class="nl">Кошториси</span></button>
     <button data-tab="inv" aria-label="Інвестиції" data-tip="Інвестиції" data-key="5"><svg class="ic" width="20" height="20"><use href="#i-inv"/></svg><span class="nl">Інвестиції</span></button>
     <button data-tab="subs" aria-label="Підписки" data-tip="Підписки" data-key="6"><svg class="ic" width="20" height="20"><use href="#i-subs"/></svg><span class="nl">Підписки</span></button>
-    <button data-tab="settings" aria-label="Ще" data-tip="Ще" data-key="7"><svg class="ic" width="20" height="20"><use href="#i-more"/></svg><span class="nl">Ще</span></button>
+    <button data-tab="advisor" aria-label="Порадник" data-tip="Порадник" data-key="7"><svg class="ic" width="20" height="20"><use href="#i-advisor"/></svg><span class="nl">Порадник</span></button>
+    <button data-tab="settings" aria-label="Ще" data-tip="Ще" data-key="8"><svg class="ic" width="20" height="20"><use href="#i-more"/></svg><span class="nl">Ще</span></button>
   </nav>
   <div class="side-foot">
     <button class="iconbtn" id="phoneBtn" aria-label="Перегляд на телефоні" data-tip="Перегляд на телефоні" data-key="P" hidden><svg class="ic" width="18" height="18"><use href="#i-phone"/></svg></button>
@@ -2231,6 +2280,60 @@ svg.sprite{position:absolute;width:0;height:0}
         <span class="muted" id="subMsg" hidden></span>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ══════════════════ ПОРАДНИК ══════════════════ -->
+<!-- Розмітка будується один раз (advRender): повідомлення дописуються на місці,
+     тому render() цю секцію не перебудовує. -->
+<section id="tab-advisor" hidden>
+  <div class="card" id="advDesk" hidden>
+    <h2>Порадник доступний лише в десктопній версії</h2>
+    <p class="muted subhint">Він працює через Claude Code на цьому комп'ютері, а браузерна версія
+      не має доступу до програм системи. Відкрийте застосунок «Гроші» для Windows.</p>
+  </div>
+  <div class="card" id="advWait" hidden><p class="muted">Перевіряю, чи встановлено Claude Code…</p></div>
+  <div class="card" id="advSetup" hidden>
+    <h2>Claude Code не знайдено</h2>
+    <p class="muted subhint" id="advSetupWhy"></p>
+    <ol class="advsteps">
+      <li>Встановіть Node.js (nodejs.org, версія LTS).</li>
+      <li>У терміналі виконайте <code>npm install -g @anthropic-ai/claude-code</code>.</li>
+      <li>Запустіть <code>claude</code> один раз і увійдіть у свій акаунт.</li>
+      <li>Поверніться сюди й натисніть «Перевірити ще раз».</li>
+    </ol>
+    <div class="cluster"><button class="btn pri" id="advRecheck">Перевірити ще раз</button></div>
+  </div>
+  <div class="card advcard" id="advMain" hidden>
+    <div class="advhead">
+      <h2>Порадник</h2>
+      <span class="tag" id="advBadge">хмара · назви приховано</span>
+      <span class="grow"></span>
+      <button class="btn sm" id="advNew">Нова розмова</button>
+    </div>
+    <div class="advmsgs" id="advMsgs" role="log" aria-live="polite" aria-label="Розмова"></div>
+    <div class="advcomp">
+      <textarea id="advIn" rows="2" placeholder="Спитайте про витрати, заощадження чи інвестиції" aria-label="Питання"></textarea>
+      <div class="advbtns">
+        <button class="btn" id="advStop" hidden>Стоп</button>
+        <button class="btn pri" id="advSend">Надіслати</button>
+      </div>
+    </div>
+  </div>
+  <details class="card advset" id="advSet" hidden>
+    <summary>Налаштування Порадника</summary>
+    <div class="stack">
+      <label class="mf"><span>Модель Claude (порожньо — за замовчуванням)</span>
+        <input id="advModel" placeholder="напр. sonnet, opus або повна назва"></label>
+      <label class="mf"><span>Інструкція</span>
+        <textarea id="advPrompt" rows="10"></textarea></label>
+      <div class="cluster"><button class="btn" id="advPromptReset">Повернути стандартну</button></div>
+      <p class="muted subhint" id="advVer"></p>
+    </div>
+  </details>
+  <div class="card" id="advListCard" hidden>
+    <div class="cardhead"><h2>Розмови</h2></div>
+    <div id="advList"></div>
   </div>
 </section>
 
@@ -7290,7 +7393,7 @@ const TABORDER = ['overview','cats','tx','budget','subs','settings'];
 /* Де смуга періоду нічого не робить: підписки живуть у майбутньому,
    налаштування взагалі поза часом, а кошторис проєкту рахується за
    своїми датами. */
-const NO_PERIOD = new Set(['budget','inv','subs','settings']);
+const NO_PERIOD = new Set(['budget','inv','subs','advisor','settings']);
 let TABPREV = null;
 function showTab(tab){
   document.querySelectorAll('section[id^=tab-]').forEach(s=>{
@@ -8963,6 +9066,7 @@ function render(){
   if(S.tab==='budget') renderProjects();
   if(S.tab==='inv') renderInv();
   if(S.tab==='subs') renderSubs();
+  if(S.tab==='advisor') advRender();
   if(S.tab==='settings'){ setSecApply(); renderRules(); renderExcl(); renderQuality();
     const cats=[...new Set(TX.map(catOf))].sort();
     el('catlist').innerHTML = cats.map(c=>`<option>${esc(c)}</option>`).join('');
@@ -8992,7 +9096,376 @@ function openTx({cat='', q='', ids=null, label=''}={}){
    налаштування живуть за «Ще». Тема й режим скріншоту там же: у вузькому
    вікні панелі з кнопками немає, а на телефоні їх не було б ніде. */
 const NARROW = matchMedia('(max-width:759px)');
-const MORE = new Set(['cats', 'budget', 'settings']);
+/* ═══════════════════════ ПОРАДНИК ═══════════════════════
+   Чат із Claude Code на цьому комп'ютері (Rust запускає claude і шле події).
+   Хмарна модель не бачить NDA-назв: усе, що йде в system і prompt, проходить
+   groshiPseudo.hide(), а відповідь показується після reveal() — словник
+   живе лише тут і нікуди не відправляється. Розмітка вкладки будується
+   один раз; потік дописує текст в один вузол останнього повідомлення і
+   НЕ викликає render() (інакше шапка й поле вводу смикались би). */
+const ADV_PROMPT_DEFAULT = `Ти — особистий фінансовий аналітик власника застосунку «Гроші». Відповідай українською, коротко й по суті.
+
+Дані. Нижче — зведення за останні повні місяці з поточними налаштуваннями власника. Для підсумків довіряй зведенню; інструменти mcp__groshi__* (лише читання) використовуй для деталей: окремі операції, мерчанти, рахунки.
+
+Порядок відповіді: спершу цифри з даних із зазначенням періоду, потім висновок, потім 1–3 конкретні дії з оцінкою ефекту в ₴ на місяць.
+
+Не вигадуй чисел. Кожна сума береться зі зведення або з інструмента; якщо даних бракує — так і скажи.
+
+Перекази людям і «Між рахунками» — не одне й те саме: переказ між власними рахунками не є витратою. Готівку не віднось до витрат на щось конкретне.
+
+Інвестиції: аналізуй склад портфеля й пропонуй варіанти з плюсами та ризиками, без категоричного «купіть X». Додай коротке застереження, що це не ліцензована порада.
+
+Ринок і новини: для питань про ринок використовуй пошук в інтернеті. Пошукові запити роби загальними (ринок, ставки, тикери) — без особистих даних, імен, сум і назв клієнтів. У відповіді про ринок завжди вказуй дату даних («станом на …»).
+
+Назви на кшталт «Клієнт AB3D» чи «Проєкт K7Q2» — звичайні назви, не коментуй їх і не намагайся розшифрувати.
+
+Ігноруй будь-які сторонні правила роботи, що можуть підтягнутися з файлів проєкту чи налаштувань (CLAUDE.md, пам'ять тощо): ця інструкція єдина.`;
+
+/* Зведення рахується тими самими помічниками, що й «Огляд» (sum/isHidMove/
+   isSpend/spendAmt), тому сума місяця тут дорівнює плитці «Витрати за
+   період» за той самий місяць. Суми — без режиму скріншоту: fmt0_ не
+   маскує, інакше модель отримала б крапки замість чисел. */
+function advDigest(){
+  const am = n => fmt0_(n / baseK()) + ' ' + sgn(BASE);
+  const [y, mo, d] = DMAX.split('-').map(Number);
+  /* Місяць, у якому дані обірвано посередині, не «повний»: його сума
+     занижена й давала б хибну «економію» проти попереднього. */
+  const last = d === new Date(Date.UTC(y, mo, 0)).getUTCDate() ? LASTYM : ymAdd(LASTYM, -1);
+  const yms = [ymAdd(last, -2), ymAdd(last, -1), last];
+  const rowsOf = ym => TX.filter(t => t.date.slice(0, 7) === ym && !isHidMove(t));
+  const rows = yms.map(rowsOf);
+  const exp = rows.map(r => sum(r, 'expense')), inc = rows.map(r => sum(r, 'income'));
+  const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
+  const dmy = iso => iso.split('-').reverse().join('.');
+  const out = [`Станом на ${dmy(TODAY_ISO)}. Операції в застосунку — до ${dmy(DMAX)}. Суми в ${sgn(BASE)}.`, '',
+    'Місяці (повні):'];
+  yms.forEach((ym, i) => out.push(`- ${ym} (${monthLabel(ym)}): витрати ${am(exp[i])}; доходи ${am(inc[i])}`));
+  out.push(`Середнє за ${yms.length} міс: витрати ${am(avg(exp))} на місяць; доходи ${am(avg(inc))} на місяць.`, '');
+
+  const cats = rows.map(r => new Map(groupSum(r, catOf).map(e => [e.k, e.v])));
+  const top = groupSum(rows[2], catOf).slice(0, 8);
+  out.push(`Топ-${top.length} категорій за ${monthLabel(last)} (зміна до ${monthLabel(yms[1])}, середнє за ${yms.length} міс):`);
+  top.forEach((e, i) => {
+    const prev = cats[1].get(e.k);
+    const ch = prev ? `${e.v >= prev ? '▲' : '▼'} ${Math.abs((e.v - prev) / prev * 100).toFixed(0)}%` : 'нова';
+    const a3 = avg(cats.map(m => m.get(e.k) || 0));
+    out.push(`${i + 1}. ${e.k} — ${am(e.v)} (${ch}); середнє ${am(a3)}`);
+  });
+  if(!top.length) out.push('Витрат за цей місяць немає.');
+
+  try{
+    const live = subsMine().filter(s => s.live);
+    out.push('', `Підписки: ${am(live.reduce((a, s) => a + perMonth(s), 0))} на місяць, активних ${live.length}.`);
+  }catch(e){ out.push('', 'Підписки: даних немає.'); }
+
+  const pos = (INV && INV.pos) || [];
+  if(!pos.length) out.push('', 'Портфель: даних немає.');
+  else{
+    const val = p => invUAH(p) ?? 0, tot = pos.reduce((a, p) => a + val(p), 0) || 1;
+    const sh = v => (v / tot * 100).toFixed(0) + '%';
+    out.push('', `Портфель: ${am(tot)}.`);
+    const kinds = new Map();
+    for(const p of pos) kinds.set(p.kind, (kinds.get(p.kind) || 0) + val(p));
+    out.push('Склад: ' + [...kinds].map(([k, v]) => `${INV_KIND[k] || k} ${sh(v)}`).join(', ') + '.');
+    [...pos].sort((a, b) => val(b) - val(a)).slice(0, 12)
+      .forEach(p => out.push(`- ${p.symbol}${p.name ? ' (' + p.name + ')' : ''}: ${am(val(p))}, ${sh(val(p))}`));
+    if(pos.length > 12) out.push(`- … ще ${pos.length - 12} позицій`);
+  }
+  return out.join('\n');
+}
+
+/* Безпечний Markdown: увесь текст екранується ДО розмітки, а HTML збирається
+   лише з власних тегів. Посилань і картинок немає навмисно. */
+function advMd(text){
+  const inl = s => s.split(/(`[^`]*`)/).map((p, i) => i % 2
+    ? '<code>' + p.slice(1, -1) + '</code>'
+    : p.replace(/\*\*([^*]+?)\*\*/g, '<b>$1</b>')).join('');
+  const lines = esc(text == null ? '' : text).split('\n');
+  const isTbl = (a, b) => /^\s*\|.*\|\s*$/.test(a) && b !== undefined
+    && /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(b);
+  const isUl = l => /^\s*[-*•]\s+/.test(l), isOl = l => /^\s*\d+[.)]\s+/.test(l);
+  const isBlock = (l, n) => /^```/.test(l) || /^#{1,6}\s/.test(l) || isUl(l) || isOl(l) || isTbl(l, n);
+  const cells = l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  let out = '', i = 0;
+  while(i < lines.length){
+    const ln = lines[i];
+    if(/^```/.test(ln)){
+      const code = []; i++;
+      while(i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
+      i++; out += '<pre><code>' + code.join('\n') + '</code></pre>'; continue;
+    }
+    if(!ln.trim()){ i++; continue; }
+    const m = ln.match(/^(#{1,6})\s+(.*)$/);
+    if(m){ const t = m[1].length <= 2 ? 'h3' : 'h4'; out += `<${t}>${inl(m[2])}</${t}>`; i++; continue; }
+    if(isTbl(ln, lines[i + 1])){
+      const head = cells(ln); i += 2;
+      let body = '';
+      while(i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i]))
+        body += '<tr>' + cells(lines[i++]).map(c => `<td>${inl(c)}</td>`).join('') + '</tr>';
+      out += '<div class="tablewrap"><table><thead><tr>' + head.map(c => `<th>${inl(c)}</th>`).join('')
+        + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+      continue;
+    }
+    if(isUl(ln) || isOl(ln)){
+      const ol = isOl(ln), test = ol ? isOl : isUl; let li = '';
+      while(i < lines.length && test(lines[i]))
+        li += '<li>' + inl(lines[i++].replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')) + '</li>';
+      out += ol ? `<ol>${li}</ol>` : `<ul>${li}</ul>`; continue;
+    }
+    const para = [];
+    while(i < lines.length && lines[i].trim() && !(para.length && isBlock(lines[i], lines[i + 1])))
+      para.push(inl(lines[i++]));
+    out += '<p>' + para.join('<br>') + '</p>';
+  }
+  return out;
+}
+
+const ADV = { init:false, state:'wait', convs:[], cur:null, stream:null, probe:null, drain:null };
+/* Rust читає stdout окремим потоком: після Стоп (kill) він ще віддає
+   буферизований хвіст і ЗАВЖДИ закінчує `done` з тим самим conv. Нова
+   відповідь у цій розмові підхопила б чужий текст, а запізнілий done її
+   обірвав би. Тому після Стоп події цієї розмови ігноруються, а відправка
+   чекає на їхній done/error (або 5 с). */
+function advDrainEnd(){
+  const d = ADV.drain; if(!d) return;
+  clearTimeout(d.t); ADV.drain = null; advCtl();
+}
+const ADV_TOOLS = { transactions:'операції', money_flow:'доходи й витрати', subscriptions:'підписки',
+  fop_and_invoices:'ФОП і рахунки', market:'ринок', groshi_status:'стан даних', WebSearch:'пошук у мережі' };
+/* Rust шле «{назва}: {запит}»; сирі назви інструментів власнику нічого не кажуть. */
+function advToolLabel(t){
+  const m = String(t == null ? '' : t).match(/^\s*(?:mcp__groshi__)?([\w-]+)\s*(?::\s*([\s\S]*))?$/);
+  if(!m) return String(t == null ? '' : t).replace(/^\s*mcp__groshi__/, '');
+  const n = m[1], q = (m[2] || '').trim();
+  const lbl = ADV_TOOLS[n] || (/^portfolio|^position/.test(n) ? 'портфель' : n);
+  return q ? lbl + ': ' + q : lbl;
+}
+const ADV_SUGGEST = [
+  ['Куди йдуть гроші', 'Куди йдуть мої гроші? Розбери витрати за останні місяці по категоріях і покажи, що змінилось.'],
+  ['Як скоротити витрати', 'Як мені скоротити витрати? Назви 1–3 найреальніші кроки з оцінкою економії в ₴ на місяць.'],
+  ['Що з портфелем і ринком', 'Що з моїм портфелем і станом ринку зараз? Які є варіанти, з плюсами й ризиками?'],
+];
+const advConv = () => ADV.convs.find(c => c.id === ADV.cur) || null;
+const advDesk = () => window.__DESK__ && window.__DESK__.tauri ? window.__DESK__ : null;
+function advSave(){
+  const D = advDesk(); if(!D) return;
+  ADV.convs = ADV.convs.slice(0, 50);
+  Promise.resolve(D.advisorHistSet(ADV.convs)).catch(() => {});
+}
+function advView(){
+  const st = ADV.state;
+  el('advDesk').hidden = st !== 'browser';
+  el('advWait').hidden = st !== 'wait';
+  el('advSetup').hidden = st !== 'missing';
+  for(const id of ['advMain', 'advSet']) el(id).hidden = st !== 'ok';
+  el('advListCard').hidden = st !== 'ok' || !ADV.convs.length;
+}
+function advCtl(){
+  const busy = !!ADV.stream;
+  el('advSend').disabled = busy || !!ADV.drain;
+  el('advSend').hidden = busy;
+  el('advStop').hidden = !busy;
+  el('advNew').disabled = busy;
+}
+function advMsgNode(m){
+  const n = document.createElement('div');
+  n.className = 'advmsg ' + (m.role === 'user' ? 'user' : 'bot');
+  if(m.role === 'user'){ n.textContent = m.text; return n; }
+  n._body = document.createElement('div'); n._body.innerHTML = advMd(m.text);
+  n._stat = document.createElement('div'); n._stat.className = 'advstat'; n._stat.hidden = true;
+  n._err = document.createElement('div'); n._err.className = 'adverr'; n._err.hidden = !m.err;
+  n._err.textContent = m.err ? 'Помилка: ' + m.err : '';
+  n._cap = document.createElement('div'); n._cap.className = 'advcap';
+  n._cap.hidden = !m.text;
+  n._cap.textContent = m.model ? 'Модель: ' + m.model : 'Claude Code · модель за замовчуванням';
+  n.append(n._body, n._stat, n._err, n._cap);
+  return n;
+}
+function advShow(){
+  const host = el('advMsgs'), c = advConv();
+  host.textContent = '';
+  if(!c || !c.msgs.length){
+    host.innerHTML = `<div class="advempty"><p class="muted">Спитайте про свої витрати, заощадження чи інвестиції.</p>
+      <div class="cluster">${ADV_SUGGEST.map((s, i) =>
+        `<button class="btn advsug" data-advsug="${i}">${esc(s[0])}</button>`).join('')}</div></div>`;
+  }else c.msgs.forEach(m => host.appendChild(advMsgNode(m)));
+  host.scrollTop = host.scrollHeight;
+  advList();
+}
+function advList(){
+  const host = el('advList');
+  host.innerHTML = ADV.convs.map(c => `<div class="row advrow" data-advopen="${esc(c.id)}"${c.id === ADV.cur ? ' aria-current="true"' : ''}>
+      <div class="grow"><div class="advt">${esc(c.title)}</div>
+        <div class="muted">${esc(new Date(c.created).toLocaleDateString('uk-UA'))} · ${c.msgs.length} повідомлень</div></div>
+      <button class="btn sm ghost" data-advdel="${esc(c.id)}" aria-label="Видалити розмову">✕</button>
+    </div>`).join('');
+  advView();
+}
+function advDict(){
+  /* Платник — відправник надходження: категорію беремо з catOf, бо ручні
+     правки власника (напр. «Між рахунками») знають лише ці функції. */
+  const tx = TX.filter(t => t.dir === 'income').map(t => Object.assign({}, t, { category: catOf(t) }));
+  return window.groshiPseudo.buildDict(
+    { clientsDB: CLIENTS, invcLog: INVCLOG, projects: PROJ, fopCfg: fopCfg() }, tx);
+}
+function advPaint(st){
+  st.raf = 0;
+  const host = el('advMsgs');
+  const near = host.scrollHeight - host.scrollTop - host.clientHeight < 60;
+  st.node._body.innerHTML = advMd(st.msg.text);
+  if(near) host.scrollTop = host.scrollHeight;
+}
+function advFinish(){
+  const st = ADV.stream; if(!st) return;
+  if(st.raf) cancelAnimationFrame(st.raf);
+  advPaint(st);
+  const n = st.node;
+  n._stat.hidden = true;
+  n._err.hidden = !st.msg.err; n._err.textContent = st.msg.err ? 'Помилка: ' + st.msg.err : '';
+  n._cap.hidden = !st.msg.text;
+  ADV.stream = null;
+  advCtl(); advSave(); advList();
+}
+function advEvent(p){
+  const dr = ADV.drain;
+  if(dr && p && p.conv === dr.id){
+    if(p.kind === 'done' || p.kind === 'error') advDrainEnd();
+    return;
+  }
+  const st = ADV.stream;
+  if(!st || !p || p.conv !== st.conv.id) return;
+  const rv = t => window.groshiPseudo.reveal(String(t == null ? '' : t), st.dict);
+  if(p.kind === 'text'){
+    st.raw += p.text || '';
+    st.msg.text = rv(st.raw);                       // reveal на весь буфер: псевдонім може розірватися між шматками
+    if(!st.raf) st.raf = requestAnimationFrame(() => advPaint(st));
+  }else if(p.kind === 'tool'){
+    const t = advToolLabel(rv(p.text)); st.msg.tools.push(t);
+    st.node._stat.textContent = 'дивлюсь: ' + t; st.node._stat.hidden = false;
+  }else if(p.kind === 'session'){
+    if(p.text) st.conv.session = p.text;            // може прийти двічі — перезаписуємо
+  }else if(p.kind === 'done'){
+    advFinish();
+  }else if(p.kind === 'error'){
+    st.msg.err = rv(p.text) || 'Невідома помилка';
+    advFinish();
+  }
+}
+async function advSend(q){
+  const D = advDesk();
+  q = String(q == null ? el('advIn').value : q).trim();
+  if(!D || ADV.stream || ADV.drain || !q) return;
+  /* Без знеособлювача в хмару нічого не йде: краще відмовити, ніж віддати назви. */
+  if(!window.groshiPseudo){ appToast('Знеособлювач не завантажено — питання не надіслано'); return; }
+  let dict, system, question;
+  try{
+    dict = advDict();
+    const P = window.groshiPseudo;
+    system = P.hide((store.get('advisorPrompt', null) || ADV_PROMPT_DEFAULT) + '\n\n' + advDigest(), dict);
+    question = P.hide(q, dict);
+  }catch(e){ appToast('Не вдалось скласти зведення: ' + e.message); return; }
+  let c = advConv();
+  if(!c){
+    c = { id:'adv' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          title:q.slice(0, 48), provider:'cc', session:null, created:Date.now(), msgs:[] };
+    ADV.convs.unshift(c); ADV.cur = c.id;
+  }
+  const model = (store.get('advisorModel', null) || '').trim();
+  const um = { role:'user', text:q };
+  const bm = { role:'assistant', text:'', model, tools:[] };
+  c.msgs.push(um, bm);
+  const host = el('advMsgs'), emp = host.querySelector('.advempty'); if(emp) emp.remove();
+  host.appendChild(advMsgNode(um));
+  const node = advMsgNode(bm); host.appendChild(node);
+  host.scrollTop = host.scrollHeight;
+  ADV.stream = { conv:c, msg:bm, node, raw:'', dict, raf:0 };
+  el('advIn').value = '';
+  advCtl(); advSave(); advList();
+  const req = { conv:c.id, prompt:question, system };
+  if(c.session) req.session = c.session;
+  if(model) req.model = model;
+  try{ await D.advisorAsk(req); }
+  catch(e){ bm.err = String(e && e.message || e); advFinish(); }
+}
+function advProbe(){
+  const D = advDesk();
+  ADV.state = 'wait'; advView();
+  Promise.resolve().then(() => D.advisorProbe()).then(r => {
+    ADV.probe = r || {};
+    const ok = ADV.probe.found && ADV.probe.node;
+    ADV.state = ok ? 'ok' : 'missing';
+    el('advSetupWhy').textContent = !ADV.probe.found
+      ? 'Програми claude немає в системі, або застосунок її не бачить.'
+      : 'Claude Code є, але не знайдено Node.js, без якого він не працює.';
+    el('advVer').textContent = ok ? `Claude Code ${ADV.probe.version || ''} · Node.js ${ADV.probe.node}` : '';
+    advView();
+  }).catch(e => {
+    ADV.state = 'missing';
+    el('advSetupWhy').textContent = 'Не вдалось перевірити: ' + String(e && e.message || e);
+    advView();
+  });
+}
+function advBuild(){
+  const D = advDesk();
+  el('advRecheck').onclick = advProbe;
+  if(!D){ ADV.state = 'browser'; return; }
+  /* Вебвʼю могли перезавантажити, поки claude ще працює: процес тримає слот
+     у Rust зайнятим, і перша ж розмова отримала б «зайнято». */
+  Promise.resolve().then(() => D.advisorStop()).catch(() => {});
+  D.onAdvisor(advEvent);                              // один раз: відписки немає
+  Promise.resolve().then(() => D.advisorHist()).then(v => {
+    ADV.convs = (Array.isArray(v) ? v : []).filter(c => c && c.id && Array.isArray(c.msgs));
+    for(const c of ADV.convs) for(const m of c.msgs)
+      if(m.role === 'assistant' && !m.text && !m.err) m.err = 'Відповідь перервано';
+    advList();
+  }).catch(() => {});
+  el('advModel').value = store.get('advisorModel', null) || '';
+  el('advPrompt').value = store.get('advisorPrompt', null) || ADV_PROMPT_DEFAULT;
+  el('advModel').onchange = () => store.set('advisorModel', el('advModel').value.trim() || null);
+  el('advPrompt').onchange = () => {
+    const v = el('advPrompt').value.trim();
+    store.set('advisorPrompt', !v || v === ADV_PROMPT_DEFAULT ? null : v);
+  };
+  el('advPromptReset').onclick = () => {
+    store.set('advisorPrompt', null); el('advPrompt').value = ADV_PROMPT_DEFAULT;
+    appToast('Повернуто стандартну інструкцію');
+  };
+  el('advSend').onclick = () => advSend();
+  el('advIn').onkeydown = e => {
+    if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); advSend(); }
+  };
+  el('advStop').onclick = () => {
+    const st = ADV.stream; if(!st) return;
+    if(!st.msg.text && !st.msg.err) st.msg.err = 'Відповідь перервано';
+    ADV.drain = { id:st.conv.id, t:setTimeout(advDrainEnd, 5000) };
+    advFinish();
+    Promise.resolve().then(() => D.advisorStop()).catch(() => {});
+  };
+  el('advNew').onclick = () => { if(ADV.stream) return; ADV.cur = null; advShow(); el('advIn').focus(); };
+  el('advMsgs').onclick = e => {
+    const b = e.target.closest('[data-advsug]');
+    if(b) advSend(ADV_SUGGEST[+b.dataset.advsug][1]);
+  };
+  el('advList').onclick = async e => {
+    const del = e.target.closest('[data-advdel]'), open = e.target.closest('[data-advopen]');
+    if(ADV.stream) return;
+    if(del){
+      const c = ADV.convs.find(x => x.id === del.dataset.advdel); if(!c) return;
+      if(!await uiConfirm({ title:'Видалити розмову?', text:c.title, ok:'Видалити' })) return;
+      ADV.convs = ADV.convs.filter(x => x !== c);
+      if(ADV.cur === c.id){ ADV.cur = null; advShow(); } else advList();
+      advSave();
+    }else if(open){ ADV.cur = open.dataset.advopen; advShow(); }
+  };
+  advShow();
+  advProbe();
+}
+function advRender(){
+  if(!ADV.init){ ADV.init = true; advBuild(); }
+  advView(); advCtl();
+}
+
+const MORE = new Set(['cats', 'budget', 'advisor', 'settings']);
 /* «Ще» підсвічується й тоді, коли відкрито прихований за ним розділ:
    інакше в нижній панелі не світилося б нічого і людина не бачила б, де вона. */
 function markTabs(){
@@ -9001,7 +9474,7 @@ function markTabs(){
 }
 async function moreMenu(){
   const v = await uiPick({title:'Ще', options:[
-    {v:'cats', n:'Категорії'}, {v:'budget', n:'Кошториси'}, {v:'settings', n:'Налаштування'},
+    {v:'cats', n:'Категорії'}, {v:'budget', n:'Кошториси'}, {v:'advisor', n:'Порадник'}, {v:'settings', n:'Налаштування'},
     {v:'theme', n:'Тема: світла / темна'}, {v:'scrn', n:'Режим скріншоту'}]});
   if(!v) return;
   if(v==='theme') el('themeBtn').click();
@@ -9993,11 +10466,11 @@ function mClear(){
   setInterval(notifyDue, 30*60*1000);
 })();
 
-const TABKEYS = ['overview','cats','tx','budget','inv','subs','settings'];
+const TABKEYS = ['overview','cats','tx','budget','inv','subs','advisor','settings'];
 /* Довідка клавіш: гарячих клавіш стало багато, а списку ніде не було */
 function hotkeysHelp(){
   uiAsk({ title:'Гарячі клавіші', input:false, ok:'Зрозуміло', text:
-`1–7 — вкладки (Огляд … Ще)
+`1–8 — вкладки (Огляд … Ще)
 / — пошук в Операціях
 T (Е) — світла/темна тема
 P (З) — перегляд на телефоні (браузерна версія)
@@ -10016,13 +10489,13 @@ addEventListener('keydown', e=>{
      а Esc знімав вибір — дії під екраном, якого людина не бачить. */
   if(!el('lockScreen').hidden) return;
   const t = e.target;
-  if(t && (t.tagName==='INPUT' || t.tagName==='SELECT' || t.isContentEditable)){
+  if(t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT' || t.isContentEditable)){
     if(e.key==='Escape') t.blur();
     return;
   }
   if(e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
-  if(/^[1-7]$/.test(e.key)){ go(TABKEYS[+e.key-1]); e.preventDefault(); return; }
+  if(/^[1-8]$/.test(e.key)){ go(TABKEYS[+e.key-1]); e.preventDefault(); return; }
   if(k==='t' || k==='е'){ el('themeBtn').click(); return; }
   if(k==='s' || k==='і'){ scrnToggle(); return; }
   if(k==='[' || k==='х'){ const b=el('navToggle'); if(!b.hidden) b.click(); return; }

@@ -2,6 +2,7 @@
 // Вікно з інтерфейсом, дані на диску, банк напряму, без жодного сервера.
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
+mod advisor;
 mod binance;
 mod ibkr;
 mod mono;
@@ -36,6 +37,7 @@ struct App {
 
     busy: Arc<Mutex<bool>>, // синхронізація одна за раз: ліміт банку спільний
     stop: Arc<std::sync::atomic::AtomicBool>, // «Зупинити» під час довгої історії
+    adv: advisor::Advisor, // Порадник: один процес claude за раз
 }
 
 fn now() -> i64 {
@@ -1269,7 +1271,8 @@ fn main() {
                 }
             }
             app.manage(App { st: st.clone(), base: base.clone(), grants: Mutex::new(grants), busy: Arc::new(Mutex::new(false)),
-                             stop: Arc::new(std::sync::atomic::AtomicBool::new(false)) });
+                             stop: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+                             adv: advisor::Advisor::default() });
 
             // Трей: апка живе далі після закриття вікна, інакше нагадування
             // про підписки не мають шансу спрацювати.
@@ -1341,6 +1344,11 @@ fn main() {
             legacy_all,
             legacy_import,
             data_dir,
+            advisor::advisor_cc_probe,
+            advisor::advisor_cc_ask,
+            advisor::advisor_stop,
+            advisor::advisor_hist_all,
+            advisor::advisor_hist_set,
             data_default,
             data_peek,
             data_set,
@@ -1387,8 +1395,15 @@ fn main() {
             nw_add,
             nw_all
         ])
-        .run(tauri::generate_context!())
-        .expect("не вдалося запустити застосунок");
+        .build(tauri::generate_context!())
+        .expect("не вдалося зібрати застосунок")
+        .run(|app, ev| {
+            // Вихід із апки не має лишати claude і node-процес MCP сиротами.
+            if let tauri::RunEvent::Exit = ev {
+                use tauri::Manager;
+                if let Some(st) = app.try_state::<App>() { advisor::kill_running(&st.adv); }
+            }
+        });
 }
 
 #[cfg(test)]

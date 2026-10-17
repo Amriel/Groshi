@@ -108,13 +108,14 @@ const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ
 
 /**
  * Відкриває desktop/dist/index.html зі штучними даними.
+ * state — додаткові ключі сховища (напр. clientsDB для проби Порадника).
  * @returns {Promise<{ctx, page, errors: string[]}>}
  */
-export async function openDesktop(browser, {width, height = 900, theme = 'dark'} = {}) {
+export async function openDesktop(browser, {width, height = 900, theme = 'dark', state: extraState = {}} = {}) {
   const now = Date.now();
   const boot = {
     xml: syntheticFlexXml(now), binance: syntheticBinance(now), quotes: syntheticQuotes(now),
-    tx: syntheticTx(), theme, logo: LOGO, fetched: Math.floor(now / 1000) - 7200,
+    tx: syntheticTx(), theme, logo: LOGO, extraState, fetched: Math.floor(now / 1000) - 7200,
   };
   const ctx = await browser.newContext({viewport: {width, height}});
   await ctx.addInitScript(b => {
@@ -124,7 +125,8 @@ export async function openDesktop(browser, {width, height = 900, theme = 'dark'}
     const state = {wizDone: true, theme: b.theme,
       invGoal: {target: 1000000, monthly: 10000, rate: 10, infl: 3, years: 20},
       invWatch: [{sym: 'TSTB', target: 45}, {sym: 'TSTX', target: null}],
-      invTargets: {TSTA: 30}, invThesis: {TSTA: 'Штучна теза для перевірки'}};
+      invTargets: {TSTA: 30}, invThesis: {TSTA: 'Штучна теза для перевірки'},
+      ...b.extraState};
     // Курс задаємо одразу: без рахунків Monobank balRender не тягне fx,
     // і всі суми інвестицій у гривні були б нулями.
     window.FX_NOW = {USD: 40, EUR: 45};
@@ -170,7 +172,7 @@ export async function openDesktop(browser, {width, height = 900, theme = 'dark'}
     const name = path.basename(url.pathname);
     if (name === 'index.html')
       return route.fulfill({status: 200, contentType: 'text/html', body: fs.readFileSync(path.join(dist, 'index.html'))});
-    if (!['app.js', 'desktop.js', 'mononorm.js', 'invnorm.js'].includes(name)) return route.abort();
+    if (!['app.js', 'desktop.js', 'mononorm.js', 'pseudo.js', 'invnorm.js'].includes(name)) return route.abort();
     return route.fulfill({status: 200, contentType: 'application/javascript', body: fs.readFileSync(path.join(dist, name))});
   });
   const page = await ctx.newPage();

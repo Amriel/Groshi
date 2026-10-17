@@ -19,7 +19,7 @@ try {
   const problems = [];
   for (const theme of ['dark', 'light']) {
     await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
-    for (const tab of ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'settings']) {
+    for (const tab of ['overview', 'cats', 'tx', 'budget', 'inv', 'subs', 'advisor', 'settings']) {
       await page.evaluate(t => go(t), tab); await page.waitForTimeout(400);
       // Правий край суми (з урахуванням тексту, що вилазить із її власної
       // коробки при nowrap) порівнюється з правим краєм ВМІСТУ картки —

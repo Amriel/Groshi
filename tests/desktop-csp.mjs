@@ -59,7 +59,7 @@ try{
       const name=path.basename(url.pathname);
       if(name==='index.html')return route.fulfill({status:200,contentType:'text/html',body:native?nativeHtml:html,
         headers:native?{'Content-Security-Policy':nativeCsp}:{}});
-      if(!['app.js','desktop.js','mononorm.js','invnorm.js'].includes(name))return route.abort();
+      if(!['app.js','desktop.js','mononorm.js','pseudo.js','invnorm.js'].includes(name))return route.abort();
       const compiled=native&&fixture?fixture.assets[name]:null;
       if(native&&fixture)assert.ok(compiled,`Нативний артефакт має містити ${name}`);
       return route.fulfill({status:200,contentType:compiled?.mimeType||'application/javascript',

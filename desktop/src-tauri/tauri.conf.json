@@ -30,6 +30,12 @@
     "targets": [
       "nsis"
     ],
+    "resources": {
+      "../../mcp/groshi-mcp.js": "mcp/groshi-mcp.js",
+      "../../mcp/tools.js": "mcp/tools.js",
+      "../../mcp/pseudo.js": "mcp/pseudo.js",
+      "../../mcp/mononorm.js": "mcp/mononorm.js"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

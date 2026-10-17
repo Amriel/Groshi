@@ -15,7 +15,7 @@ await p.evaluate(()=>{
   store.set('clients',{Acme:{full:'ACME LIMITED',reg:'HE100200',ccy:'USD'}});
 });
 /* мінімальні зазори між сусідніми картками на кожній вкладці */
-for(const t of ['overview','cats','tx','budget','inv','subs','settings']){
+for(const t of ['overview','cats','tx','budget','inv','subs', 'advisor', 'settings']){
   const r=await p.evaluate(async tab=>{
     go(tab); await new Promise(r=>setTimeout(r,500));
     const sec=document.querySelector('section:not([hidden])');

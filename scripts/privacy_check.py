@@ -21,6 +21,7 @@ PRIVATE_NAMES = (
     "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "credentials*", "secrets*",
     "state.json", "networth.json", "inv_cache.json", "quotes.json", "nbu_rates.json",
     "cry_hist.json", "logos.json", "dataset.json", "meta.json", "legacy.json",
+    "advisor_chats.json",
 )
 PRIVATE_DIRS = {"private", "data", "user-data", "userdata", "snapshots", "snapshot",
                 "backups", "backup", "exports", "statements", "tmp", "temp"}

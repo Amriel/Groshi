@@ -36,7 +36,7 @@ fn compiled_assets_preserve_ui_styles() {
     // Звичайний cargo test нічого не записує у теку даних користувача.
     if let Some(output) = std::env::var_os("GROSHI_CSP_FIXTURE") {
         let mut assets = serde_json::Map::new();
-        for name in ["desktop.js", "app.js", "mononorm.js", "invnorm.js"] {
+        for name in ["desktop.js", "app.js", "mononorm.js", "pseudo.js", "invnorm.js"] {
             let asset = resolver.get_for_scheme(name.into(), false).unwrap();
             assert!(asset.csp_header.is_none());
             assert!(asset.mime_type.contains("javascript"));

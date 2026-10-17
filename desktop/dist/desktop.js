@@ -111,6 +111,20 @@
     cryHistAll: () => inv ? inv('cryhist_all')
       : Promise.resolve(JSON.parse(localStorage.getItem('deskCryHist') || '[]')),
 
+    /* Порадник (Claude Code CLI). Без Tauri (браузерна збірка) методи
+       відхиляються рядком 'лише в застосунку' — як усі інші лише-десктопні
+       виклики; вкладка Порадника і так показує заглушку за `__DESK__.tauri`.
+       advisorStop() вкладка мусить викликати один раз при ініціалізації:
+       після перезавантаження вебв'ю процес claude, що ще працює, тримає
+       слот у Rust зайнятим, і нова розмова отримала б "зайнято". */
+    advisorProbe: () => inv ? inv('advisor_cc_probe') : Promise.reject('лише в застосунку'),
+    advisorAsk: req => inv ? inv('advisor_cc_ask', { req }) : Promise.reject('лише в застосунку'),
+    advisorStop: () => inv ? inv('advisor_stop') : Promise.reject('лише в застосунку'),
+    advisorHist: () => inv ? inv('advisor_hist_all') : Promise.reject('лише в застосунку'),
+    advisorHistSet: v => inv ? inv('advisor_hist_set', { v }) : Promise.reject('лише в застосунку'),
+    /* payload: {conv, kind: text|tool|session|done|error, text} */
+    onAdvisor: cb => { if (T && T.event) T.event.listen('advisor', e => cb(e.payload)); },
+
     onSync: fn => { if (T && T.event) T.event.listen('sync', e => fn(e.payload)); },
     onAutoSync: fn => { if (T && T.event) T.event.listen('auto-synced', e => fn(e.payload)); },
     onAutoIbkr: fn => { if (T && T.event) T.event.listen('auto-ibkr', e => fn(e.payload)); },

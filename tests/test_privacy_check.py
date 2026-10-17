@@ -42,7 +42,7 @@ class PrivacyCheckTests(unittest.TestCase):
     def test_sensitive_filenames_are_rejected_even_with_empty_contents(self):
         for name in (".env", ".env.local", "secret.key", "id_ed25519", "report.XML",
                      "report.csv", "dataset.json.tmp", "private/draft.txt", "backup-2026/x.json",
-                     "app/dataset.private.json", "state.json", "nested/credentials.json"):
+                     "app/dataset.private.json", "state.json", "advisor_chats.json", "nested/credentials.json"):
             with self.subTest(name=name):
                 self.write(name, "")
                 result = self.scan(True)

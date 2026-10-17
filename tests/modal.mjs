@@ -103,7 +103,7 @@ try {
         .map(n => `input${n.id?'#'+n.id:''}[${n.getAttribute('type')||'list'}]`)]);
     // Приховані вкладки лишаються в DOM, тому той самий порушник видно на кожній: рахуємо його раз.
     const violators = [];
-    for (const tab of ['overview','cats','tx','budget','inv','subs','settings']) {
+    for (const tab of ['overview','cats','tx','budget','inv','subs', 'advisor', 'settings']) {
       await page.evaluate(value => { go(value); render(); }, tab);
       await page.locator(`#tab-${tab}`).waitFor({state:'visible'});
       for (const item of await nativeLooks())
