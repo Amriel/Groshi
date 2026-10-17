@@ -1665,6 +1665,13 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 #tab-advisor{display:flex;flex-direction:column;gap:12px}
 .advhead{display:flex;align-items:center;gap:10px;min-height:var(--ctl-sm);margin-bottom:12px}
 .advhead h2{font-size:var(--fs-lg);font-weight:600}
+/* Рядок способу: min-height = висота .csel, тож підміна перемикача бейджем
+   (коли в розмові з'явились повідомлення) не зсуває вікно повідомлень. */
+.advmode{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:var(--ctl);margin-bottom:12px}
+.advmode .tag{flex:none;max-width:none;overflow:visible}
+.advoff{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:14px;
+  background:var(--surface-2);border-radius:var(--radius-sm)}
+.advoff p{margin:0}
 .advmsgs{height:clamp(300px,calc(100vh - 380px),640px);overflow-y:auto;overscroll-behavior:contain;
   display:flex;flex-direction:column;gap:14px;padding:4px 2px 12px}
 .advmsg{max-width:min(46rem,92%);line-height:1.55;overflow-wrap:anywhere}
@@ -2307,12 +2314,27 @@ svg.sprite{position:absolute;width:0;height:0}
   <div class="card advcard" id="advMain" hidden>
     <div class="advhead">
       <h2>Порадник</h2>
-      <span class="tag" id="advBadge">хмара · назви приховано</span>
       <span class="grow"></span>
       <button class="btn sm" id="advNew">Нова розмова</button>
     </div>
+    <div class="advmode">
+      <div id="advProvW"><select id="advProv" aria-label="Спосіб підключення">
+        <option value="cc">Claude Code</option>
+        <option value="local">Локальна модель</option>
+        <option value="api">API Anthropic</option>
+      </select></div>
+      <span class="tag" id="advProvTag" hidden></span>
+      <span class="tag" id="advBadge">хмара · назви приховано</span>
+    </div>
     <div class="advmsgs" id="advMsgs" role="log" aria-live="polite" aria-label="Розмова"></div>
-    <div class="advcomp">
+    <div class="advoff" id="advOff" hidden>
+      <b>Порадник у хмарі вимкнено</b>
+      <p class="muted subhint">Питання та знеособлене зведення витрат і портфеля підуть до Anthropic
+        (Claude Code або API); назви клієнтів, проєктів і платників приховано. Локальна модель
+        цього дозволу не потребує.</p>
+      <button class="btn pri" id="advOn">Увімкнути</button>
+    </div>
+    <div class="advcomp" id="advComp">
       <textarea id="advIn" rows="2" placeholder="Спитайте про витрати, заощадження чи інвестиції" aria-label="Питання"></textarea>
       <div class="advbtns">
         <button class="btn" id="advStop" hidden>Стоп</button>
@@ -2323,12 +2345,35 @@ svg.sprite{position:absolute;width:0;height:0}
   <details class="card advset" id="advSet" hidden>
     <summary>Налаштування Порадника</summary>
     <div class="stack">
-      <label class="mf"><span>Модель Claude (порожньо — за замовчуванням)</span>
-        <input id="advModel" placeholder="напр. sonnet, opus або повна назва"></label>
+      <div class="stack" id="advSetCc">
+        <label class="mf"><span>Модель Claude (порожньо — за замовчуванням)</span>
+          <input id="advModel" placeholder="напр. sonnet, opus або повна назва"></label>
+        <p class="muted subhint" id="advVer"></p>
+      </div>
+      <div class="stack" id="advSetLocal" hidden>
+        <label class="mf"><span>Адреса сервера (лише цей комп'ютер)</span>
+          <input id="advLocalUrl" placeholder="http://localhost:1234/v1" autocomplete="off"></label>
+        <label class="mf"><span>Модель</span>
+          <input id="advLocalModel" list="advLocalModels" placeholder="оберіть зі списку або впишіть назву" autocomplete="off">
+          <datalist id="advLocalModels"></datalist></label>
+        <div class="cluster">
+          <button class="btn" id="advLocalRefresh">Оновити список</button>
+          <label class="muted optlabel"><input type="checkbox" id="advLocalTools"> З інструментами</label>
+        </div>
+        <p class="muted subhint" id="advLocalHint"></p>
+      </div>
+      <div class="stack" id="advSetApi" hidden>
+        <div class="cluster">
+          <span id="advKeyState">Ключ API: перевіряю…</span>
+          <span id="advKeySetW"><button class="btn" id="advKeySet">Зберегти ключ…</button></span>
+          <button class="btn" id="advKeyClear">Видалити ключ</button>
+        </div>
+        <label class="mf"><span>Модель (порожньо — claude-opus-5-5)</span>
+          <input id="advApiModel" placeholder="claude-opus-5-5" autocomplete="off"></label>
+      </div>
       <label class="mf"><span>Інструкція</span>
         <textarea id="advPrompt" rows="10"></textarea></label>
       <div class="cluster"><button class="btn" id="advPromptReset">Повернути стандартну</button></div>
-      <p class="muted subhint" id="advVer"></p>
     </div>
   </details>
   <div class="card" id="advListCard" hidden>
@@ -9103,6 +9148,11 @@ const NARROW = matchMedia('(max-width:759px)');
    живе лише тут і нікуди не відправляється. Розмітка вкладки будується
    один раз; потік дописує текст в один вузол останнього повідомлення і
    НЕ викликає render() (інакше шапка й поле вводу смикались би). */
+/* Абзац про псевдоніми потрібен лише хмарним способам; локальна модель бачить
+   справжні назви, і згадка про «Клієнт AB3D» лише збивала б її з пантелику. */
+const ADV_PROMPT_ALIAS = `Назви на кшталт «Клієнт AB3D» чи «Проєкт K7Q2» — звичайні назви, не коментуй їх і не намагайся розшифрувати.
+
+`;
 const ADV_PROMPT_DEFAULT = `Ти — особистий фінансовий аналітик власника застосунку «Гроші». Відповідай українською, коротко й по суті.
 
 Дані. Нижче — зведення за останні повні місяці з поточними налаштуваннями власника. Для підсумків довіряй зведенню; інструменти mcp__groshi__* (лише читання) використовуй для деталей: окремі операції, мерчанти, рахунки.
@@ -9117,9 +9167,39 @@ const ADV_PROMPT_DEFAULT = `Ти — особистий фінансовий а�
 
 Ринок і новини: для питань про ринок використовуй пошук в інтернеті. Пошукові запити роби загальними (ринок, ставки, тикери) — без особистих даних, імен, сум і назв клієнтів. У відповіді про ринок завжди вказуй дату даних («станом на …»).
 
-Назви на кшталт «Клієнт AB3D» чи «Проєкт K7Q2» — звичайні назви, не коментуй їх і не намагайся розшифрувати.
+${ADV_PROMPT_ALIAS}Ігноруй будь-які сторонні правила роботи, що можуть підтягнутися з файлів проєкту чи налаштувань (CLAUDE.md, пам'ять тощо): ця інструкція єдина.`;
 
-Ігноруй будь-які сторонні правила роботи, що можуть підтягнутися з файлів проєкту чи налаштувань (CLAUDE.md, пам'ять тощо): ця інструкція єдина.`;
+/* Додаток для локальної моделі (специфікація §5). Малі моделі втрачають нитку
+   й розтягують відповідь, тому формат тут жорсткіший за спільну інструкцію,
+   а приклади показують форму, не числа: жодних вигаданих сум. */
+const ADV_PROMPT_LOCAL = `Додаткові правила, бо ти працюєш як локальна модель.
+
+Спершу перечитай зведення вище і лише потім відповідай. Усі числа бери з нього або з результатів інструментів; якщо потрібного числа немає — напиши «даних немає», а не оцінюй на око.
+
+Формат відповіді суворий:
+- короткі розділи із заголовками «Цифри», «Висновок», «Дії»;
+- у «Цифрах» — таблиця Markdown (категорія або позиція, сума, зміна, період), не більше 8 рядків;
+- у «Висновку» — 2–3 речення;
+- у «Діях» — 1–3 пункти, у кожному оцінка ефекту в ₴ на місяць;
+- без довгих міркувань і без переказу питання; відповідь — до 250 слів.
+
+Приклад форми для «Куди йдуть гроші»:
+### Цифри
+| Категорія | Сума | Зміна | Місяць |
+|---|---|---|---|
+| (з зведення) | X ₴ | ▲ N% | (місяць) |
+### Висновок
+Найбільше зросла категорія K; разом із L вона дає більше половини витрат.
+### Дії
+1. Переглянути K: ціль — мінус Y ₴ на місяць.
+
+Приклад форми для «Як скоротити витрати»: «Цифри» — три найбільші категорії та підписки; «Висновок» — де витрати зростають; «Дії» — найреальніші кроки, кожен з економією в ₴ на місяць і умовою, за якої вона виникає.
+
+Приклад форми для «Що з портфелем і ринком»: «Цифри» — склад портфеля та частки найбільших позицій зі зведення; «Висновок» — де концентрація й ризик, з датою даних ринку («станом на …»); «Дії» — варіанти з плюсами й ризиками, без категоричного «купіть X», і застереження, що це не ліцензована порада.`;
+const ADV_API_MODEL = 'claude-opus-5-5';
+const ADV_LOCAL_URL = 'http://localhost:1234/v1';
+const ADV_PROVS = { cc:'Claude Code', local:'Локальна модель', api:'API Anthropic' };
+const ADV_LMHINT = 'Запустіть сервер у LM Studio (Developer → Start Server) або <code>lms server start</code>.';
 
 /* Зведення рахується тими самими помічниками, що й «Огляд» (sum/isHidMove/
    isSpend/spendAmt), тому сума місяця тут дорівнює плитці «Витрати за
@@ -9220,7 +9300,11 @@ function advMd(text){
   return out;
 }
 
-const ADV = { init:false, state:'wait', convs:[], cur:null, stream:null, probe:null, drain:null };
+/* prov — спосіб для НОВОЇ розмови; у наявної він зашитий у conv.provider.
+   keyHas: null = ще не питали. lmTok — щоб запізніла відповідь про моделі за
+   старою адресою не перебила свіжу. */
+const ADV = { init:false, state:'wait', convs:[], cur:null, stream:null, probe:null, drain:null,
+  prov:'cc', entered:'cc', keyHas:null, lmTok:0 };
 /* Rust читає stdout окремим потоком: після Стоп (kill) він ще віддає
    буферизований хвіст і ЗАВЖДИ закінчує `done` з тим самим conv. Нова
    відповідь у цій розмові підхопила б чужий текст, а запізнілий done її
@@ -9252,13 +9336,30 @@ function advSave(){
   ADV.convs = ADV.convs.slice(0, 50);
   Promise.resolve(D.advisorHistSet(ADV.convs)).catch(() => {});
 }
+const advProv = () => { const c = advConv(); return c ? (c.provider || 'cc') : ADV.prov; };
+/* 'missing' (немає claude/node) стосується лише Claude Code: локальна модель
+   і API без нього працюють, тож шапку з перемикачем лишаємо видимою. */
 function advView(){
-  const st = ADV.state;
+  const st = ADV.state, prov = advProv();
+  const main = st === 'ok' || st === 'missing';
+  const setup = st === 'missing' && prov === 'cc';
+  const off = main && !setup && prov !== 'local' && !privacyAllowed('advisor');
   el('advDesk').hidden = st !== 'browser';
   el('advWait').hidden = st !== 'wait';
-  el('advSetup').hidden = st !== 'missing';
-  for(const id of ['advMain', 'advSet']) el(id).hidden = st !== 'ok';
-  el('advListCard').hidden = st !== 'ok' || !ADV.convs.length;
+  el('advSetup').hidden = !setup;
+  el('advMain').hidden = !main;
+  el('advSet').hidden = !main;
+  el('advMsgs').hidden = setup;
+  el('advOff').hidden = !off;
+  el('advComp').hidden = setup || off;
+  /* Збереження ключа починається запитом до api.anthropic.com, тож без дозволу кнопка вимкнена
+     (Rust теж відмовить). Підказка — на обгортці: .btn[disabled] має pointer-events:none, і
+     data-tip на самій кнопці не спрацював би. «Видалити ключ» локальна — лишається доступною. */
+  const keyOff = !privacyAllowed('advisor');
+  el('advKeySet').disabled = keyOff;
+  if(keyOff) el('advKeySetW').dataset.tip = 'Спершу увімкніть Порадника в Ще → Підключення';
+  else delete el('advKeySetW').dataset.tip;
+  el('advListCard').hidden = !main || !ADV.convs.length;
 }
 function advCtl(){
   const busy = !!ADV.stream;
@@ -9266,6 +9367,12 @@ function advCtl(){
   el('advSend').hidden = busy;
   el('advStop').hidden = !busy;
   el('advNew').disabled = busy;
+}
+function advCap(m){
+  const p = m.prov || 'cc';
+  if(p === 'local') return 'LM Studio · ' + (m.model || 'модель не вказано');
+  if(p === 'api') return 'API · ' + (m.model || ADV_API_MODEL);
+  return 'Claude Code · ' + (m.model || 'модель за замовчуванням');
 }
 function advMsgNode(m){
   const n = document.createElement('div');
@@ -9277,7 +9384,7 @@ function advMsgNode(m){
   n._err.textContent = m.err ? 'Помилка: ' + m.err : '';
   n._cap = document.createElement('div'); n._cap.className = 'advcap';
   n._cap.hidden = !m.text;
-  n._cap.textContent = m.model ? 'Модель: ' + m.model : 'Claude Code · модель за замовчуванням';
+  n._cap.textContent = advCap(m);
   n.append(n._body, n._stat, n._err, n._cap);
   return n;
 }
@@ -9290,7 +9397,67 @@ function advShow(){
         `<button class="btn advsug" data-advsug="${i}">${esc(s[0])}</button>`).join('')}</div></div>`;
   }else c.msgs.forEach(m => host.appendChild(advMsgNode(m)));
   host.scrollTop = host.scrollHeight;
+  advProvUi();
   advList();
+}
+/* Спосіб: перемикач лише для нової/порожньої розмови, далі — бейдж. Бейдж
+   приватності каже правду про шлях даних: local не залишає комп'ютера. */
+function advProvUi(){
+  const c = advConv(), prov = advProv(), locked = !!(c && c.msgs.length);
+  el('advProvW').hidden = locked;
+  el('advProvTag').hidden = !locked;
+  el('advProvTag').textContent = ADV_PROVS[prov];
+  if(el('advProv').value !== prov){ el('advProv').value = prov; cselSync(el('advProv')); }
+  el('advBadge').textContent = prov === 'local' ? 'локально' : 'хмара · назви приховано';
+  el('advSetCc').hidden = prov !== 'cc';
+  el('advSetLocal').hidden = prov !== 'local';
+  el('advSetApi').hidden = prov !== 'api';
+  advView();
+  if(ADV.entered !== prov){
+    ADV.entered = prov;
+    if(prov === 'local') advLocalRefresh();
+    else if(prov === 'api') advKeyRefresh();
+  }
+}
+const advLocalUrl = () => (store.get('advisorLocalUrl', null) || '').trim() || ADV_LOCAL_URL;
+function advLmHint(html){ el('advLocalHint').innerHTML = html || ''; }
+async function advLocalRefresh(){
+  const D = advDesk(); if(!D) return;
+  const tok = ++ADV.lmTok;
+  advLmHint('Оновлюю список моделей…');
+  try{
+    const list = await D.advisorLocalModels(advLocalUrl());
+    if(tok !== ADV.lmTok) return;
+    el('advLocalModels').innerHTML = (list || []).map(m => `<option value="${esc(m)}"></option>`).join('');
+    const inp = el('advLocalModel');
+    if(!inp.value && list && list.length){ inp.value = list[0]; store.set('advisorLocalModel', list[0]); }
+    advLmHint(list && list.length ? '' : 'Сервер відповів, але моделей немає. Завантажте модель у LM Studio.');
+  }catch(e){
+    if(tok !== ADV.lmTok) return;
+    advLmHint(ADV_LMHINT + ' ' + esc(String(e && e.message || e)));
+  }
+}
+async function advKeyRefresh(){
+  const D = advDesk(); if(!D) return;
+  try{ ADV.keyHas = !!await D.advisorKeyHas(); }catch(e){ ADV.keyHas = null; }
+  el('advKeyState').textContent = 'Ключ API: ' + (ADV.keyHas ? 'збережено' : 'не збережено');
+  el('advKeyClear').disabled = !ADV.keyHas;
+}
+/* Ключ: з поля одразу в Rust і далі лише в Диспетчер облікових даних. У JS-стані,
+   store, історії й DOM його немає: змінна обнуляється, поле очищується.
+   uiAsk не має режиму пароля, тому тип поля міняємо на час вікна. */
+async function advKeyAsk(){
+  const D = advDesk(); if(!D) return;
+  const p = uiAsk({ title:'Ключ API Anthropic', label:'Ключ',
+    text:'Ключ зберігається у Диспетчері облікових даних Windows і більше не показується.', ok:'Зберегти' });
+  el('modalI').type = 'password';
+  let v = await p;
+  el('modalI').type = 'text'; el('modalI').value = '';
+  if(!v) return;
+  try{ await D.advisorKeySet(v); appToast('Ключ збережено'); }
+  catch(e){ appToast('Не вдалося зберегти ключ: ' + String(e && e.message || e)); }
+  v = null;
+  advKeyRefresh();
 }
 function advList(){
   const host = el('advList');
@@ -9334,7 +9501,7 @@ function advEvent(p){
   }
   const st = ADV.stream;
   if(!st || !p || p.conv !== st.conv.id) return;
-  const rv = t => window.groshiPseudo.reveal(String(t == null ? '' : t), st.dict);
+  const rv = t => st.dict ? window.groshiPseudo.reveal(String(t == null ? '' : t), st.dict) : String(t == null ? '' : t);
   if(p.kind === 'text'){
     st.raw += p.text || '';
     st.msg.text = rv(st.raw);                       // reveal на весь буфер: псевдонім може розірватися між шматками
@@ -9344,47 +9511,91 @@ function advEvent(p){
     st.node._stat.textContent = 'дивлюсь: ' + t; st.node._stat.hidden = false;
   }else if(p.kind === 'session'){
     if(p.text) st.conv.session = p.text;            // може прийти двічі — перезаписуємо
+  }else if(p.kind === 'state'){
+    /* Лише API: нові повідомлення асистента й tool_result у знеособленому вигляді.
+       Дописуємо в conv.api тільки на done (успіх) — разом із питанням. */
+    try{ const a = JSON.parse(p.text); if(Array.isArray(a)) st.state = a; }catch(e){}
   }else if(p.kind === 'done'){
+    if(st.api && st.state) st.conv.api.push(st.api, ...st.state);
     advFinish();
   }else if(p.kind === 'error'){
-    st.msg.err = rv(p.text) || 'Невідома помилка';
+    let t = rv(p.text) || 'Невідома помилка';
+    // Лише «Не вдалося зʼєднатися…» (відмова зʼєднання): обрив потоку («Зʼєднання … перервано») — не про вимкнений сервер.
+    if(st.conv.provider === 'local' && /Не вдалося зʼєднатися/.test(t))
+      t += '. Запустіть сервер у LM Studio (Developer → Start Server) або lms server start.';
+    st.msg.err = t;
     advFinish();
   }
+}
+/* Історія для локальної моделі — текст розмови як його бачить власник.
+   Пари без відповіді (перервані, з помилкою) пропускаємо: модель не повинна
+   бачити питання, на яке їй ніхто не відповів. */
+function advLocalHist(c){
+  const out = [];
+  for(let i = 0; i + 1 < c.msgs.length; i += 2){
+    const u = c.msgs[i], a = c.msgs[i + 1];
+    if(u.role === 'user' && a.role === 'assistant' && a.text && !a.err)
+      out.push({ role:'user', content:u.text }, { role:'assistant', content:a.text });
+  }
+  return out;
 }
 async function advSend(q){
   const D = advDesk();
   q = String(q == null ? el('advIn').value : q).trim();
   if(!D || ADV.stream || ADV.drain || !q) return;
-  /* Без знеособлювача в хмару нічого не йде: краще відмовити, ніж віддати назви. */
-  if(!window.groshiPseudo){ appToast('Знеособлювач не завантажено — питання не надіслано'); return; }
-  let dict, system, question;
-  try{
-    dict = advDict();
-    const P = window.groshiPseudo;
-    system = P.hide((store.get('advisorPrompt', null) || ADV_PROMPT_DEFAULT) + '\n\n' + advDigest(), dict);
-    question = P.hide(q, dict);
-  }catch(e){ appToast('Не вдалось скласти зведення: ' + e.message); return; }
+  const prov = advProv();
+  if(prov !== 'local' && !privacyAllowed('advisor')){ advView(); return; }
+  const localModel = (store.get('advisorLocalModel', null) || '').trim();
+  if(prov === 'local' && !localModel){ appToast('Оберіть модель у налаштуваннях Порадника'); return; }
+  if(prov === 'api' && ADV.keyHas === false){ appToast('Спершу збережіть ключ API у налаштуваннях Порадника'); return; }
+  /* Без знеособлювача в хмару нічого не йде: краще відмовити, ніж віддати назви.
+     Локальна модель не залишає комп'ютера, тож їй і зведення, і питання — зі справжніми назвами. */
+  if(prov !== 'local' && !window.groshiPseudo){ appToast('Знеособлювач не завантажено — питання не надіслано'); return; }
+  let dict, req, api = null;
   let c = advConv();
+  try{
+    if(prov !== 'local') dict = advDict();            // local не залежить від знеособлювача
+    const P = window.groshiPseudo;
+    const custom = store.get('advisorPrompt', null);
+    const instr = custom || (prov === 'local' ? ADV_PROMPT_DEFAULT.replace(ADV_PROMPT_ALIAS, '') : ADV_PROMPT_DEFAULT), digest = advDigest();
+    if(prov === 'local'){
+      req = { messages:advLocalHist(c || { msgs:[] }).concat([{ role:'user', content:q }]),
+        system:instr + '\n\n' + ADV_PROMPT_LOCAL + '\n\n' + digest,
+        url:advLocalUrl(), model:localModel, tools:store.get('advisorLocalTools', true) !== false };
+    }else if(prov === 'api'){
+      api = { role:'user', content:P.hide(q, dict) };
+      req = { messages:((c && c.api) || []).concat([api]), system:P.hide(instr + '\n\n' + digest, dict) };
+      const m = (store.get('advisorApiModel', null) || '').trim(); if(m) req.model = m;
+    }else{
+      req = { prompt:P.hide(q, dict), system:P.hide(instr + '\n\n' + digest, dict) };
+      const m = (store.get('advisorModel', null) || '').trim(); if(m) req.model = m;
+      if(c && c.session) req.session = c.session;
+    }
+  }catch(e){ appToast('Не вдалось скласти зведення: ' + e.message); return; }
   if(!c){
     c = { id:'adv' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-          title:q.slice(0, 48), provider:'cc', session:null, created:Date.now(), msgs:[] };
+          title:q.slice(0, 48), provider:prov, session:null, created:Date.now(), msgs:[] };
+    if(prov === 'api') c.api = [];
     ADV.convs.unshift(c); ADV.cur = c.id;
   }
-  const model = (store.get('advisorModel', null) || '').trim();
+  req.conv = c.id;
+  const model = (prov === 'local' ? localModel : store.get(prov === 'api' ? 'advisorApiModel' : 'advisorModel', null) || '').trim();
   const um = { role:'user', text:q };
-  const bm = { role:'assistant', text:'', model, tools:[] };
+  const bm = { role:'assistant', text:'', model, prov, tools:[] };
   c.msgs.push(um, bm);
   const host = el('advMsgs'), emp = host.querySelector('.advempty'); if(emp) emp.remove();
   host.appendChild(advMsgNode(um));
   const node = advMsgNode(bm); host.appendChild(node);
   host.scrollTop = host.scrollHeight;
-  ADV.stream = { conv:c, msg:bm, node, raw:'', dict, raf:0 };
+  ADV.stream = { conv:c, msg:bm, node, raw:'', dict, raf:0, api, state:null };
   el('advIn').value = '';
+  advProvUi();                                        // перемикач → бейдж
   advCtl(); advSave(); advList();
-  const req = { conv:c.id, prompt:question, system };
-  if(c.session) req.session = c.session;
-  if(model) req.model = model;
-  try{ await D.advisorAsk(req); }
+  try{
+    if(prov === 'local') await D.advisorLocalAsk(req);
+    else if(prov === 'api') await D.advisorApiAsk(req);
+    else await D.advisorAsk(req);
+  }
   catch(e){ bm.err = String(e && e.message || e); advFinish(); }
 }
 function advProbe(){
@@ -9415,8 +9626,12 @@ function advBuild(){
   D.onAdvisor(advEvent);                              // один раз: відписки немає
   Promise.resolve().then(() => D.advisorHist()).then(v => {
     ADV.convs = (Array.isArray(v) ? v : []).filter(c => c && c.id && Array.isArray(c.msgs));
-    for(const c of ADV.convs) for(const m of c.msgs)
-      if(m.role === 'assistant' && !m.text && !m.err) m.err = 'Відповідь перервано';
+    for(const c of ADV.convs){
+      if(!ADV_PROVS[c.provider]) c.provider = 'cc';    // старі розмови без поля — Claude Code
+      if(c.provider === 'api' && !Array.isArray(c.api)) c.api = [];
+      for(const m of c.msgs)
+        if(m.role === 'assistant' && !m.text && !m.err) m.err = 'Відповідь перервано';
+    }
     advList();
   }).catch(() => {});
   el('advModel').value = store.get('advisorModel', null) || '';
@@ -9430,6 +9645,28 @@ function advBuild(){
     store.set('advisorPrompt', null); el('advPrompt').value = ADV_PROMPT_DEFAULT;
     appToast('Повернуто стандартну інструкцію');
   };
+  el('advLocalUrl').value = store.get('advisorLocalUrl', null) || '';
+  el('advLocalModel').value = store.get('advisorLocalModel', null) || '';
+  el('advLocalTools').checked = store.get('advisorLocalTools', true) !== false;
+  el('advApiModel').value = store.get('advisorApiModel', null) || '';
+  el('advLocalUrl').onchange = () => {
+    store.set('advisorLocalUrl', el('advLocalUrl').value.trim() || null); advLocalRefresh(); };
+  el('advLocalModel').onchange = () => store.set('advisorLocalModel', el('advLocalModel').value.trim() || null);
+  el('advLocalTools').onchange = () => store.set('advisorLocalTools', el('advLocalTools').checked);
+  el('advLocalRefresh').onclick = advLocalRefresh;
+  el('advApiModel').onchange = () => store.set('advisorApiModel', el('advApiModel').value.trim() || null);
+  el('advKeySet').onclick = advKeyAsk;
+  el('advKeyClear').onclick = async () => {
+    if(!await uiConfirm({ title:'Видалити ключ API?', text:'Ключ буде стерто з Диспетчера облікових даних.', ok:'Видалити' })) return;
+    try{ await D.advisorKeyClear(); }catch(e){ appToast('Не вдалося видалити ключ: ' + String(e && e.message || e)); }
+    advKeyRefresh();
+  };
+  el('advProv').onchange = () => {
+    const c = advConv(); if(c && c.msgs.length) return;
+    ADV.prov = el('advProv').value; advProvUi();
+  };
+  el('advOn').onclick = () => privacyToggle('advisor');
+  if(window.cselScan) cselScan();                      // перемикач способу й список моделей
   el('advSend').onclick = () => advSend();
   el('advIn').onkeydown = e => {
     if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); advSend(); }
@@ -9983,7 +10220,8 @@ const PRIVACY_OPTIONS = [
   ['news','Новини','Yahoo Finance: тікер вибраної компанії.'],
   ['logos','Логотипи','Parqet, GitHub, Clearbit і Google: тікери або домени компаній.'],
   ['translation','Переклад новин','Google Translate і MyMemory: заголовки новин.'],
-  ['updates','Оновлення апки','GitHub: перевірка версії та завантаження підписаної збірки.']
+  ['updates','Оновлення апки','GitHub: перевірка версії та завантаження підписаної збірки.'],
+  ['advisor','Порадник у хмарі','Anthropic (Claude Code або API): ваші питання, знеособлене зведення витрат і портфеля; назви клієнтів, проєктів і платників приховано.']
 ];
 el('privacyOptions').innerHTML = PRIVACY_OPTIONS.map(([key,name,detail])=>
   `<div class="row">
@@ -9998,11 +10236,14 @@ function privacyUi(){
   });
 }
 let privacySaving=false;
-document.querySelectorAll('[data-privacy]').forEach(button=>button.onclick=async()=>{
+/* Одна функція на кнопку в «Підключеннях» і на картку «Увімкнути» у Порадникові:
+   так обидва місця пишуть той самий ключ тим самим шляхом і не розходяться. */
+async function privacyToggle(key){
   if(privacySaving)return;
   privacySaving=true;
-  const key=button.dataset.privacy, value={...store.get('privacyServices',{}),[key]:!privacyAllowed(key)};
+  const value={...store.get('privacyServices',{}),[key]:!privacyAllowed(key)};
   document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=true);
+  if(el('advOn'))el('advOn').disabled=true;
   try{
     // Rust має бачити дозвіл до наступного запиту, а не після відкладеного flush.
     const D=window.__DESK__;
@@ -10013,9 +10254,12 @@ document.querySelectorAll('[data-privacy]').forEach(button=>button.onclick=async
     window.__logoTried=new Set();
     el('privacyStatus').textContent=value[key]?'Сервіс дозволено. Запити виконуються лише для відповідної можливості.':'Нові запити до сервісу вимкнено. Уже розпочатий запит може завершитися.';
     privacyUi();
+    if(ADV.init)advView();                           // картка «вимкнено» у Порадникові
   }catch(e){el('privacyStatus').textContent='Не вдалося зберегти дозвіл. Спробуйте ще раз.';}
-  finally{privacySaving=false;document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=false);}
-});
+  finally{privacySaving=false;document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=false);
+    if(el('advOn'))el('advOn').disabled=false;}
+}
+document.querySelectorAll('[data-privacy]').forEach(button=>button.onclick=()=>privacyToggle(button.dataset.privacy));
 privacyUi();
 
 el('alertPct').value = store.get('invAlertPct', 5);

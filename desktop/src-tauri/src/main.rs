@@ -3,6 +3,9 @@
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
 mod advisor;
+mod advisor_api;
+mod advisor_local;
+mod advisor_mcp;
 mod binance;
 mod ibkr;
 mod mono;
@@ -52,6 +55,11 @@ fn service_enabled(st: &Store, name: &str) -> bool {
 fn require_service(st: &Store, name: &str) -> Result<(), String> {
     if service_enabled(st, name) { Ok(()) }
     else { Err("Цей зовнішній сервіс вимкнено в налаштуваннях приватності".into()) }
+}
+
+/// «Порадник у хмарі» — окремий сервіс приватності зі своїм текстом підказки.
+fn require_advisor(st: &Store) -> Result<(), String> {
+    advisor::advisor_gate(service_enabled(st, "advisor"))
 }
 
 fn validate_backup_preference(app: &App, value: &Value) -> Result<(), String> {
@@ -1347,6 +1355,12 @@ fn main() {
             advisor::advisor_cc_probe,
             advisor::advisor_cc_ask,
             advisor::advisor_stop,
+            advisor_local::advisor_local_models,
+            advisor_local::advisor_local_ask,
+            advisor_api::advisor_key_has,
+            advisor_api::advisor_key_set,
+            advisor_api::advisor_key_clear,
+            advisor_api::advisor_api_ask,
             advisor::advisor_hist_all,
             advisor::advisor_hist_set,
             data_default,

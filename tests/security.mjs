@@ -114,7 +114,7 @@ try {
   await privacyPage.clock.runFor(1600);
   assert.equal(await privacyPage.locator('#modal.on').count(),0,'підготовлений сценарій приватності не має відкривати майстер знайомства');
   await privacyPage.evaluate(()=>go2set('src'));
-  assert.equal(await privacyPage.locator('[data-privacy]').count(),5,'мають бути 5 явних дозволів');
+  assert.equal(await privacyPage.locator('[data-privacy]').count(),6,'мають бути 6 явних дозволів');
   assert.equal(await privacyPage.locator('[data-privacy][aria-pressed="true"]').count(),0,'типово необов’язкові запити вимкнені');
   const button=privacyPage.locator('[data-privacy="quotes"]');
   const before=await button.boundingBox();
@@ -153,7 +153,7 @@ try {
   });
   // Навіть після довгого очікування дозвіл не змінюється без підтвердження.
   await privacyPage.clock.runFor(1000);
-  assert.equal(await privacyPage.locator('[data-privacy]:disabled').count(),5,'на час запису заблоковано всі перемикачі');
+  assert.equal(await privacyPage.locator('[data-privacy]:disabled').count(),6,'на час запису заблоковано всі перемикачі');
   assert.equal(await privacyPage.locator('[data-privacy="news"]').getAttribute('aria-pressed'),'false','дозвіл не ввімкнено до підтвердження запису');
   assert.deepEqual(await privacyPage.evaluate(()=>window.__privacyWrites),[{quotes:true,news:true}],'другий клік не починає конкуруючий запис');
   await privacyPage.evaluate(async()=>{

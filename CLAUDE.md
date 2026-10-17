@@ -73,7 +73,9 @@ node mcp/selftest.js
 автозапуск, синхронізація за розкладом; `mono.rs` — клієнт Monobank (ліміт
 1 запит/60 с, вікна по 30 діб, опитування, не вебхук); `ibkr.rs`, `binance.rs`,
 `quotes.rs` (Yahoo), `nbu.rs` (курси НБУ); `store.rs` — JSON на диску через
-тимчасовий файл; `advisor.rs` — запуск `claude` для вкладки «Порадник»; `update.rs` — оновлення з перевіркою Ed25519-підпису
+тимчасовий файл; `advisor.rs` — запуск `claude` для вкладки «Порадник»; `advisor_mcp.rs` — власний MCP-цикл
+(≤ 8 кроків) для local/API; `advisor_local.rs` — LM Studio (лише localhost);
+`advisor_api.rs` — API Anthropic (ключ у Диспетчері облікових даних); `update.rs` — оновлення з перевіркою Ed25519-підпису
 (`update-key.pub`); `native_csp.rs` + `safety.rs` — CSP і захисні перевірки.
 Токени — лише в Диспетчері облікових даних Windows.
 

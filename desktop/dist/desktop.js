@@ -122,7 +122,15 @@
     advisorStop: () => inv ? inv('advisor_stop') : Promise.reject('лише в застосунку'),
     advisorHist: () => inv ? inv('advisor_hist_all') : Promise.reject('лише в застосунку'),
     advisorHistSet: v => inv ? inv('advisor_hist_set', { v }) : Promise.reject('лише в застосунку'),
-    /* payload: {conv, kind: text|tool|session|done|error, text} */
+    /* Локальна модель (LM Studio) і API Anthropic: ті самі події `advisor`.
+       Ключ API у JS лише проходить у advisorKeySet і назад не повертається. */
+    advisorLocalModels: url => inv ? inv('advisor_local_models', { url }) : Promise.reject('лише в застосунку'),
+    advisorLocalAsk: req => inv ? inv('advisor_local_ask', { req }) : Promise.reject('лише в застосунку'),
+    advisorApiAsk: req => inv ? inv('advisor_api_ask', { req }) : Promise.reject('лише в застосунку'),
+    advisorKeyHas: () => inv ? inv('advisor_key_has') : Promise.resolve(false),
+    advisorKeySet: key => inv ? inv('advisor_key_set', { key }) : Promise.reject('лише в застосунку'),
+    advisorKeyClear: () => inv ? inv('advisor_key_clear') : Promise.reject('лише в застосунку'),
+    /* payload: {conv, kind: text|tool|session|state|done|error, text} */
     onAdvisor: cb => { if (T && T.event) T.event.listen('advisor', e => cb(e.payload)); },
 
     onSync: fn => { if (T && T.event) T.event.listen('sync', e => fn(e.payload)); },

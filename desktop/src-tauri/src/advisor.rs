@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 
@@ -25,12 +25,76 @@ const STDERR_TAIL: usize = 2000;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// Один процес за раз. Номер запуску потрібен, щоб потік-читач старого запуску
-/// (після «Зупинити») не забрав дитину нового запуску зі слота.
+/// Активний запуск: процес Claude Code або HTTP-цикл (локальна модель, API). Слот один на всі
+/// способи, щоб «Стоп» і «один запуск за раз» не залежали від способу.
+pub(crate) enum Run {
+    Cli(Child),
+    /// Прапорець скасування, який перевіряє сам цикл; слот звільняє він же.
+    Http(Arc<AtomicBool>),
+}
+
+pub(crate) type Slot = Arc<Mutex<Option<(u64, Run)>>>;
+
+/// Один запуск за раз. Номер запуску потрібен, щоб потік-читач старого запуску
+/// (після «Зупинити») не забрав чужий запуск зі слота.
 #[derive(Default)]
 pub struct Advisor {
-    slot: Arc<Mutex<Option<(u64, Child)>>>,
+    slot: Slot,
     seq: AtomicU64,
+}
+
+impl Advisor {
+    /// Займає слот під HTTP-цикл; повертає номер запуску й прапорець скасування.
+    pub(crate) fn claim_http(&self) -> Result<(u64, Arc<AtomicBool>), String> {
+        let mut g = self.slot.lock().unwrap_or_else(|e| e.into_inner());
+        if g.is_some() { return Err("Порадник ще відповідає".into()); }
+        let id = self.seq.fetch_add(1, Ordering::SeqCst) + 1;
+        let cancel = Arc::new(AtomicBool::new(false));
+        *g = Some((id, Run::Http(cancel.clone())));
+        Ok((id, cancel))
+    }
+
+    pub(crate) fn clone_slot(&self) -> Slot { self.slot.clone() }
+}
+
+/// Звільняє слот, якщо він ще за запуском `id`.
+pub(crate) fn release_slot(slot: &Slot, id: u64) {
+    let mut g = slot.lock().unwrap_or_else(|e| e.into_inner());
+    if g.as_ref().map(|(i, _)| *i) == Some(id) { *g = None; }
+}
+
+/// Сповіщення вебвʼю з RAII-охоронця: (kind, text).
+pub(crate) type Notify = Box<dyn Fn(&str, &str) + Send + Sync>;
+
+/// RAII-охоронець слота HTTP-запуску. Без нього раннє повернення чи відкинутий future лишили б слот
+/// зайнятим назавжди («Порадник ще відповідає»), а вкладку — без `done`. Створюється одразу після
+/// `claim_http`; нормальний кінець — `finish()`, будь-який інший вихід шле `error`.
+/// Паніку в релізі він НЕ покриває: профіль має `panic = "abort"` (процес падає цілком); у dev/тестах покриває.
+/// Порядок завжди «слот вільний → done»: щойно вкладка отримала `done`, новий запит уже приймається.
+pub(crate) struct RunGuard { slot: Slot, id: u64, notify: Notify, finished: bool }
+
+impl RunGuard {
+    pub(crate) fn new(slot: Slot, id: u64, notify: Notify) -> Self {
+        RunGuard { slot, id, notify, finished: false }
+    }
+
+    /// Запуск дійшов до кінця сам: `Drop` надішле лише `done`.
+    pub(crate) fn finish(mut self) { self.finished = true; }
+}
+
+impl Drop for RunGuard {
+    fn drop(&mut self) {
+        release_slot(&self.slot, self.id);
+        if !self.finished { (self.notify)("error", "Порадник завершився несподівано"); }
+        (self.notify)("done", "");
+    }
+}
+
+/// Хмарні способи працюють лише за увімкненого сервісу `advisor`. Окрема функція (а не загальний
+/// `require_service`), бо тут людині треба підказати, ДЕ це ввімкнути, а не показати загальне
+/// «сервіс вимкнено»; чистий bool — щоб перевірка тестувалась без Store.
+pub(crate) fn advisor_gate(enabled: bool) -> Result<(), String> {
+    if enabled { Ok(()) } else { Err("Увімкніть Порадника в Ще → Підключення".into()) }
 }
 
 #[derive(Deserialize)]
@@ -42,7 +106,7 @@ pub struct AskReq {
     pub model: Option<String>,
 }
 
-fn no_window(c: &mut Command) {
+pub(crate) fn no_window(c: &mut Command) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -135,7 +199,7 @@ fn exe_names(base: &str) -> Vec<String> {
     if cfg!(windows) { vec![format!("{base}.exe"), format!("{base}.cmd")] } else { vec![base.to_string()] }
 }
 
-fn find_in_path(path: &str, base: &str) -> Option<PathBuf> {
+pub(crate) fn find_in_path(path: &str, base: &str) -> Option<PathBuf> {
     for dir in std::env::split_paths(path) {
         for n in exe_names(base) {
             let p = dir.join(&n);
@@ -172,8 +236,13 @@ fn find_claude_env() -> Option<PathBuf> {
     find_claude(&path, la.as_deref(), ad.as_deref())
 }
 
+/// `node` у PATH: його ж шукає і вбудований MCP-клієнт (advisor_mcp).
+pub(crate) fn find_node() -> Option<PathBuf> {
+    find_in_path(&std::env::var("PATH").unwrap_or_default(), "node")
+}
+
 fn node_found() -> bool {
-    find_in_path(&std::env::var("PATH").unwrap_or_default(), "node").is_some()
+    find_node().is_some()
 }
 
 /// Вміст mcp.json: наш MCP під іменем `groshi` (звідси префікс `mcp__groshi__`).
@@ -205,7 +274,7 @@ pub async fn advisor_cc_probe() -> Value {
     }).await.unwrap_or_else(|_| json!({"found": false, "path": null, "version": null, "node": false}))
 }
 
-fn emit(app: &tauri::AppHandle, conv: &str, kind: &str, text: &str) {
+pub(crate) fn emit(app: &tauri::AppHandle, conv: &str, kind: &str, text: &str) {
     let _ = app.emit("advisor", json!({"conv": conv, "kind": kind, "text": text}));
 }
 
@@ -214,7 +283,7 @@ fn safe_token(s: &str, extra: &str) -> bool {
         && s.chars().all(|c| c.is_ascii_alphanumeric() || extra.contains(c))
 }
 
-fn kill_tree(child: &mut Child) {
+pub(crate) fn kill_tree(child: &mut Child) {
     #[cfg(windows)]
     {
         // child.kill() прибив би лише claude.exe, а node-процес MCP міг би лишитись.
@@ -229,6 +298,7 @@ fn kill_tree(child: &mut Child) {
 
 #[tauri::command]
 pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) -> Result<(), String> {
+    crate::require_advisor(&app.st)?;
     if req.prompt.trim().is_empty() { return Err("Порожнє питання".into()); }
     if req.prompt.len() > MAX_PROMPT || req.system.len() > MAX_PROMPT { return Err("Питання завелике".into()); }
     // Значення йдуть в аргументи claude: початковий «-» дозволив би підсунути чужий прапорець.
@@ -263,7 +333,7 @@ pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) ->
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let id = adv.seq.fetch_add(1, Ordering::SeqCst) + 1;
-    *slot = Some((id, child));
+    *slot = Some((id, Run::Cli(child)));
     drop(slot);
 
     let prompt = req.prompt;
@@ -301,7 +371,7 @@ pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) ->
             let mut g = slot.lock().unwrap_or_else(|e| e.into_inner());
             if g.as_ref().map(|(i, _)| *i) == Some(id) { g.take() } else { None }
         };
-        if let Some((_, mut child)) = mine {
+        if let Some((_, Run::Cli(mut child))) = mine {
             let code = child.wait().ok().and_then(|s| s.code());
             if code != Some(0) && !had_error {
                 let t = tail.lock().map(|t| t.clone()).unwrap_or_default();
@@ -324,8 +394,14 @@ pub fn advisor_stop(app: State<App>) {
 /// Зупинка дерева `claude`; викликається і при виході з апки, інакше node-процес MCP та claude
 /// пережили б закриття вікна й тримали б файли теки даних.
 pub fn kill_running(adv: &Advisor) {
-    let taken = adv.slot.lock().unwrap_or_else(|e| e.into_inner()).take();
-    if let Some((_, mut child)) = taken { kill_tree(&mut child); }
+    let mut g = adv.slot.lock().unwrap_or_else(|e| e.into_inner());
+    match g.take() {
+        Some((_, Run::Cli(mut child))) => kill_tree(&mut child),
+        // HTTP-цикл сам зупиниться між чанками, прибере MCP і звільнить слот; поки він
+        // це робить, слот лишається зайнятим, щоб новий запуск не злетівся зі старим.
+        Some((id, Run::Http(cancel))) => { cancel.store(true, Ordering::SeqCst); *g = Some((id, Run::Http(cancel))); }
+        None => {}
+    }
 }
 
 #[tauri::command]
@@ -431,6 +507,52 @@ mod tests {
         assert_eq!(c["mcpServers"]["groshi"]["env"]["GROSHI_PSEUDO"], "1");
         assert_eq!(c["mcpServers"]["groshi"]["env"]["GROSHI_DIR"], r"C:\data");
         assert!(c["mcpServers"]["groshi"]["args"][0].as_str().unwrap().ends_with("groshi-mcp.js"));
+    }
+
+    fn recorder() -> (Arc<Mutex<Vec<String>>>, Notify) {
+        let ev = Arc::new(Mutex::new(vec![]));
+        let e2 = ev.clone();
+        (ev, Box::new(move |k: &str, _: &str| e2.lock().unwrap().push(k.to_string())))
+    }
+
+    #[test]
+    fn guard_dropped_unfinished_frees_slot_and_reports() {
+        let adv = Advisor::default();
+        let (id, _) = adv.claim_http().unwrap();
+        let (ev, notify) = recorder();
+        let g = RunGuard::new(adv.clone_slot(), id, notify);
+        assert!(adv.claim_http().is_err());
+        drop(g);
+        assert!(adv.claim_http().is_ok(), "слот вільний після drop");
+        assert_eq!(*ev.lock().unwrap(), ["error", "done"]);
+    }
+
+    #[test]
+    fn guard_survives_panic() {
+        let adv = Advisor::default();
+        let (id, _) = adv.claim_http().unwrap();
+        let (ev, notify) = recorder();
+        let g = RunGuard::new(adv.clone_slot(), id, notify);
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || { let _g = g; panic!("збій задачі"); }));
+        assert!(r.is_err());
+        assert!(adv.claim_http().is_ok());
+        assert_eq!(*ev.lock().unwrap(), ["error", "done"]);
+    }
+
+    #[test]
+    fn guard_finished_sends_only_done() {
+        let adv = Advisor::default();
+        let (id, _) = adv.claim_http().unwrap();
+        let (ev, notify) = recorder();
+        RunGuard::new(adv.clone_slot(), id, notify).finish();
+        assert!(adv.claim_http().is_ok());
+        assert_eq!(*ev.lock().unwrap(), ["done"]);
+    }
+
+    #[test]
+    fn advisor_gate_message() {
+        assert!(advisor_gate(true).is_ok());
+        assert_eq!(advisor_gate(false).unwrap_err(), "Увімкніть Порадника в Ще → Підключення");
     }
 
     #[test]
