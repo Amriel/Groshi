@@ -1674,6 +1674,14 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
    (коли в розмові з'явились повідомлення) не зсуває вікно повідомлень. */
 .advmode{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:var(--ctl);margin-bottom:12px}
 .advmode .tag{flex:none;max-width:none;overflow:visible}
+/* Швидкий вибір моделі й effort у рядку вкладки. Ширина фіксована (flex-basis), а не від підпису: довга
+   назва моделі обрізається «…», тож зміна вибору не зсуває сусідів; на вузькому екрані поля ділять рядок. */
+.advmode .advq{flex:0 1 200px;min-width:0}
+.advmode #advQEffortW{flex-basis:170px}
+.advmode .tag.advq{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Бейдж приватності — праворуч у кінці рядка; коли не влазить, переноситься під поля. */
+.advmode #advBadge{margin-left:auto}
+@media (max-width:759px){ .advmode .advq, .advmode #advQEffortW{flex:1 1 140px} .advmode #advBadge{margin-left:0} }
 /* Лічильник лімітів: рядок завжди займає місце (min-height), тож поява чи зникнення чипів
    не зсуває вікно повідомлень; довгий текст обрізається, а не переносить рядок. */
 .advlim{display:flex;align-items:center;gap:8px;min-height:var(--ctl-sm);margin:-6px 0 6px;overflow:hidden}
@@ -1715,7 +1723,7 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
    вирівнювання за низом, бо над полем стоїть підпис. Порожня підказка не лишає проміжку. */
 .advmdl{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .advmdl .mf{flex:1 1 280px;min-width:0}
-#advModelHint:empty{display:none}
+#advModelHint:empty,#advUpdHint:empty,#advAutoUpdSt:empty{display:none}
 .advrow{cursor:pointer}
 .advrow .advt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .advrow[aria-current="true"] .advt{color:var(--accent-ink)}
@@ -2345,7 +2353,10 @@ svg.sprite{position:absolute;width:0;height:0}
         <option value="api">API Anthropic</option>
       </select></div>
       <span class="tag" id="advProvTag" hidden></span>
-      <span class="tag" id="advBadge">хмара · назви приховано</span>
+      <div class="advq" id="advQModelW"><select id="advQModel" aria-label="Модель"></select></div>
+      <span class="tag advq" id="advQModelTag" hidden></span>
+      <div class="advq" id="advQEffortW" hidden><select id="advQEffort" aria-label="Effort"></select></div>
+      <span class="tag" id="advBadge" data-tip="Питання й зведення йдуть до Anthropic; назви клієнтів, проєктів і платників замінено псевдонімами, суми — ні">хмара · назви приховано</span>
     </div>
     <div class="advlim" id="advLim" role="status" aria-live="polite"></div>
     <div class="advmsgs" id="advMsgs" role="log" aria-live="polite" aria-label="Розмова"></div>
@@ -2425,7 +2436,13 @@ svg.sprite{position:absolute;width:0;height:0}
       <p class="muted subhint" id="advModelHint"></p>
       <label class="mf" id="advCcEffortW" hidden><span>Effort (глибина міркування)</span>
         <select id="advCcEffort" aria-label="Effort"></select></label>
-      <p class="muted subhint" id="advVer"></p>
+      <div class="row advrw">
+        <p class="muted subhint grow" id="advVer"></p>
+        <button class="btn" id="advCcUpdate" hidden>Оновити Claude Code</button>
+      </div>
+      <p class="muted subhint" id="advUpdHint"></p>
+      <label class="muted optlabel" id="advAutoUpdW" hidden><input type="checkbox" id="advAutoUpd"> Оновлювати Claude Code автоматично</label>
+      <p class="muted subhint" id="advAutoUpdSt"></p>
     </div>
   </div>
   <div class="card advsc" data-sec="adv" id="advSetLocal" hidden>
@@ -9375,7 +9392,7 @@ function advMd(text){
 const ADV = { init:false, setIn:false, state:'wait', convs:[], cur:null, stream:null, probe:null, drain:null,
   prov:'cc', entered:'cc', keyHas:null, lmTok:0,
   /* ccModels: null = списку ще немає (вантажиться, помилка, Порадник вимкнено); mdlTok — як lmTok. */
-  ccModels:null, ccLoading:false, ccHint:'', mdlTok:0, boot:Date.now() };
+  ccModels:null, ccLoading:false, ccTried:false, ccHintKeep:false, auRun:false, manUpd:false, auErr:'', ccHint:'', mdlTok:0, lmItems:[], boot:Date.now() };
 const ADV_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const ADV_EFFORT_UA = { low:'низький', medium:'середній', high:'високий', xhigh:'дуже високий', max:'максимальний' };
 /* Rust читає stdout окремим потоком: після Стоп (kill) він ще віддає
@@ -9403,6 +9420,15 @@ const ADV_SUGGEST = [
   ['Що з портфелем і ринком', 'Що з моїм портфелем і станом ринку зараз? Які є варіанти, з плюсами й ризиками?'],
 ];
 const advConv = () => ADV.convs.find(c => c.id === ADV.cur) || null;
+/* Модель API-розмови зашита в ній (c.model, ставиться при першому питанні): API прив'язує розмову до моделі, тож
+   зміна advisorApiModel в налаштуваннях чи у вкладці стосується лише нових розмов. Для розмов зі старої історії
+   (без c.model) беремо модель останньої відповіді. */
+function advApiConvModel(c){
+  if(!c) return '';
+  if(c.model) return c.model;
+  for(let i = c.msgs.length - 1; i >= 0; i--) if(c.msgs[i].role === 'assistant' && c.msgs[i].model) return c.msgs[i].model;
+  return '';
+}
 const advDesk = () => window.__DESK__ && window.__DESK__.tauri ? window.__DESK__ : null;
 function advSave(){
   const D = advDesk(); if(!D) return;
@@ -9432,10 +9458,60 @@ function advView(){
   if(keyOff) el('advKeySetW').dataset.tip = 'Спершу увімкніть Порадника в Налаштуваннях → Порадник';
   else delete el('advKeySetW').dataset.tip;
   el('advListCard').hidden = !main || !ADV.convs.length;
+  advAutoUpd();
+  advCcAuto();
+}
+/* Автооновлення Claude Code: не частіше за раз на добу, лише коли вкладку чи розділ налаштувань Порадника показано. */
+const ADV_AU_EVERY = 24 * 3600000;
+function advAutoUpdUi(){
+  const show = !!advUpd(ADV.probe).src;
+  el('advAutoUpdW').hidden = !show;
+  el('advCcUpdate').disabled = !!(ADV.auRun || ADV.manUpd);           // ручне й автоматичне оновлення не біжать разом
+  const at = store.get('advisorCcAutoUpdAt', 0);
+  let t = '';
+  if(show){
+    if(ADV.auRun) t = 'Оновлюю Claude Code…';
+    else if(ADV.auErr) t = ADV.auErr;
+    else if(at){ const d = new Date(at), z = n => String(n).padStart(2, '0');
+      t = 'Остання перевірка оновлень: ' + z(d.getDate()) + '.' + z(d.getMonth() + 1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+  }
+  el('advAutoUpdSt').textContent = t;
+}
+async function advAutoUpd(){
+  const D = advDesk();
+  if(!D || ADV.auRun || ADV.manUpd || ADV.stream || ADV.drain || ADV.ccLoading) return;   // не вийшло зараз — наступного показу
+  if(!(S.tab === 'advisor' || (S.tab === 'settings' && SETSEC === 'adv'))) return;
+  if(!advUpd(ADV.probe).src || store.get('advisorCcAutoUpd', true) === false) return;
+  const at = store.get('advisorCcAutoUpdAt', 0), now = Date.now();
+  if(at <= now && now - at < ADV_AU_EVERY) return;   // мітка з майбутнього (годинник відвели назад) — застаріла
+  store.set('advisorCcAutoUpdAt', Date.now());       // ДО запуску: збій чи вихід не мусять зациклити спроби
+  ADV.auRun = true; ADV.auErr = ''; advCtl(); advAutoUpdUi();
+  let upd = false;
+  try{
+    const r = await D.advisorCcAutoUpdate();
+    if(r && r.updated){
+      upd = true;
+      appToast('Claude Code оновлено: ' + (r.from || '?') + ' → ' + (r.to || '?'));
+    }
+  }catch(e){ ADV.auErr = String(e && e.message || e); }
+  ADV.auRun = false; advCtl(); advAutoUpdUi();
+  if(upd){ await advProbeInfo(); advCcModelsRefresh(true); }
+  else advCcAuto();
+}
+/* Швидкий вибір у вкладці потребує живого списку моделей, а його раніше вантажив лише розділ налаштувань.
+   Один раз за сесію й лише коли список ще не вантажився: другий процес claude не запускаємо. */
+function advCcAuto(){
+  if(ADV.state !== 'ok' || ADV.ccTried || ADV.ccModels || ADV.ccLoading || ADV.auRun) return;
+  if(advProv() !== 'cc' || !privacyAllowed('advisor') || !advDesk()) return;
+  advCcModelsRefresh();
 }
 function advCtl(){
   const busy = !!ADV.stream;
-  el('advSend').disabled = busy || !!ADV.drain;
+  /* Під час автооновлення бінарник claude може бути підмінений посеред запуску: відправка чекає. Підказка — на
+     обгортці, бо .btn[disabled] має pointer-events:none і data-tip на самій кнопці не спрацював би. */
+  el('advSend').disabled = busy || !!ADV.drain || ADV.auRun;
+  if(ADV.auRun) el('advSend').parentNode.dataset.tip = 'Оновлюю Claude Code…';
+  else delete el('advSend').parentNode.dataset.tip;
   el('advSend').hidden = busy;
   el('advStop').hidden = !busy;
   el('advNew').disabled = busy;
@@ -9509,6 +9585,9 @@ function advProvUi(){
   el('advProvTag').textContent = ADV_PROVS[prov];
   if(el('advProv').value !== prov){ el('advProv').value = prov; cselSync(el('advProv')); }
   el('advBadge').textContent = prov === 'local' ? 'локально' : 'хмара · назви приховано';
+  el('advBadge').dataset.tip = prov === 'local' ? 'Усе лишається на цьому комп\'ютері'
+    : 'Питання й зведення йдуть до Anthropic; назви клієнтів, проєктів і платників замінено псевдонімами, суми — ні';
+  advQuickUi();
   advLimUi();
   advView();
   if(ADV.entered !== prov){
@@ -9531,6 +9610,7 @@ function advLmLabel(m){
    параметри, а значенням лишається ключ моделі. Збережена модель, якої немає у списку
    (сервер вимкнено, модель вивантажена), лишається пунктом, щоб вибір не губився мовчки. */
 function advLmFill(items){
+  ADV.lmItems = items;
   const sel = el('advLocalModel');
   let cur = (store.get('advisorLocalModel', null) || '').trim();
   if(!cur && items.length){ cur = items[0].key; store.set('advisorLocalModel', cur); }
@@ -9543,6 +9623,7 @@ function advLmFill(items){
   }
   sel.value = cur;
   if(window.cselSync) cselSync(sel);
+  advQuickUi();
 }
 async function advLocalRefresh(){
   const D = advDesk(); if(!D) return;
@@ -9601,10 +9682,84 @@ function advEffortFill(){
   if(cur && !efs.includes(cur)){ cur = ''; store.set('advisorEffort', null); }
   el('advCcEffortW').hidden = !efs.length;
   advSelFill(el('advCcEffort'), [{ v:'', l:'За замовчуванням' }].concat(efs.map(e => ({ v:e, l:ADV_EFFORT_UA[e] }))), cur);
+  advQuickUi();
 }
 const advApiEffort = () => { const e = store.get('advisorApiEffort', null); return ADV_EFFORTS.includes(e) ? e : 'medium'; };
 function advApiEffortFill(){
   advSelFill(el('advApiEffort'), ADV_EFFORTS.map(e => ({ v:e, l:ADV_EFFORT_UA[e] + (e === 'medium' ? ' (типово)' : '') })), advApiEffort());
+  advQuickUi();
+}
+/* Швидкі випадайки Модель/Effort у рядку вкладки — друге обличчя тих самих полів налаштувань: читають і пишуть
+   ТЕ САМЕ сховище (advisorModel/advisorEffort, advisorLocalModel, advisorApiModel/advisorApiEffort), після будь-якої
+   зміни перемальовуються обидва місця. Підпис пункту короткий (лише назва), повний опис — у data-tip поля.
+   Перезаповнення лише за зміни вмісту (сигнатура): інакше кожен виклик блимав би відкритим списком. */
+const ADV_API_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+function advQSet(sel, opts, cur){
+  const sig = JSON.stringify([opts, cur]);
+  if(sel._sig === sig) return;
+  sel._sig = sig;
+  advSelFill(sel, opts, cur);
+}
+function advQuickUi(){
+  const c = advConv(), prov = advProv(), msgs = !!(c && c.msgs.length);
+  let mOpts, mCur, tip = '', eOpts = null, eCur = '';
+  if(prov === 'local'){
+    mCur = (store.get('advisorLocalModel', null) || '').trim();
+    mOpts = ADV.lmItems.map(o => ({ v:o.key, l:o.label }));
+    if(mCur && !mOpts.some(o => o.v === mCur)) mOpts.unshift({ v:mCur, l:mCur });
+    if(!mOpts.length) mOpts.push({ v:'', l:'Моделей не знайдено' });
+    tip = 'Модель LM Studio';
+  }else if(prov === 'api'){
+    mCur = (msgs && advApiConvModel(c)) || (store.get('advisorApiModel', null) || '').trim() || ADV_API_MODEL;
+    mOpts = ADV_API_MODELS.map(v => ({ v, l:v }));
+    if(!mOpts.some(o => o.v === mCur)) mOpts.unshift({ v:mCur, l:mCur });
+    eCur = advApiEffort();
+    eOpts = ADV_EFFORTS.map(e => ({ v:e, l:'Effort: ' + ADV_EFFORT_UA[e] + (e === 'medium' ? ' (типово)' : '') }));
+    tip = 'Модель API Anthropic';
+  }else{
+    const l = ADV.ccModels; mCur = advCcModel();
+    if(l){
+      mOpts = l.map(m => ({ v:m.value === 'default' ? '' : m.value, l:m.name }));
+      if(!mOpts.some(o => o.v === '')) mOpts.unshift({ v:'', l:'За замовчуванням' });
+      if(mCur && !mOpts.some(o => o.v === mCur)) mOpts.push({ v:mCur, l:mCur });
+      const cm = l.find(m => (m.value === 'default' ? '' : m.value) === mCur);
+      tip = cm ? cm.name + (cm.description ? ' — ' + cm.description : '') : 'Модель Claude';
+    }else{
+      mOpts = [{ v:mCur, l:ADV.ccLoading ? 'Завантаження…' : (mCur || 'За замовчуванням') }];
+      tip = 'Модель Claude';
+    }
+    const efs = advEffortsOf(mCur);
+    if(efs.length){
+      eOpts = [{ v:'', l:'Effort: за замовчуванням' }].concat(efs.map(e => ({ v:e, l:'Effort: ' + ADV_EFFORT_UA[e] })));
+      eCur = store.get('advisorEffort', null) || '';
+      if(eCur && !efs.includes(eCur)) eCur = '';
+    }
+  }
+  /* API прив'язує розмову до моделі, тож у розмові з повідомленнями модель лише тег; effort можна. */
+  const lockM = prov === 'api' && msgs;
+  el('advQModelW').hidden = lockM;
+  el('advQModelTag').hidden = !lockM;
+  if(lockM){ el('advQModelTag').textContent = mCur; el('advQModelTag').dataset.tip = 'Модель зафіксовано для цієї розмови'; }
+  advQSet(el('advQModel'), mOpts, mCur);
+  el('advQModel').parentNode.dataset.tip = tip;
+  el('advQEffortW').hidden = !eOpts;
+  if(eOpts){
+    advQSet(el('advQEffort'), eOpts, eCur);
+    el('advQEffort').parentNode.dataset.tip = 'Effort — глибина міркування';
+  }
+}
+function advQuickBind(){
+  el('advQModel').onchange = () => {
+    const v = el('advQModel').value.trim(), prov = advProv();
+    if(prov === 'local'){ store.set('advisorLocalModel', v || null); advLmFill(ADV.lmItems); }
+    else if(prov === 'api'){ store.set('advisorApiModel', v || null); el('advApiModel').value = v; advQuickUi(); }
+    else{ store.set('advisorModel', v || null); ADV.ccHint = ''; advCcModelFill(); }
+  };
+  el('advQEffort').onchange = () => {
+    const v = el('advQEffort').value;
+    if(advProv() === 'api'){ store.set('advisorApiEffort', v === 'medium' ? null : v); advApiEffortFill(); }
+    else{ store.set('advisorEffort', v || null); advEffortFill(); }
+  };
 }
 /* Випадайка моделей Claude Code. Значення `default` зберігається порожнім (тоді --model не передається).
    Збережена модель, якої немає в свіжому списку, скидається на типову з поясненням — інакше запуск
@@ -9617,6 +9772,7 @@ function advCcModelFill(){
     if(!opts.some(o => o.v === '')) opts.unshift({ v:'', l:'За замовчуванням' });
     if(cur && !opts.some(o => o.v === cur)){
       ADV.ccHint = 'Модель «' + cur + '» більше недоступна — вибрано типову';
+      ADV.ccHintKeep = !ADV.setIn;
       store.set('advisorModel', null); cur = '';
     }
   }else{
@@ -9632,13 +9788,17 @@ async function advCcModelsRefresh(force){
   const D = advDesk(); if(!D) return;
   if(ADV.ccLoading && !force) return;
   const tok = ++ADV.mdlTok, btn = el('advModelRefresh');
-  ADV.ccHint = '';
+  /* Пояснення «модель недоступна», яке виставив запит із вкладки (розділ налаштувань ще не відкривали),
+     переживає перший запит розділу: інакше власник його ніколи б не побачив. Далі — як раніше, скидається. */
+  const keep = ADV.ccHintKeep && !force;
+  ADV.ccHintKeep = false;
+  if(!keep) ADV.ccHint = '';
   if(!privacyAllowed('advisor')){
     ADV.ccModels = null; ADV.ccLoading = false; btn.disabled = false;
     ADV.ccHint = 'Увімкніть Порадника в хмарі, щоб побачити список';
     advCcModelFill(); return;
   }
-  ADV.ccLoading = true; btn.disabled = true;
+  ADV.ccLoading = true; ADV.ccTried = true; btn.disabled = true;
   advCcModelFill();
   let hint = '';
   try{
@@ -9652,7 +9812,7 @@ async function advCcModelsRefresh(force){
     if(/Увімкніть Порадника/.test(hint)) hint = 'Увімкніть Порадника в хмарі, щоб побачити список';
   }
   ADV.ccLoading = false; btn.disabled = false;
-  ADV.ccHint = hint;
+  ADV.ccHint = hint || ADV.ccHint;
   advCcModelFill();
 }
 
@@ -9891,7 +10051,7 @@ function advLocalHist(c){
 async function advSend(q){
   const D = advDesk();
   q = String(q == null ? el('advIn').value : q).trim();
-  if(!D || ADV.stream || ADV.drain || !q) return;
+  if(!D || ADV.stream || ADV.drain || ADV.auRun || !q) return;
   const prov = advProv();
   if(prov !== 'local' && !privacyAllowed('advisor')){ advView(); return; }
   const localModel = (store.get('advisorLocalModel', null) || '').trim();
@@ -9914,7 +10074,7 @@ async function advSend(q){
     }else if(prov === 'api'){
       api = { role:'user', content:P.hide(q, dict) };
       req = { messages:((c && c.api) || []).concat([api]), system:P.hide(instr + '\n\n' + digest, dict) };
-      const m = (store.get('advisorApiModel', null) || '').trim(); if(m) req.model = m;
+      req.model = advApiConvModel(c) || (store.get('advisorApiModel', null) || '').trim() || ADV_API_MODEL;
       req.effort = advApiEffort();
     }else{
       req = { prompt:P.hide(q, dict), system:P.hide(instr + '\n\n' + digest, dict) };
@@ -9928,11 +10088,12 @@ async function advSend(q){
   if(!c){
     c = { id:'adv' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           title:q.slice(0, 48), provider:prov, session:null, created:Date.now(), msgs:[] };
-    if(prov === 'api') c.api = [];
+    if(prov === 'api'){ c.api = []; c.model = req.model; }
     ADV.convs.unshift(c); ADV.cur = c.id;
   }
   req.conv = c.id;
-  const model = (prov === 'local' ? localModel : store.get(prov === 'api' ? 'advisorApiModel' : 'advisorModel', null) || '').trim();
+  /* Підпис бере те, з чим пішов саме цей запит (req), а не поточний вибір: його можна змінити посеред розмови. */
+  const model = prov === 'local' ? localModel : (req.model || '');
   const um = { role:'user', text:q };
   const bm = { role:'assistant', text:'', model, prov, tools:[] };
   if(req.effort) bm.effort = req.effort;
@@ -9952,6 +10113,36 @@ async function advSend(q){
   }
   catch(e){ bm.err = String(e && e.message || e); advFinish(); }
 }
+const ADV_SRC = { winget:'WinGet', npm:'npm', desktop:'Claude Desktop', path:'PATH' };
+/* Підпис версії з джерелом (без повного шляху) і кнопка оновлення. Копію Claude Desktop оновлює той застосунок,
+   тому для неї кнопки немає. */
+/* Копія, яку апка може оновити (WinGet/npm/PATH), не обов'язково та, що запускається: за пари WinGet 2.1.268 +
+   Claude Desktop 2.1.299 запускається Desktop-копія, а оновлювати треба WinGet. Старий міст без upd_* —
+   як раніше: оновлюваною вважається обрана копія, якщо вона не з Desktop. */
+function advUpd(p){
+  if(!p || !p.found) return { src:null, ver:null };
+  if('upd_source' in p) return { src:p.upd_source || null, ver:p.upd_version || null };
+  return p.source && p.source !== 'desktop' ? { src:p.source, ver:p.version || null } : { src:null, ver:null };
+}
+function advVerUi(){
+  const p = ADV.probe || {}, ok = p.found && p.node, u = advUpd(p);
+  const lbl = x => ADV_SRC[x] ? ' (' + ADV_SRC[x] + ')' : '';
+  let t = '';
+  if(ok){
+    t = (u.src && (u.src !== p.source || (u.ver || '') !== (p.version || '')))
+      ? `Використовується ${p.version || ''}${lbl(p.source)} · ${ADV_SRC[u.src]} ${u.ver || ''}`
+      : `Claude Code ${p.version || ''}${lbl(p.source)}`;
+    t += ' · Node.js знайдено';
+  }
+  el('advVer').textContent = t;
+  el('advCcUpdate').hidden = !u.src;
+  advAutoUpdUi();
+}
+/* Лише оновлює відомості про версію, не чіпаючи стан вкладки (advProbe ховає її на час перевірки). */
+function advProbeInfo(){
+  const D = advDesk(); if(!D) return Promise.resolve();
+  return Promise.resolve().then(() => D.advisorProbe()).then(r => { ADV.probe = r || {}; advVerUi(); }).catch(() => {});
+}
 function advProbe(){
   const D = advDesk();
   ADV.state = 'wait'; advView();
@@ -9962,7 +10153,7 @@ function advProbe(){
     el('advSetupWhy').textContent = !ADV.probe.found
       ? 'Програми claude немає в системі, або застосунок її не бачить.'
       : 'Claude Code є, але не знайдено Node.js, без якого він не працює.';
-    el('advVer').textContent = ok ? `Claude Code ${ADV.probe.version || ''} · Node.js знайдено` : '';
+    advVerUi();
     advView();
   }).catch(e => {
     ADV.state = 'missing';
@@ -9995,9 +10186,23 @@ function advBuild(){
     store.set('advisorModel', el('advModel').value.trim() || null);
     ADV.ccHint = ''; advCcHintUi(); advEffortFill();   // рівень, якого нова модель не має, скидається тут
   };
-  el('advCcEffort').onchange = () => store.set('advisorEffort', el('advCcEffort').value || null);
-  el('advApiEffort').onchange = () => store.set('advisorApiEffort', el('advApiEffort').value === 'medium' ? null : el('advApiEffort').value);
-  el('advModelRefresh').onclick = () => advCcModelsRefresh(true);
+  el('advCcEffort').onchange = () => { store.set('advisorEffort', el('advCcEffort').value || null); advQuickUi(); };
+  el('advApiEffort').onchange = () => { store.set('advisorApiEffort', el('advApiEffort').value === 'medium' ? null : el('advApiEffort').value); advQuickUi(); };
+  /* Версія й джерело перечитуються першими: після оновлення список моделей має питати вже нову копію. */
+  el('advModelRefresh').onclick = async () => { await advProbeInfo(); advCcModelsRefresh(true); };
+  el('advCcUpdate').onclick = async () => {
+    const b = el('advCcUpdate'); if(ADV.auRun) return;
+    b.disabled = true; ADV.manUpd = true;
+    store.set('advisorCcAutoUpdAt', Date.now());        // ручний запуск теж «спроба»: автооновлення не наздожене його
+    try{
+      await D.advisorCcUpdate();
+      el('advUpdHint').textContent = 'Завершіть оновлення у вікні, що відкрилось, потім натисніть «Оновити список»';
+    }catch(e){ appToast('Не вдалося почати оновлення: ' + String(e && e.message || e)); }
+    ADV.manUpd = false; b.disabled = ADV.auRun;
+  };
+  advQuickBind();
+  el('advAutoUpd').checked = store.get('advisorCcAutoUpd', true) !== false;
+  el('advAutoUpd').onchange = () => { store.set('advisorCcAutoUpd', el('advAutoUpd').checked ? null : false); advAutoUpd(); };
   el('advPrompt').onchange = () => {
     const v = el('advPrompt').value.trim();
     store.set('advisorPrompt', !v || v === ADV_PROMPT_DEFAULT ? null : v);
@@ -10011,7 +10216,7 @@ function advBuild(){
   el('advApiModel').value = store.get('advisorApiModel', null) || '';
   el('advLocalUrl').onchange = () => {
     store.set('advisorLocalUrl', el('advLocalUrl').value.trim() || null); advLocalRefresh(); };
-  el('advLocalModel').onchange = () => store.set('advisorLocalModel', el('advLocalModel').value.trim() || null);
+  el('advLocalModel').onchange = () => { store.set('advisorLocalModel', el('advLocalModel').value.trim() || null); advQuickUi(); };
   advLmFill([]);                                      // збережена модель одразу видна, до відповіді lms
   el('advLmsStart').onclick = advLmsStart;
   el('advCcCheck').onclick = advCcRefresh;
@@ -10021,7 +10226,7 @@ function advBuild(){
   el('advGear').onclick = () => go2set('adv');
   el('advLocalTools').onchange = () => store.set('advisorLocalTools', el('advLocalTools').checked);
   el('advLocalRefresh').onclick = advLocalRefresh;
-  el('advApiModel').onchange = () => store.set('advisorApiModel', el('advApiModel').value.trim() || null);
+  el('advApiModel').onchange = () => { store.set('advisorApiModel', el('advApiModel').value.trim() || null); advQuickUi(); };
   el('advKeySet').onclick = advKeyAsk;
   el('advKeyClear').onclick = async () => {
     if(!await uiConfirm({ title:'Видалити ключ API?', text:'Ключ буде стерто з Диспетчера облікових даних.', ok:'Видалити' })) return;

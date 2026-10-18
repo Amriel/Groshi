@@ -122,6 +122,8 @@
     /* Вхід у Claude Code: статус повертає лише {logged_in, method}; вхід відкриває окреме вікно консолі. */
     advisorCcAuth: () => inv ? inv('advisor_cc_auth') : Promise.reject('лише в застосунку'),
     advisorCcLogin: () => inv ? inv('advisor_cc_login') : Promise.reject('лише в застосунку'),
+    advisorCcUpdate: () => inv ? inv('advisor_cc_update') : Promise.reject('лише в застосунку'),
+    advisorCcAutoUpdate: () => inv ? inv('advisor_cc_autoupdate') : Promise.reject('лише в застосунку'),
     advisorCcModels: () => inv ? inv('advisor_cc_models') : Promise.reject('лише в застосунку'),
     /* Моделі LM Studio через `lms ls` (працює й без запущеного сервера) і запуск сервера. */
     advisorLmsModels: () => inv ? inv('advisor_lms_models') : Promise.reject('лише в застосунку'),

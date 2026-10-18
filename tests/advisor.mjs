@@ -405,7 +405,7 @@ try {
     assert.equal(a1.__kind, 'api');
     assert.ok(!a1.system.includes('Альфа') && !JSON.stringify(a1.messages).includes('Альфа') && !a1.system.includes(CLIENT), 'API: назва клієнта у запиті');
     assert.equal(a1.messages.length, 1); assert.ok(/Клієнт [A-Z2-9]{6}/.test(a1.messages[0].content), 'API: питання без псевдоніма');
-    assert.equal(a1.model, undefined, 'порожня модель має піти як відсутня');
+    assert.equal(a1.model, 'claude-opus-5-5', 'модель розмови має йти явно: її зафіксовано в розмові');
     assert.ok(await page.evaluate(() => document.getElementById('advMsgs').innerText.includes('Платила ТОВ "Альфа Груп".')), 'API: відповідь без справжньої назви');
     assert.ok(await page.evaluate(() => document.getElementById('advMsgs').innerText.includes('API · claude-opus-5-5')), 'нема підпису API');
     let h = await page.evaluate(() => window.__hist[0]);
@@ -837,6 +837,232 @@ try {
     }, at);
     assert.ok((await apiTxt(5 * 60000)).startsWith('токенів лишилось 100 з 200'), 'API: свіжий запис сховано через resets_at');
     assert.equal(await apiTxt(11 * 60000), '', 'API: запис старший за 10 хв показано');
+    assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+    await ctx.close(); }
+
+  // ── десктоп: швидкий вибір моделі й effort у вкладці ──
+  { const {ctx, page, errors} = await openDesktop(browser, {width: 1400, state: {privacyServices: {advisor: true}}});
+    await fakeBridge(page, Object.assign({}, OK, {version: '2.1.268', source: 'winget'}));
+    await page.evaluate(() => { window.__upd = 0; window.__DESK__.advisorCcUpdate = async () => { window.__upd++; }; });
+    await page.keyboard.press('7');
+    await page.waitForSelector('#advIn', {state: 'visible'});
+    await page.waitForFunction(() => !!ADV.ccModels && !ADV.ccLoading);   // список вантажиться з вкладки, без налаштувань
+    const qModel = '.csel:has(#advQModel)', qEff = '.csel:has(#advQEffort)';
+    const pick = async (csel, text) => {
+      await page.click(csel + ' .cselb');
+      await page.click(`.cselm:not([hidden]) .cselo:has-text("${text}")`);
+    };
+    const val = id => page.evaluate(i => document.getElementById(i).value, id);
+    assert.equal(await page.isVisible(qModel), true, 'нема випадайки Модель у вкладці');
+    assert.equal(await page.isVisible(qEff), true, 'нема випадайки Effort у вкладці');
+    // короткі підписи: лише назва, повний опис у data-tip поля
+    await page.click(qModel + ' .cselb');
+    assert.deepEqual(await page.$$eval('.cselm:not([hidden]) .cselo', b => b.map(x => x.textContent.trim())),
+      ['Default (recommended)', 'Sonnet', 'Haiku']);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => document.getElementById('advQModel').parentNode.dataset.tip), 'Default (recommended) — Test model X');
+    const badgeTip = await page.evaluate(() => document.getElementById('advBadge').dataset.tip);
+    assert.ok(/Anthropic/.test(badgeTip) && /замінено псевдонімами/.test(badgeTip), 'бейдж без data-tip: ' + badgeTip);
+    assert.equal(await page.evaluate(() => document.getElementById('advBadge').hasAttribute('title')), false);
+    const r0 = await rects(page);
+    const calls = await page.evaluate(() => window.__ccModelCalls);
+    assert.equal(calls, 1, 'вкладка запустила більше одного запиту списку: ' + calls);
+
+    // Sonnet у вкладці → те саме в налаштуваннях і в наступному запиті
+    await pick(qModel, 'Sonnet');
+    assert.equal(await page.evaluate(() => store.get('advisorModel', null)), 'sonnet');
+    assert.equal(await val('advModel'), 'sonnet', 'налаштування не побачили вибір із вкладки');
+    await pick(qEff, 'високий');
+    assert.equal(await val('advCcEffort'), 'high');
+    assert.deepEqual(await rects(page), r0, 'шапка чи поле вводу зсунулись від вибору');
+    await page.evaluate(() => { window.__script = () => [{kind: 'text', text: 'Так.'}, {kind: 'done'}]; });
+    await ask(page, 'перше'); await idle(page, 1);
+    assert.equal(await page.evaluate(() => window.__reqs[0].model), 'sonnet');
+    assert.equal(await page.evaluate(() => window.__reqs[0].effort), 'high');
+    assert.ok((await page.evaluate(() => document.querySelector('#advMsgs .advmsg.bot .advcap').textContent)).includes('Claude Code · sonnet · effort: високий'));
+    assert.deepEqual(await rects(page), r0, 'шапка чи поле вводу зсунулись від відповіді');
+    // посеред розмови (Claude Code) модель і effort змінюються й діють на наступне питання; підпис першої відповіді не мінявся
+    await pick(qModel, 'Haiku');
+    assert.equal(await page.isVisible(qEff), false, 'Haiku: effort не сховано');
+    await ask(page, 'друге'); await idle(page, 2);
+    assert.equal(await page.evaluate(() => window.__reqs[1].model), 'haiku');
+    assert.equal(await page.evaluate(() => 'effort' in window.__reqs[1]), false, 'effort пішов з Haiku');
+    assert.equal(await page.evaluate(() => document.querySelectorAll('#advMsgs .advcap')[0].textContent.startsWith('Claude Code · sonnet')), true, 'підпис старої відповіді змінився');
+    // зміна в налаштуваннях видна у вкладці
+    await gear(page);
+    await page.evaluate(() => { document.getElementById('advModel').value = 'sonnet'; document.getElementById('advModel').dispatchEvent(new Event('change', {bubbles: true})); });
+    await back(page);
+    assert.equal(await page.evaluate(() => document.querySelector('.csel:has(#advQModel) .cselt').textContent), 'Sonnet');
+    assert.equal(await page.isVisible(qEff), true);
+
+    // локальна: список LM Studio, effort прихований, вибір пишеться в те саме сховище
+    await page.evaluate(() => { window.__lmsFail = false; });
+    await page.click('#advNew');
+    await pickProv(page, 'Локальна модель');
+    await page.waitForFunction(() => ADV.lmItems.length === 2 && ADV.lmItems[0].key === 'test-model-7b');
+    assert.equal(await page.isVisible(qEff), false, 'local: effort видно');
+    assert.equal(await val('advQModel'), await page.evaluate(() => store.get('advisorLocalModel', null)), 'вкладка показує не збережену локальну модель');
+    await pick(qModel, 'Plain Small');
+    assert.equal(await page.evaluate(() => store.get('advisorLocalModel', null)), 'plain-small');
+    assert.equal(await val('advLocalModel'), 'plain-small');
+    assert.ok((await page.evaluate(() => document.getElementById('advBadge').dataset.tip)).includes('цьому комп'));
+
+    // API: модель з варіантів, effort є; після першого повідомлення модель — тег, effort змінюється
+    await page.click('#advNew');
+    await pickProv(page, 'API Anthropic');
+    assert.equal(await page.isVisible(qEff), true);
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#advQModel option')].map(o => o.value)),
+      ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']);
+    await pick(qModel, 'claude-sonnet-5-5');
+    assert.equal(await page.evaluate(() => store.get('advisorApiModel', null)), 'claude-sonnet-5-5');
+    assert.equal(await page.evaluate(() => document.getElementById('advApiModel').value), 'claude-sonnet-5-5');
+    await page.evaluate(() => { window.__keyHas = true; ADV.keyHas = true; window.__script = () => [{kind: 'text', text: 'А.'}, {kind: 'state', text: '[]'}, {kind: 'done'}]; });
+    await ask(page, 'api'); await idle(page, 3);
+    assert.equal(await page.evaluate(() => window.__reqs[2].model), 'claude-sonnet-5-5');
+    assert.equal(await page.isVisible(qModel), false, 'API-розмова: модель не заблоковано');
+    assert.equal(await page.evaluate(() => document.getElementById('advQModelTag').textContent), 'claude-sonnet-5-5');
+    assert.ok(await page.evaluate(() => !!document.getElementById('advQModelTag').dataset.tip));
+    await pick(qEff, 'низький');
+    assert.equal(await page.evaluate(() => store.get('advisorApiEffort', null)), 'low');
+    await ask(page, 'api2'); await idle(page, 4);
+    assert.equal(await page.evaluate(() => window.__reqs[3].effort), 'low');
+    assert.equal(await page.evaluate(() => window.__reqs[3].model), 'claude-sonnet-5-5');
+    assert.ok((await page.evaluate(() => document.querySelector('#advMsgs .advmsg.bot:last-child .advcap').textContent)).includes('API · claude-sonnet-5-5 · effort: низький'));
+    // модель розмови зашита в ній: зміна в налаштуваннях діє лише на нову розмову
+    assert.equal(await page.evaluate(() => advConv().model), 'claude-sonnet-5-5');
+    await page.evaluate(() => { store.set('advisorApiModel', 'claude-haiku-5-5'); advQuickUi(); });
+    assert.equal(await page.evaluate(() => document.getElementById('advQModelTag').dataset.tip), 'Модель зафіксовано для цієї розмови');
+    assert.equal(await page.evaluate(() => document.getElementById('advQModelTag').textContent), 'claude-sonnet-5-5');
+    await ask(page, 'api3'); await idle(page, 5);
+    assert.equal(await page.evaluate(() => window.__reqs[4].model), 'claude-sonnet-5-5', 'стара API-розмова взяла нову модель з налаштувань');
+    await page.click('#advNew');
+    await ask(page, 'api4'); await idle(page, 6);
+    assert.equal(await page.evaluate(() => window.__reqs[5].model), 'claude-haiku-5-5', 'нова розмова не взяла збережену модель');
+
+    // налаштування: версія з джерелом, кнопка оновлення викликає міст і показує підказку
+    await gear(page);
+    assert.ok((await page.evaluate(() => document.getElementById('advVer').textContent)).startsWith('Claude Code 2.1.268 (WinGet)'));
+    assert.equal(await page.isVisible('#advCcUpdate'), true);
+    await page.click('#advCcUpdate');
+    await page.waitForFunction(() => window.__upd === 1);
+    await page.waitForFunction(() => /Завершіть оновлення у вікні, що відкрилось, потім натисніть «Оновити список»/.test(document.getElementById('advUpdHint').textContent));
+    // «Оновити список» перечитує джерело: копія Claude Desktop — без кнопки
+    await page.evaluate(() => { window.__DESK__.advisorProbe = async () => ({found: true, version: '2.1.299', source: 'desktop', node: true}); });
+    await page.click('#advModelRefresh');
+    await page.waitForFunction(() => document.getElementById('advVer').textContent.includes('(Claude Desktop)'));
+    assert.equal(await page.isVisible('#advCcUpdate'), false, 'для копії Claude Desktop є кнопка оновлення');
+    assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+    await ctx.close(); }
+
+  // ── десктоп: автооновлення Claude Code ──
+  { const boot = async (state, probe) => {
+      const o = await openDesktop(browser, {width: 1400, state: Object.assign({privacyServices: {advisor: true}}, state)});
+      await fakeBridge(o.page, probe);
+      await o.page.evaluate(() => { window.__au = 0; window.__probes = 0; window.__auGate = null;
+        const pr = window.__DESK__.advisorProbe;
+        window.__DESK__.advisorProbe = async () => { window.__probes++; return pr(); };
+        window.__DESK__.advisorCcAutoUpdate = () => { window.__au++;
+          return new Promise(r => { window.__auGate = r; }); }; });
+      return o;
+    };
+    const W = Object.assign({}, OK, {version: '2.1.268', source: 'winget'});
+    // увімкнено: одна спроба, Send вимкнено з підказкою, тост про оновлення, повторно за добу не питає
+    { const {ctx, page, errors} = await boot({}, W);
+      await page.keyboard.press('7');
+      await page.waitForSelector('#advIn', {state: 'visible'});
+      await page.waitForFunction(() => window.__au === 1);
+      assert.equal(await page.evaluate(() => document.getElementById('advSend').disabled), true, 'Send не вимкнено під час оновлення');
+      assert.equal(await page.evaluate(() => document.getElementById('advSend').parentNode.dataset.tip), 'Оновлюю Claude Code…');
+      assert.equal(await page.evaluate(() => typeof store.get('advisorCcAutoUpdAt', 0) === 'number' && store.get('advisorCcAutoUpdAt', 0) > 0), true, 'мітку спроби не записано до завершення');
+      const probes0 = await page.evaluate(() => window.__probes), models0 = await page.evaluate(() => window.__ccModelCalls);
+      await page.evaluate(() => { ADV.probe = Object.assign({}, ADV.probe, {upd_source: 'winget', upd_version: '2.1.268'}); advVerUi(); });
+      assert.equal(await page.evaluate(() => document.getElementById('advCcUpdate').disabled), true, 'ручна кнопка активна під час автооновлення');
+      await page.evaluate(() => window.__auGate({updated: true, from: '2.1.268', to: '2.1.302'}));
+      await page.waitForFunction(() => !document.getElementById('advSend').disabled);
+      assert.ok((await page.evaluate(() => document.body.innerText)).includes('Claude Code оновлено: 2.1.268 → 2.1.302'), 'нема тосту');
+      await page.waitForFunction(p => window.__probes > p, probes0);
+      await page.waitForFunction(m => window.__ccModelCalls > m, models0);
+      await page.evaluate(() => { go('settings'); go2set('adv'); });
+      await page.evaluate(() => { go('advisor'); });
+      await page.waitForTimeout(300);
+      assert.equal(await page.evaluate(() => window.__au), 1, 'повторна спроба раніше ніж за 24 год');
+      await page.evaluate(() => go2set('adv'));
+      await page.waitForSelector('#advSetCc', {state: 'visible'});
+      assert.equal(await page.isVisible('#advAutoUpdW'), true);
+      assert.match(await page.evaluate(() => document.getElementById('advAutoUpdSt').textContent), /^Остання перевірка оновлень: \d{2}\.\d{2} \d{2}:\d{2}$/);
+      assert.equal(await page.evaluate(() => document.getElementById('advAutoUpd').checked), true);
+      assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+      await ctx.close(); }
+    // помилка: текст у картці, без тосту
+    { const {ctx, page, errors} = await boot({}, W);
+      await page.evaluate(() => { window.__DESK__.advisorCcAutoUpdate = async () => { window.__au++; throw new Error('Не вдалося оновити Claude Code (код 1)'); }; });
+      await page.keyboard.press('7');
+      await page.waitForSelector('#advIn', {state: 'visible'});
+      await page.waitForFunction(() => window.__au === 1 && !ADV.auRun);
+      await page.evaluate(() => go2set('adv'));
+      await page.waitForSelector('#advSetCc', {state: 'visible'});
+      assert.equal(await page.evaluate(() => document.getElementById('advAutoUpdSt').textContent), 'Не вдалося оновити Claude Code (код 1)');
+      assert.equal(await page.evaluate(() => document.getElementById('advSend').disabled), false);
+      assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+      await ctx.close(); }
+    // вимкнений перемикач: жодного виклику
+    { const {ctx, page, errors} = await boot({advisorCcAutoUpd: false}, W);
+      await page.keyboard.press('7');
+      await page.waitForSelector('#advIn', {state: 'visible'});
+      await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(() => window.__au), 0, 'виклик попри вимкнений перемикач');
+      await page.evaluate(() => go2set('adv'));
+      await page.waitForSelector('#advSetCc', {state: 'visible'});
+      assert.equal(await page.evaluate(() => document.getElementById('advAutoUpd').checked), false);
+      assert.equal(await page.evaluate(() => window.__au), 0);
+      await ctx.close(); }
+    // свіжа мітка (< 24 год): виклику немає
+    { const {ctx, page} = await boot({advisorCcAutoUpdAt: Date.now() - 3600000}, W);
+      await page.keyboard.press('7');
+      await page.waitForSelector('#advIn', {state: 'visible'});
+      await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(() => window.__au), 0, 'виклик раніше ніж за 24 год');
+      await ctx.close(); }
+    // годинник відвели назад: мітка з майбутнього застаріла
+    { const {ctx, page} = await boot({advisorCcAutoUpdAt: Date.now() + 5 * 86400000}, W);
+      await page.keyboard.press('7');
+      await page.waitForSelector('#advIn', {state: 'visible'});
+      await page.waitForFunction(() => window.__au === 1);
+      await ctx.close(); }
+    // реальний випадок: запускається Claude Desktop 2.1.299, а оновлювана WinGet-копія 2.1.268
+    { const {ctx, page} = await boot({}, Object.assign({}, OK, {version: '2.1.299', source: 'desktop', upd_source: 'winget', upd_version: '2.1.268'}));
+      await page.keyboard.press('7');
+      await page.waitForSelector('#advIn', {state: 'visible'});
+      await page.waitForFunction(() => window.__au === 1);
+      await page.evaluate(() => go2set('adv'));
+      await page.waitForSelector('#advSetCc', {state: 'visible'});
+      assert.ok((await page.evaluate(() => document.getElementById('advVer').textContent)).startsWith('Використовується 2.1.299 (Claude Desktop) · WinGet 2.1.268'));
+      assert.equal(await page.isVisible('#advCcUpdate'), true, 'нема кнопки оновлення WinGet-копії');
+      assert.equal(await page.isVisible('#advAutoUpdW'), true);
+      await ctx.close(); }
+    // копія Claude Desktop: ні виклику, ні перемикача
+    { const {ctx, page} = await boot({}, Object.assign({}, OK, {version: '2.1.299', source: 'desktop'}));
+      await page.keyboard.press('7');
+      await page.waitForSelector('#advIn', {state: 'visible'});
+      await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(() => window.__au), 0, 'оновлюємо копію Claude Desktop');
+      await page.evaluate(() => go2set('adv'));
+      await page.waitForSelector('#advSetCc', {state: 'visible'});
+      assert.equal(await page.isVisible('#advAutoUpdW'), false, 'перемикач для копії Claude Desktop');
+      await ctx.close(); }
+  }
+
+  // ── десктоп 390 px: швидкі поля не дають горизонтальної прокрутки ──
+  { const {ctx, page, errors} = await openDesktop(browser, {width: 390, height: 800, state: {privacyServices: {advisor: true}}});
+    await fakeBridge(page, OK);
+    await page.evaluate(() => go('advisor'));
+    await page.waitForSelector('#advIn', {state: 'visible'});
+    await page.waitForFunction(() => !!ADV.ccModels);
+    const of = () => page.evaluate(() => ({sw: document.documentElement.scrollWidth, iw: innerWidth,
+      out: [...document.querySelectorAll('.advmode > *')].filter(e => e.offsetParent && e.getBoundingClientRect().right > innerWidth).length}));
+    let o = await of(); assert.ok(o.sw <= o.iw && o.out === 0, 'cc: переповнення ' + JSON.stringify(o));
+    await page.evaluate(() => { ADV.prov = 'api'; advProvUi(); });
+    o = await of(); assert.ok(o.sw <= o.iw && o.out === 0, 'api: переповнення ' + JSON.stringify(o));
     assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
     await ctx.close(); }
 

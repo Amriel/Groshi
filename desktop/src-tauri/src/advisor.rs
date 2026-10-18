@@ -268,12 +268,155 @@ pub fn find_claude(path: &str, local_appdata: Option<&Path>, appdata: Option<&Pa
     None
 }
 
-fn find_claude_env() -> Option<PathBuf> {
+type Ver = (u32, u32, u32);
+
+/// Перша група `N.N.N` у виводі `claude --version` («2.1.268 (Claude Code)»). Хвіст на кшталт
+/// `-beta` чи суфікс збірки відкидається: порівнюємо лише числа.
+pub fn parse_cli_version(s: &str) -> Option<Ver> {
+    for tok in s.split_whitespace() {
+        let t = tok.trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '(');
+        let mut it = t.splitn(3, '.');
+        let num = |x: Option<&str>| -> Option<u32> {
+            let x = x?;
+            let d: String = x.chars().take_while(char::is_ascii_digit).collect();
+            if d.is_empty() { None } else { d.parse().ok() }
+        };
+        if let (Some(a), Some(b), Some(c)) = (num(it.next()), num(it.next()), num(it.next())) {
+            return Some((a, b, c));
+        }
+    }
+    None
+}
+
+/// Найновіша копія. Порядок у зрізі = пріоритет за рівних версій (PATH/WinGet перед копією Claude Desktop:
+/// її може підмінити оновлення десктопа). Невідома версія — найнижча; серед самих невідомих лишається перша.
+pub fn pick_newest(cands: &[(PathBuf, Option<Ver>)]) -> Option<PathBuf> {
+    let mut best: Option<&(PathBuf, Option<Ver>)> = None;
+    for c in cands {
+        if best.map_or(true, |b| c.1 > b.1) { best = Some(c); }
+    }
+    best.map(|b| b.0.clone())
+}
+
+/// Звідки копія, без повного шляху в UI: "winget" | "npm" | "desktop" | "path".
+pub fn cc_source(p: &Path) -> &'static str {
+    let s = p.to_string_lossy().to_lowercase().replace('\\', "/");
+    // WinGet portable кладе в PATH символьне посилання Links\claude.exe: це та сама WinGet-копія.
+    if s.contains("/winget/packages/anthropic.claudecode_") || s.contains("/winget/links/") { "winget" }
+    else if s.contains("/claude/claude-code/") { "desktop" }
+    else if s.ends_with("/npm/claude.cmd") { "npm" }
+    else { "path" }
+}
+
+/// Усі наявні копії з версією, якщо її видно зі шляху (Claude Desktop кладе в теку `<версія>`).
+/// Порядок: PATH, WinGet, npm, Claude Desktop.
+fn claude_candidates(path: &str, local_appdata: Option<&Path>, appdata: Option<&Path>) -> Vec<(PathBuf, Option<Ver>)> {
+    let mut v: Vec<(PathBuf, Option<Ver>)> = Vec::new();
+    // Символьне посилання з PATH розкриваємо: інакше Links\claude.exe виглядав би окремою копією «PATH».
+    if let Some(p) = find_in_path(path, "claude") { v.push((resolve_link(&p), None)); }
+    if let Some(la) = local_appdata {
+        if let Ok(rd) = std::fs::read_dir(la.join("Microsoft").join("WinGet").join("Packages")) {
+            for e in rd.flatten() {
+                if e.file_name().to_string_lossy().starts_with("Anthropic.ClaudeCode_") {
+                    let p = e.path().join("claude.exe");
+                    if p.is_file() { v.push((p, None)); }
+                }
+            }
+        }
+    }
+    if let Some(ad) = appdata {
+        let p = ad.join("npm").join("claude.cmd");
+        if p.is_file() { v.push((p, None)); }
+        // <версія>\<хеш>\claude.exe: на один рівень глибше за теку версії.
+        if let Ok(rd) = std::fs::read_dir(ad.join("Claude").join("claude-code")) {
+            for e in rd.flatten() {
+                let Some(ver) = parse_dir_version(&e.file_name().to_string_lossy()) else { continue };
+                let Ok(sub) = std::fs::read_dir(e.path()) else { continue };
+                for h in sub.flatten() {
+                    let p = h.path().join("claude.exe");
+                    // Порожній claude.exe лишається від перерваного розпакування: це не копія.
+                    if std::fs::metadata(&p).map(|m| m.is_file() && m.len() > 0).unwrap_or(false) { v.push((p, Some(ver))); }
+                }
+            }
+        }
+    }
+    v
+}
+
+/// Шлях без символьних посилань і без префікса `\\?\` (його додає canonicalize на Windows). Не вдалось — як є.
+pub fn resolve_link(p: &Path) -> PathBuf {
+    match std::fs::canonicalize(p) {
+        Ok(c) => PathBuf::from(c.to_string_lossy().trim_start_matches(r"\\?\").to_string()),
+        Err(_) => p.to_path_buf(),
+    }
+}
+
+/// Тека версії Claude Desktop — рівно `N.N.N`: з будь-яким суфіксом (`2.1.299-old`) це не наша копія.
+pub fn parse_dir_version(name: &str) -> Option<Ver> {
+    let p: Vec<&str> = name.split('.').collect();
+    if p.len() != 3 || p.iter().any(|x| x.is_empty() || !x.chars().all(|c| c.is_ascii_digit())) { return None; }
+    Some((p[0].parse().ok()?, p[1].parse().ok()?, p[2].parse().ok()?))
+}
+
+/// Без дублів за шляхом (без урахування регістру): один файл у PATH і в теці WinGet запускаємо один раз.
+pub fn dedup_cands(c: &mut Vec<(PathBuf, Option<Ver>)>) {
+    let mut seen = std::collections::HashSet::new();
+    c.retain(|x| seen.insert(x.0.to_string_lossy().to_lowercase()));
+}
+
+/// Копія, яку можна оновити з апки: winget > npm > PATH, без Claude Desktop — незалежно від того, яка копія
+/// найновіша й обрана для запуску. Інакше за пари «WinGet 2.1.268 + Desktop 2.1.299» WinGet-копію не оновлювали б ніколи.
+pub fn pick_updatable(c: &[(PathBuf, Option<Ver>)]) -> Option<usize> {
+    let rank = |p: &Path| match cc_source(p) { "winget" => Some(0), "npm" => Some(1), "path" => Some(2), _ => None };
+    let mut best: Option<(usize, i32)> = None;
+    for (i, x) in c.iter().enumerate() {
+        if let Some(r) = rank(&x.0) { if best.map_or(true, |b| r < b.1) { best = Some((i, r)); } }
+    }
+    best.map(|b| b.0)
+}
+
+/// `winget` у PATH, інакше псевдонім застосунку з WindowsApps (у PATH трею його часто немає).
+fn winget_program() -> String {
+    if find_in_path(&std::env::var("PATH").unwrap_or_default(), "winget").is_some() { return "winget".into(); }
+    if let Some(la) = std::env::var_os("LOCALAPPDATA") {
+        let p = PathBuf::from(la).join("Microsoft").join("WindowsApps").join("winget.exe");
+        if p.is_file() { return p.to_string_lossy().to_string(); }
+    }
+    "winget".into()
+}
+
+#[derive(Clone)]
+struct Found { path: PathBuf, source: &'static str, version: Option<Ver>, upd: Option<(PathBuf, &'static str, Option<Ver>)> }
+
+/// Пошук обходить теки диска й запускає `--version` кожної копії, тож результат живе до кінця роботи
+/// застосунку; `advisor_cc_update` скидає його, бо після оновлення копія стає новішою.
+static FOUND: Mutex<Option<Found>> = Mutex::new(None);
+
+fn found_env() -> Option<Found> {
+    if let Some(f) = FOUND.lock().ok().and_then(|g| g.clone()) { return Some(f); }
     let path = std::env::var("PATH").unwrap_or_default();
     let la = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
     let ad = std::env::var_os("APPDATA").map(PathBuf::from);
-    find_claude(&path, la.as_deref(), ad.as_deref())
+    let mut c = claude_candidates(&path, la.as_deref(), ad.as_deref());
+    // Один і той самий файл може лежати і в PATH, і в теці WinGet: `--version` двічі не запускаємо.
+    dedup_cands(&mut c);
+    for x in c.iter_mut() {
+        if x.1.is_none() {
+            x.1 = run_output(&x.0, &["--version"], std::time::Duration::from_secs(10)).ok()
+                .and_then(|(_, _, out, _)| parse_cli_version(&out));
+        }
+    }
+    let best = pick_newest(&c)?;
+    let version = c.iter().find(|x| x.0 == best).and_then(|x| x.1);
+    let upd = pick_updatable(&c).map(|i| (c[i].0.clone(), cc_source(&c[i].0), c[i].1));
+    let f = Found { source: cc_source(&best), path: best, version, upd };
+    if let Ok(mut g) = FOUND.lock() { *g = Some(f.clone()); }
+    Some(f)
 }
+
+fn find_claude_env() -> Option<PathBuf> { found_env().map(|f| f.path) }
+
+fn reset_found() { if let Ok(mut g) = FOUND.lock() { *g = None; } }
 
 /// `node` у PATH: його ж шукає і вбудований MCP-клієнт (advisor_mcp).
 pub(crate) fn find_node() -> Option<PathBuf> {
@@ -299,18 +442,16 @@ pub fn mcp_config(resource_dir: &Path, data_dir: &Path) -> Value {
 #[tauri::command]
 pub async fn advisor_cc_probe() -> Value {
     tauri::async_runtime::spawn_blocking(|| {
-        let found = find_claude_env();
-        let version = found.as_ref().and_then(|p| {
-            let mut c = Command::new(p);
-            c.arg("--version");
-            no_window(&mut c);
-            let o = c.output().ok()?;
-            let t = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if t.is_empty() { None } else { Some(t) }
-        });
-        json!({"found": found.is_some(), "path": found.map(|p| p.to_string_lossy().to_string()),
-               "version": version, "node": node_found()})
-    }).await.unwrap_or_else(|_| json!({"found": false, "path": null, "version": null, "node": false}))
+        // Явна перевірка (відкриття Порадника, «Оновити список») читає диск наново: після оновлення копія вже інша.
+        reset_found();
+        let f = found_env();
+        let version = f.as_ref().and_then(|f| f.version).map(|(a, b, c)| format!("{a}.{b}.{c}"));
+        let upd = f.as_ref().and_then(|f| f.upd.clone());
+        json!({"found": f.is_some(), "path": f.as_ref().map(|f| f.path.to_string_lossy().to_string()),
+               "version": version, "source": f.as_ref().map(|f| f.source), "node": node_found(),
+               "upd_source": upd.as_ref().map(|u| u.1), "upd_version": upd.as_ref().and_then(|u| u.2).map(|(a, b, c)| format!("{a}.{b}.{c}"))})
+    }).await.unwrap_or_else(|_| json!({"found": false, "path": null, "version": null, "source": null, "node": false,
+                                      "upd_source": null, "upd_version": null}))
 }
 
 /// Запускає зовнішню програму без вікна й чекає не довше за `limit`. Без таймауту завислий `claude`/`lms`
@@ -493,6 +634,87 @@ pub async fn advisor_cc_login(app: State<'_, App>) -> Result<(), String> {
         no_window(&mut cmd);
         // Не чекаємо: вхід інтерактивний, людина завершує його у вікні консолі.
         cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+    }).await.map_err(|e| e.to_string())?
+}
+
+/// Рядок для `cmd /c start` з оновленням: WinGet-копію оновлює `winget`, npm- і PATH-копію — сам `claude update`.
+/// Копію Claude Desktop оновлює той застосунок, тож тут відмова. Шлях перевіряється так само, як у `cc_login_line`.
+pub fn cc_update_line(claude: &Path, source: &str) -> Result<String, String> {
+    match source {
+        "winget" => Ok("/c start \"Оновлення Claude Code\" winget upgrade --id Anthropic.ClaudeCode -e".to_string()),
+        "npm" | "path" => {
+            let p = claude.to_string_lossy();
+            if p.contains('"') || p.contains('%') { return Err("Шлях до Claude Code містить недопустимі символи".into()); }
+            Ok(format!("/c start \"Оновлення Claude Code\" \"{p}\" update"))
+        }
+        "desktop" => Err("Цю копію оновлює застосунок Claude Desktop".into()),
+        _ => Err("Невідоме джерело Claude Code".into()),
+    }
+}
+
+/// Видиме вікно консолі, як у `advisor_cc_login`. Без `require_advisor`: команда нічого не шле до Anthropic
+/// про дані, лише оновлює програму на комп'ютері.
+#[tauri::command]
+pub async fn advisor_cc_update() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let f = found_env().ok_or("Claude Code не знайдено")?;
+        let (up, us, _) = f.upd.clone().ok_or("Цю копію оновлює застосунок Claude Desktop")?;
+        let line = cc_update_line(&up, us)?;
+        reset_found();
+        let mut cmd = Command::new("cmd");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.raw_arg(&line);
+        }
+        #[cfg(not(windows))]
+        cmd.args(line.split_whitespace());
+        no_window(&mut cmd);
+        cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+    }).await.map_err(|e| e.to_string())?
+}
+
+/// Команда тихого оновлення (без вікна): прапорці winget вимикають будь-які запитання, інакше процес без консолі
+/// завис би на «погодьтеся з умовами» до таймауту. Копію Claude Desktop оновлює той застосунок — `None`.
+pub fn autoupdate_cmd(source: &str, claude: &Path) -> Option<(String, Vec<String>)> {
+    match source {
+        "winget" => Some(("winget".into(), ["upgrade", "--id", "Anthropic.ClaudeCode", "-e", "--silent",
+            "--disable-interactivity", "--accept-source-agreements", "--accept-package-agreements"]
+            .iter().map(|x| x.to_string()).collect())),
+        "npm" | "path" => Some((claude.to_string_lossy().to_string(), vec!["update".into()])),
+        _ => None,
+    }
+}
+
+/// Коди winget «оновлень немає» — не помилка: UPDATE_NOT_APPLICABLE 0x8A15002B, INSTALL_TECHNOLOGY/PACKAGE_ALREADY_INSTALLED 0x8A150061.
+pub fn winget_no_update(code: i32) -> bool {
+    code == 0x8A15_002Bu32 as i32 || code == 0x8A15_0061u32 as i32
+}
+
+/// Тихе оновлення у фоні. Нічого про дані користувача не шле, тож без `require_advisor`.
+#[tauri::command]
+pub async fn advisor_cc_autoupdate() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let f = found_env().ok_or("Claude Code не знайдено")?;
+        let fmt = |v: Option<Ver>| v.map(|(a, b, c)| format!("{a}.{b}.{c}"));
+        let Some((up, us, uv)) = f.upd.clone() else {
+            return Ok(json!({"updated": false, "skipped": "desktop"}));
+        };
+        let Some((mut prog, args)) = autoupdate_cmd(us, &up) else {
+            return Ok(json!({"updated": false, "skipped": "desktop"}));
+        };
+        if prog == "winget" { prog = winget_program(); }
+        let a: Vec<&str> = args.iter().map(String::as_str).collect();
+        // Причина (запуск/таймаут) лишається в тексті, але коротка й без шляхів.
+        let (ok, code, _, _) = run_output(Path::new(&prog), &a, std::time::Duration::from_secs(300))
+            .map_err(|e| format!("Не вдалося оновити Claude Code: {}", clip(&Value::String(e.replace(&*prog, "…")), 60)))?;
+        if !ok && !(us == "winget" && winget_no_update(code)) {
+            return Err(format!("Не вдалося оновити Claude Code (код {code})"));
+        }
+        reset_found();
+        let n = found_env();
+        let to = n.as_ref().and_then(|n| n.upd.as_ref()).and_then(|u| u.2);
+        Ok(json!({"updated": to > uv && to.is_some(), "from": fmt(uv), "to": fmt(to)}))
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -726,6 +948,138 @@ mod tests {
         let e = include_str!("fixtures/cc_auth_error.jsonl");
         let evs = run(&e.lines().collect::<Vec<_>>());
         assert_eq!(evs[0].0, "error");
+    }
+
+    #[test]
+    fn cli_version_parse() {
+        assert_eq!(parse_cli_version("2.1.268 (Claude Code)"), Some((2, 1, 268)));
+        assert_eq!(parse_cli_version("claude v2.1.302-beta\n"), Some((2, 1, 302)));
+        assert_eq!(parse_cli_version("2.1.295"), Some((2, 1, 295)));
+        assert_eq!(parse_cli_version("немає версії 2.1"), None);
+        assert_eq!(parse_cli_version(""), None);
+    }
+
+    #[test]
+    fn pick_newest_by_semver_then_priority() {
+        let c = |n: &str, v: Option<Ver>| (PathBuf::from(n), v);
+        // 2.1.302 > 2.1.99 за числами, а не за рядками
+        let l = [c("winget", Some((2, 1, 99))), c("desktop", Some((2, 1, 302)))];
+        assert_eq!(pick_newest(&l), Some(PathBuf::from("desktop")));
+        // рівні версії: перший у списку (PATH/WinGet) попереду копії Claude Desktop
+        let l = [c("path", Some((2, 1, 299))), c("desktop", Some((2, 1, 299)))];
+        assert_eq!(pick_newest(&l), Some(PathBuf::from("path")));
+        // невідома версія найнижча, навіть якщо стоїть першою
+        let l = [c("path", None), c("desktop", Some((0, 0, 1)))];
+        assert_eq!(pick_newest(&l), Some(PathBuf::from("desktop")));
+        // самі невідомі: перша
+        assert_eq!(pick_newest(&[c("a", None), c("b", None)]), Some(PathBuf::from("a")));
+        assert_eq!(pick_newest(&[]), None);
+    }
+
+    #[test]
+    fn cc_source_by_path() {
+        // Корінь профілю нейтральний (D:\Profile): сторож приватності не пропускає шляхів до тек користувачів.
+        assert_eq!(cc_source(Path::new(r"D:\Profile\AppData\Local\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe\claude.exe")), "winget");
+        assert_eq!(cc_source(Path::new(r"D:\Profile\AppData\Roaming\Claude\claude-code\2.1.299\abc\claude.exe")), "desktop");
+        assert_eq!(cc_source(Path::new(r"D:\Profile\AppData\Roaming\npm\claude.cmd")), "npm");
+        assert_eq!(cc_source(Path::new(r"C:\Tools\claude.exe")), "path");
+    }
+
+    #[test]
+    fn candidates_read_desktop_version_from_dir() {
+        let t = std::env::temp_dir().join(format!("groshi-adv-cand-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&t);
+        let (ad, p) = (t.join("ad"), t.join("path"));
+        for (v, h) in [("2.1.295", "aaa"), ("2.1.299", "bbb")] {
+            let d = ad.join("Claude").join("claude-code").join(v).join(h);
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("claude.exe"), b"MZ").unwrap();
+        }
+        std::fs::create_dir_all(&p).unwrap();
+        let c = claude_candidates(p.to_str().unwrap(), None, Some(&ad));
+        let mut vs: Vec<_> = c.iter().map(|x| x.1).collect();
+        vs.sort();
+        assert_eq!(vs, vec![Some((2, 1, 295)), Some((2, 1, 299))]);
+        let best = pick_newest(&c).unwrap();
+        assert!(best.to_string_lossy().contains("2.1.299"));
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn winget_links_is_winget_and_dedups() {
+        let l = Path::new(r"D:\Profile\AppData\Local\Microsoft\WinGet\Links\claude.exe");
+        assert_eq!(cc_source(l), "winget");
+        let mut c = vec![(PathBuf::from(r"D:\Profile\Tools\Claude.exe"), None), (PathBuf::from(r"d:\profile\tools\claude.EXE"), None),
+                         (PathBuf::from(r"D:\Profile\Other\claude.exe"), None)];
+        dedup_cands(&mut c);
+        assert_eq!(c.len(), 2);
+    }
+
+    #[test]
+    fn strict_dir_versions() {
+        assert_eq!(parse_dir_version("2.1.299"), Some((2, 1, 299)));
+        assert_eq!(parse_dir_version("2.1.299-old"), None);
+        assert_eq!(parse_dir_version("2.1.299.bak"), None);
+        assert_eq!(parse_dir_version("2.1"), None);
+        assert_eq!(parse_dir_version("v2.1.299"), None);
+    }
+
+    #[test]
+    fn desktop_candidates_skip_empty_and_suffixed() {
+        let t = std::env::temp_dir().join(format!("groshi-adv-cand2-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&t);
+        let ad = t.join("ad");
+        for (v, body) in [("2.1.295", &b"MZ"[..]), ("2.1.299", &b""[..]), ("2.1.300-old", &b"MZ"[..])] {
+            let d = ad.join("Claude").join("claude-code").join(v).join("h");
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("claude.exe"), body).unwrap();
+        }
+        let c = claude_candidates("", None, Some(&ad));
+        assert_eq!(c.iter().map(|x| x.1).collect::<Vec<_>>(), vec![Some((2, 1, 295))]);
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn updatable_copy_ignores_desktop_and_prefers_winget() {
+        let w = r"D:\Profile\AppData\Local\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_x\claude.exe";
+        let d = r"D:\Profile\AppData\Roaming\Claude\claude-code\2.1.299\h\claude.exe";
+        let n = r"D:\Profile\AppData\Roaming\npm\claude.cmd";
+        let c = vec![(PathBuf::from(d), Some((2, 1, 299))), (PathBuf::from(n), Some((2, 1, 200))), (PathBuf::from(w), Some((2, 1, 268)))];
+        assert_eq!(pick_updatable(&c), Some(2));
+        assert_eq!(pick_newest(&c), Some(PathBuf::from(d)));
+        assert_eq!(pick_updatable(&c[..2]), Some(1));
+        assert_eq!(pick_updatable(&c[..1]), None);
+    }
+
+    #[test]
+    fn autoupdate_commands() {
+        let (p, a) = autoupdate_cmd("winget", Path::new("D:/x/claude.exe")).unwrap();
+        assert_eq!(p, "winget");
+        assert_eq!(a.join(" "), "upgrade --id Anthropic.ClaudeCode -e --silent --disable-interactivity --accept-source-agreements --accept-package-agreements");
+        let (p, a) = autoupdate_cmd("npm", Path::new("D:/Tools/claude.cmd")).unwrap();
+        assert_eq!((p.as_str(), a), ("D:/Tools/claude.cmd", vec!["update".to_string()]));
+        assert!(autoupdate_cmd("path", Path::new("D:/a/claude.exe")).is_some());
+        assert!(autoupdate_cmd("desktop", Path::new("D:/d/claude.exe")).is_none());
+    }
+
+    #[test]
+    fn winget_no_update_codes() {
+        assert!(winget_no_update(-1978335189));
+        assert!(winget_no_update(-1978335135));
+        assert!(!winget_no_update(1));
+        assert!(!winget_no_update(0));
+    }
+
+    #[test]
+    fn cc_update_lines() {
+        let w = cc_update_line(Path::new("C:/x/claude.exe"), "winget").unwrap();
+        assert_eq!(w, "/c start \"Оновлення Claude Code\" winget upgrade --id Anthropic.ClaudeCode -e");
+        let n = cc_update_line(Path::new("C:/Tools & Co/claude.cmd"), "npm").unwrap();
+        assert_eq!(n, "/c start \"Оновлення Claude Code\" \"C:/Tools & Co/claude.cmd\" update");
+        assert!(cc_update_line(Path::new("C:/a/claude.exe"), "path").unwrap().ends_with("\"C:/a/claude.exe\" update"));
+        assert!(cc_update_line(Path::new("C:/100%/claude.exe"), "path").is_err());
+        assert!(cc_update_line(Path::new("C:/a\"b/claude.exe"), "npm").is_err());
+        assert!(cc_update_line(Path::new("C:/d/claude.exe"), "desktop").unwrap_err().contains("Claude Desktop"));
     }
 
     #[test]
