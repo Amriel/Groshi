@@ -9739,7 +9739,7 @@ function advProbe(){
     el('advSetupWhy').textContent = !ADV.probe.found
       ? 'Програми claude немає в системі, або застосунок її не бачить.'
       : 'Claude Code є, але не знайдено Node.js, без якого він не працює.';
-    el('advVer').textContent = ok ? `Claude Code ${ADV.probe.version || ''} · Node.js ${ADV.probe.node}` : '';
+    el('advVer').textContent = ok ? `Claude Code ${ADV.probe.version || ''} · Node.js знайдено` : '';
     advView();
   }).catch(e => {
     ADV.state = 'missing';

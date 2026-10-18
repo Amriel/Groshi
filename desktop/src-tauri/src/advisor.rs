@@ -279,6 +279,17 @@ pub async fn advisor_cc_probe() -> Value {
 /// успіхом. Вивід збирають окремі потоки в спільні буфери, а завершення визначає `try_wait`, а не EOF каналу:
 /// демон, що успадкував канал (`lms server start`), тримав би його відкритим і блокував читання.
 pub(crate) fn run_capture(path: &Path, args: &[&str], limit: std::time::Duration) -> Result<String, String> {
+    let (ok, code, out, err) = run_output(path, args, limit)?;
+    if ok { return Ok(out); }
+    let line = err.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("");
+    let snippet: String = line.chars().take(120).collect();
+    Err(if snippet.is_empty() { format!("Команда завершилась з кодом {code}") } else { snippet })
+}
+
+/// Те саме, що `run_capture`, але повертає вивід за будь-якого коду виходу: `(успіх, код, stdout, stderr)`.
+/// Потрібно для `claude auth status`: без входу він навмисно виходить з кодом 1, хоча друкує правильний JSON,
+/// і «код ≠ 0 — помилка» показувало «Стан входу невідомий» замість «Не увійдено».
+pub(crate) fn run_output(path: &Path, args: &[&str], limit: std::time::Duration) -> Result<(bool, i32, String, String), String> {
     let mut cmd = Command::new(path);
     cmd.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     no_window(&mut cmd);
@@ -314,11 +325,7 @@ pub(crate) fn run_capture(path: &Path, args: &[&str], limit: std::time::Duration
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     let text = |b: &Arc<Mutex<Vec<u8>>>| String::from_utf8_lossy(&b.lock().unwrap_or_else(|e| e.into_inner())).to_string();
-    if status.success() { return Ok(text(&out)); }
-    let e = text(&err);
-    let line = e.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("");
-    let snippet: String = line.chars().take(120).collect();
-    Err(if snippet.is_empty() { format!("Команда завершилась з кодом {}", status.code().unwrap_or(-1)) } else { snippet })
+    Ok((status.success(), status.code().unwrap_or(-1), text(&out), text(&err)))
 }
 
 /// Лише `loggedIn` і `authMethod`: вивід `claude auth status --json` може містити пошту й організацію,
@@ -346,8 +353,9 @@ pub async fn advisor_cc_auth(app: State<'_, App>) -> Result<Value, String> {
     crate::require_advisor(&app.st)?;
     tauri::async_runtime::spawn_blocking(|| {
         let claude = find_claude_env().ok_or("Claude Code не знайдено")?;
-        let out = run_capture(&claude, &["auth", "status", "--json"], std::time::Duration::from_secs(15))?;
-        parse_cc_auth(&out)
+        let (ok, code, out, _) = run_output(&claude, &["auth", "status", "--json"], std::time::Duration::from_secs(15))?;
+        // Без входу код виходу 1, але JSON правильний — довіряємо JSON, а код показуємо лише коли JSON немає.
+        parse_cc_auth(&out).map_err(|e| if ok { e } else { format!("{e} (код {code})") })
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -674,6 +682,23 @@ mod tests {
         let e = run_capture(cmd, &["/c", "echo boom 1>&2 & exit 1"], std::time::Duration::from_secs(10)).unwrap_err();
         assert_eq!(e, "boom");
         assert_eq!(run_capture(cmd, &["/c", "echo hi"], std::time::Duration::from_secs(10)).unwrap().trim(), "hi");
+    }
+
+    /// `claude auth status` без входу виходить з кодом 1, але друкує JSON — його треба розібрати, а не вважати збоєм.
+    #[cfg(windows)]
+    #[test]
+    fn auth_status_json_survives_exit_code_1() {
+        // JSON через файл: лапки в аргументі `echo` cmd.exe віддав би з екрануванням Rust.
+        let p = std::env::temp_dir().join("groshi_auth_status_test.json");
+        std::fs::write(&p, r#"{"loggedIn":false,"authMethod":"none"}"#).unwrap();
+        let line = format!("type {} & exit 1", p.display()); // без лапок: Rust екранував би їх для cmd
+        let (ok, code, out, _) = run_output(Path::new("cmd"), &["/c", &line], std::time::Duration::from_secs(10)).unwrap();
+        let _ = std::fs::remove_file(&p);
+        assert!(!ok);
+        assert_eq!(code, 1);
+        let v = parse_cc_auth(&out).unwrap();
+        assert_eq!(v["logged_in"], false);
+        assert_eq!(v["method"], "none");
     }
 
     #[test]
