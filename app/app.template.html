@@ -11131,10 +11131,17 @@ function hideKb(){
     kbtip.style.transform = kbtip.style.transform.replace('scale(1)','scale(.94)');
   }, 60);
 }
+/* У розгорнутій панелі підпис пункту вже написаний поруч, тож підказка з тією
+   самою назвою (і клавішею) лише дублювала б його над самим пунктом. У
+   звуженій панелі підпису нема — там підказка потрібна. */
+const tipWanted = n => {
+  const lbl = n.closest('#tabs') && n.querySelector('.nl');
+  return !(lbl && lbl.offsetParent !== null);
+};
 if(canHover){
   addEventListener('pointerover', e=>{
     const n = e.target.closest('[data-tip]');
-    if(n) showKb(n); else if(!e.target.closest('#kbtip')) hideKb();
+    if(n && tipWanted(n)) showKb(n); else if(!e.target.closest('#kbtip')) hideKb();
   });
   addEventListener('pointerdown', hideKb);
   addEventListener('scroll', hideKb, true);

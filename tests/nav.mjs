@@ -155,6 +155,27 @@ try {
       'true', 'клавіша 4 не підсвітила «Ще»');
     await ctx.close(); }
 
+  // Підказки пунктів панелі. У розгорнутій панелі підпис уже написаний поруч, і
+  // підказка «Категорії [2]» над самим пунктом «Категорії» лише дублювала його
+  // (симптом зі скриншота користувача). У звуженій панелі підпису нема, там вона
+  // потрібна. Контроль: підказка кнопки теми показується в обох розкладках.
+  const kbOn = page => page.evaluate(() => document.getElementById('kbtip').classList.contains('on'));
+  { const {ctx, page} = await open(1400);
+    await page.hover('#tabs [data-tab="cats"]'); await page.waitForTimeout(400);
+    assert.ok(!await kbOn(page), 'розгорнута панель: підказка дублює підпис пункту');
+    await page.hover('#themeBtn');
+    await page.waitForFunction(() => document.getElementById('kbtip').classList.contains('on'), null, {timeout: 3000});
+    await page.hover('#tabs [data-tab="cats"]');
+    await page.waitForFunction(() => !document.getElementById('kbtip').classList.contains('on'), null, {timeout: 3000});
+    await ctx.close(); }
+  { const {ctx, page} = await open(900);
+    await page.hover('#tabs [data-tab="cats"]');
+    await page.waitForFunction(() => {
+      const k = document.getElementById('kbtip');
+      return k.classList.contains('on') && /Категорії/.test(k.textContent);
+    }, null, {timeout: 3000});
+    await ctx.close(); }
+
   assert.deepEqual(errors, [], 'помилки JavaScript: ' + errors.join(' | '));
   console.log('навігація: межі 759/760/999/1000, клавіші, «Ще», звуження — OK');
 } finally { await browser.close(); }
