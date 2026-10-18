@@ -1356,6 +1356,7 @@ fn main() {
             advisor::advisor_cc_ask,
             advisor::advisor_cc_auth,
             advisor::advisor_cc_login,
+            advisor::advisor_cc_models,
             advisor_local::advisor_lms_models,
             advisor_local::advisor_lms_server_start,
             advisor::advisor_stop,

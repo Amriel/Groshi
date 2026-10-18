@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::State;
 
-use crate::advisor::{emit, find_node, RunGuard};
+use crate::advisor::{emit, find_node, valid_effort, RunGuard};
 use crate::advisor_local::{client, wait, Sink, SseEvent, SseLines, ToolExec, Wait, IDLE, MAX_LINE_BUF, MAX_MESSAGES, MAX_TEXT};
 use crate::advisor_mcp::{Mcp, McpTool};
 use crate::App;
@@ -32,7 +32,7 @@ const BETA: &str = "server-side-fallback-2026-07-01";
 
 /// Тіло `POST /v1/messages`. Свідомо БЕЗ `thinking`, `budget_tokens`, `temperature`, `tool_choice`:
 /// глибиною керує `output_config.effort`, а примусовий вибір інструмента вимикає міркування.
-pub fn api_body(model: &str, system: &str, messages: &[Value], tools: &[McpTool]) -> Value {
+pub fn api_body(model: &str, system: &str, messages: &[Value], tools: &[McpTool], effort: Option<&str>) -> Value {
     let mut t: Vec<Value> = tools.iter()
         .map(|x| json!({"name": x.name, "description": x.description, "input_schema": x.input_schema}))
         .collect();
@@ -44,7 +44,7 @@ pub fn api_body(model: &str, system: &str, messages: &[Value], tools: &[McpTool]
         "system": system,
         "messages": messages,
         "tools": t,
-        "output_config": {"effort": "medium"},
+        "output_config": {"effort": effort.unwrap_or("medium")},
         "fallbacks": "default",
         // Автоматичне кешування префікса: кожен раунд інструментів перенадсилає Opus усю історію,
         // без кешу її вартість росте квадратично.
@@ -65,6 +65,9 @@ pub struct MsgStream {
     stop_reason: Option<String>,
     complete: bool,
     text_emitted: bool,
+    /// [input, output, cache_read, cache_write] за ЦЕЙ хід. `message_start` дає початкові значення, а
+    /// `message_delta` — підсумкові (output_tokens накопичувальний), тому перезаписуємо, а не додаємо.
+    usage: [u64; 4],
 }
 
 impl MsgStream {
@@ -132,7 +135,9 @@ impl MsgStream {
                 }
                 if let Some(q) = search { sink("tool", &format!("WebSearch: {q}")); }
             }
+            Some("message_start") => self.take_usage(&ev["message"]["usage"]),
             Some("message_delta") => {
+                self.take_usage(&ev["usage"]);
                 if let Some(r) = ev["delta"]["stop_reason"].as_str() { self.stop_reason = Some(r.to_string()); }
             }
             Some("message_stop") => self.complete = true,
@@ -156,6 +161,13 @@ impl MsgStream {
         self.blocks.iter().map(|(_, b)| b.v.clone())
             .filter(|v| !(v["type"] == "text" && v["text"].as_str().unwrap_or("").is_empty()))
             .collect()
+    }
+
+    fn take_usage(&mut self, u: &Value) {
+        let keys = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"];
+        for (slot, key) in self.usage.iter_mut().zip(keys) {
+            if let Some(n) = u[key].as_u64() { *slot = n; }
+        }
     }
 
     pub fn stop_reason(&self) -> Option<&str> { self.stop_reason.as_deref() }
@@ -183,6 +195,47 @@ fn key_header(key: &str) -> Result<reqwest::header::HeaderValue, String> {
     Ok(v)
 }
 
+/// RFC 3339 (`2026-07-01T12:30:00Z`, можливі частки секунди й зсув) → секунди Unix. Власний розбір, бо
+/// заради однієї дати не варто тягти нову залежність (chrono); некоректний рядок дає None, і поле просто порожнє.
+fn rfc3339_secs(s: &str) -> Option<u64> {
+    let b = s.trim().as_bytes();
+    if b.len() < 20 || b[4] != b'-' || b[7] != b'-' || !matches!(b[10], b'T' | b't' | b' ') || b[13] != b':' || b[16] != b':' { return None; }
+    let num = |a: usize, z: usize| std::str::from_utf8(&b[a..z]).ok()?.parse::<i64>().ok();
+    let (y, mo, d, h, mi, sec) = (num(0, 4)?, num(5, 7)?, num(8, 10)?, num(11, 13)?, num(14, 16)?, num(17, 19)?);
+    if !(1..=12).contains(&mo) || !(1..=31).contains(&d) || h > 23 || mi > 59 || sec > 60 { return None; }
+    let mut i = 19;
+    if b.get(i) == Some(&b'.') { i += 1; while b.get(i).is_some_and(u8::is_ascii_digit) { i += 1; } }
+    let off = match *b.get(i)? {
+        b'Z' | b'z' => 0,
+        sign @ (b'+' | b'-') if b.len() == i + 6 && b[i + 3] == b':' => {
+            let o = num(i + 1, i + 3)? * 3600 + num(i + 4, i + 6)? * 60;
+            if sign == b'+' { o } else { -o }
+        }
+        _ => return None,
+    };
+    // «Дні від цивільної дати» (алгоритм Говарда Гіннанта): без таблиць місяців і правил високосних років.
+    let (yy, m) = if mo <= 2 { (y - 1, mo + 9) } else { (y, mo - 3) };
+    let era = yy.div_euclid(400);
+    let yoe = yy - era * 400;
+    let doy = (153 * m + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468;
+    u64::try_from(days * 86400 + h * 3600 + mi * 60 + sec - off).ok()
+}
+
+/// Заголовки `anthropic-ratelimit-*` → `{type:"api", tokens_remaining, tokens_limit, requests_remaining,
+/// requests_limit, resets_at}`. Лише числа й час; None, якщо жодного заголовка немає (мок і проксі їх не шлють).
+fn api_limits(h: &reqwest::header::HeaderMap) -> Option<String> {
+    let get = |k: &str| h.get(k).and_then(|v| v.to_str().ok()).map(str::trim);
+    let num = |k: &str| get(k).and_then(|v| v.parse::<u64>().ok());
+    let (tr, tl) = (num("anthropic-ratelimit-tokens-remaining"), num("anthropic-ratelimit-tokens-limit"));
+    let (rr, rl) = (num("anthropic-ratelimit-requests-remaining"), num("anthropic-ratelimit-requests-limit"));
+    let reset = get("anthropic-ratelimit-tokens-reset").and_then(rfc3339_secs);
+    if tr.is_none() && tl.is_none() && rr.is_none() && rl.is_none() { return None; }
+    Some(json!({"type": "api", "tokens_remaining": tr, "tokens_limit": tl,
+                "requests_remaining": rr, "requests_limit": rl, "resets_at": reset}).to_string())
+}
+
 fn url(base: &str, tail: &str) -> String { format!("{}/{}", base.trim_end_matches('/'), tail) }
 
 /// Один запит-стрім. `Ok(None)` — скасовано.
@@ -198,6 +251,8 @@ async fn stream_turn(c: &reqwest::Client, base: &str, key: &str, body: &Value, t
         Wait::Done(Ok(r)) => r,
         Wait::Done(Err(_)) => return Err("Не вдалося зʼєднатися з Anthropic".into()),
     };
+    // Ліміти читаємо до перевірки статусу: у 429 вони якраз і кажуть, до якої миті чекати.
+    if let Some(l) = api_limits(resp.headers()) { sink("limits", &l); }
     if !resp.status().is_success() { return Err(http_error(resp.status().as_u16())); }
     let mut sse = SseLines::default();
     let mut ms = MsgStream { text_emitted, ..Default::default() };
@@ -228,21 +283,32 @@ fn has_unanswered_server_tool(content: &[Value]) -> bool {
     })
 }
 
+/// Шле накопичений `usage` один раз і обнуляє його; нулі — події немає.
+fn emit_usage(usage: &mut [u64; 4], sink: Sink<'_>) {
+    if usage.iter().any(|&u| u > 0) {
+        sink("usage", &json!({"input": usage[0], "output": usage[1], "cache_read": usage[2], "cache_write": usage[3]}).to_string());
+        *usage = [0; 4];
+    }
+}
+
 /// Цикл «стрім → інструменти → стрім». Події `text`/`tool`/`state`/`error` ідуть у `sink`;
 /// `done` тут НЕ шлеться: його після звільнення слота надсилає охоронець. «Стоп» — тихо, без `state`.
 pub async fn run_api(
-    base_url: &str, key: &str, model: &str, system: &str, messages: &[Value],
+    base_url: &str, key: &str, model: &str, effort: Option<&str>, system: &str, messages: &[Value],
     exec: &mut dyn ToolExec, tools: &[McpTool], cancel: &AtomicBool, sink: Sink<'_>,
 ) {
-    if let Err(e) = run_inner(base_url, key, model, system, messages, exec, tools, cancel, &mut *sink).await {
-        sink("error", &e);
-    }
+    let mut usage = [0u64; 4];
+    let r = run_inner(base_url, key, model, effort, system, messages, exec, tools, cancel, &mut *sink, &mut usage).await;
+    // Успіх уже віддав usage перед `state` і обнулив його; тут лишається випадок помилки в пізнішому раунді:
+    // токени попередніх раундів оплачено, тож лічильник їх не губить.
+    emit_usage(&mut usage, &mut *sink);
+    if let Err(e) = r { sink("error", &e); }
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn run_inner(
-    base: &str, key: &str, model: &str, system: &str, messages: &[Value],
-    exec: &mut dyn ToolExec, tools: &[McpTool], cancel: &AtomicBool, sink: Sink<'_>,
+    base: &str, key: &str, model: &str, effort: Option<&str>, system: &str, messages: &[Value],
+    exec: &mut dyn ToolExec, tools: &[McpTool], cancel: &AtomicBool, sink: Sink<'_>, usage: &mut [u64; 4],
 ) -> Result<(), String> {
     let c = client()?;
     let mut msgs: Vec<Value> = messages.to_vec();
@@ -251,12 +317,14 @@ async fn run_inner(
     // Прапорець «текст уже був» живе між раундами: інакше текст після виклику інструмента
     // зліпиться з попереднім без розділювача.
     let mut text_emitted = false;
+    // Сума по раундах: кожен раунд інструментів — окремий платний запит.
 
     // До MAX_STEPS раундів продовження; наступний запит дає моделі шанс відповісти.
     for round in 0..=MAX_STEPS {
-        let body = api_body(model, system, &msgs, tools);
+        let body = api_body(model, system, &msgs, tools, effort);
         let Some(ms) = stream_turn(&c, base, key, &body, text_emitted, cancel, &mut *sink).await? else { return Ok(()) };
         text_emitted = ms.text_emitted;
+        for (t, u) in usage.iter_mut().zip(ms.usage) { *t += u; }
         let reason = ms.stop_reason().unwrap_or("").to_string();
         if reason == "refusal" { return Err("Модель відмовилась відповідати".into()); }
         let content = ms.content();
@@ -271,6 +339,8 @@ async fn run_inner(
                 // Серверний пошук без результату: у append-only історії такий хід назавжди давав би 400.
                 if has_unanswered_server_tool(&content) { return Err("Відповідь обірвалась на пошуку — спробуйте ще раз".into()); }
                 added.push(assistant);
+                // До `state`: вебвʼю дописує історію на `done`, і підпис має встигнути до завершення.
+                emit_usage(usage, &mut *sink);
                 sink("state", &Value::Array(added).to_string());
                 return Ok(());
             }
@@ -377,6 +447,7 @@ pub struct ApiReq {
     pub messages: Value,
     pub system: String,
     pub model: Option<String>,
+    pub effort: Option<String>,
 }
 
 fn valid_model(m: &str) -> bool {
@@ -401,6 +472,9 @@ pub fn advisor_api_ask(handle: tauri::AppHandle, app: State<App>, req: ApiReq) -
     crate::require_advisor(&app.st)?;
     let model = req.model.as_deref().map(str::trim).filter(|m| !m.is_empty()).unwrap_or(DEFAULT_MODEL).to_string();
     if !valid_model(&model) { return Err("Некоректна назва моделі".into()); }
+    // Порожній рядок = «не вибрано»: у тілі піде типове medium.
+    let effort = req.effort.as_deref().map(str::trim).filter(|e| !e.is_empty()).map(str::to_string);
+    if effort.as_deref().is_some_and(|e| !valid_effort(e)) { return Err("Некоректний рівень effort".into()); }
     if req.system.len() > MAX_TEXT { return Err("Інструкція або зведення завеликі".into()); }
     let messages = check_messages(&req.messages)?;
 
@@ -431,7 +505,7 @@ pub fn advisor_api_ask(handle: tauri::AppHandle, app: State<App>, req: ApiReq) -
             Err(_) => { sink("error", "Не вдалося запустити MCP"); None }
         };
         if let Some((m, t)) = mcp.as_mut() {
-            run_api(API_BASE, &key, &model, &system, &messages, m as &mut dyn ToolExec, t.as_slice(), &cancel, &mut sink).await;
+            run_api(API_BASE, &key, &model, effort.as_deref(), &system, &messages, m as &mut dyn ToolExec, t.as_slice(), &cancel, &mut sink).await;
         }
         // Drop Mcp вбиває node; робимо це поза рантаймом, бо taskkill блокує.
         let _ = tauri::async_runtime::spawn_blocking(move || drop(mcp)).await;
@@ -455,7 +529,7 @@ mod tests {
 
     #[test]
     fn body_has_required_values_and_no_forbidden() {
-        let b = api_body(DEFAULT_MODEL, "sys", &[json!({"role":"user","content":"hi"})], &tools());
+        let b = api_body(DEFAULT_MODEL, "sys", &[json!({"role":"user","content":"hi"})], &tools(), None);
         assert_eq!(b["model"], "claude-opus-5-5");
         assert_eq!(b["stream"], true);
         assert_eq!(b["max_tokens"], 32000);
@@ -603,7 +677,10 @@ mod tests {
     }
 
     /// Кожне зʼєднання отримує наступну заготовку (статус, тіло); після неї сокет закривається.
-    fn mock(replies: Vec<(u16, String)>) -> (String, Seen) {
+    fn mock(replies: Vec<(u16, String)>) -> (String, Seen) { mock_h(replies, "") }
+
+    /// Те саме, але з додатковими заголовками відповіді (кожен закінчується `\r\n`).
+    fn mock_h(replies: Vec<(u16, String)>, extra: &'static str) -> (String, Seen) {
         let l = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://127.0.0.1:{}", l.local_addr().unwrap().port());
         let seen: Seen = Arc::new(Mutex::new(vec![]));
@@ -613,7 +690,7 @@ mod tests {
                 let Ok((mut s, _)) = l.accept() else { return };
                 let r = read_request(&mut s);
                 seen2.lock().unwrap().push(r);
-                let _ = s.write_all(format!("HTTP/1.1 {code} X\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n{body}").as_bytes());
+                let _ = s.write_all(format!("HTTP/1.1 {code} X\r\nContent-Type: text/event-stream\r\nConnection: close\r\n{extra}\r\n{body}").as_bytes());
                 let _ = s.shutdown(std::net::Shutdown::Both);
             }
         });
@@ -635,9 +712,86 @@ mod tests {
 
     async fn run(base: &str, fake: &mut Fake, cancel: &AtomicBool) -> Vec<(String, String)> {
         let (ev, mut sink) = collect();
-        run_api(base, SECRET, DEFAULT_MODEL, "sys", &user(), fake, &tools(), cancel, &mut sink).await;
+        run_api(base, SECRET, DEFAULT_MODEL, None, "sys", &user(), fake, &tools(), cancel, &mut sink).await;
         let v = ev.lock().unwrap().clone();
         v
+    }
+
+    #[test]
+    fn effort_goes_to_output_config_with_medium_default() {
+        let m = [json!({"role":"user","content":"hi"})];
+        assert_eq!(api_body(DEFAULT_MODEL, "s", &m, &tools(), Some("xhigh"))["output_config"], json!({"effort":"xhigh"}));
+        assert_eq!(api_body(DEFAULT_MODEL, "s", &m, &tools(), None)["output_config"], json!({"effort":"medium"}));
+    }
+
+    #[test]
+    fn rfc3339_to_unix() {
+        assert_eq!(rfc3339_secs("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(rfc3339_secs("2026-07-01T12:30:00Z"), Some(1_782_909_000));
+        assert_eq!(rfc3339_secs("2026-07-01T12:30:00.250Z"), Some(1_782_909_000));
+        assert_eq!(rfc3339_secs("2026-07-01T14:30:00+02:00"), Some(1_782_909_000));
+        assert_eq!(rfc3339_secs("2024-02-29T00:00:00Z"), Some(1_709_164_800));
+        for bad in ["", "вчора", "2026-13-01T00:00:00Z", "2026-07-01T12:30:00", "2026-07-01 12:30"] { assert_eq!(rfc3339_secs(bad), None, "{bad}"); }
+    }
+
+    const LIMIT_HEADERS: &str = "anthropic-ratelimit-tokens-remaining: 38000\r\nanthropic-ratelimit-tokens-limit: 40000\r\nanthropic-ratelimit-requests-remaining: 49\r\nanthropic-ratelimit-requests-limit: 50\r\nanthropic-ratelimit-tokens-reset: 2026-07-01T12:30:00Z\r\n";
+
+    fn usage_reply(input: u64, out_start: u64, out_end: u64, cache_r: u64, cache_w: u64, tool: bool) -> String {
+        let mut body = ev("message_start", json!({"type":"message_start","message":{"id":"m","content":[],
+            "usage":{"input_tokens":input,"output_tokens":out_start,"cache_read_input_tokens":cache_r,"cache_creation_input_tokens":cache_w}}}));
+        if tool {
+            body += &(start(0, json!({"type":"tool_use","id":"toolu_1","name":"groshi_status","input":{}}))
+                + &delta(0, json!({"type":"input_json_delta","partial_json":"{}"})) + &stop_block(0));
+        } else {
+            body += &(start(0, json!({"type":"text","text":""})) + &delta(0, json!({"type":"text_delta","text":"ok"})) + &stop_block(0));
+        }
+        body + &ev("message_delta", json!({"type":"message_delta","delta":{"stop_reason": if tool {"tool_use"} else {"end_turn"}},"usage":{"output_tokens":out_end}}))
+            + &ev("message_stop", json!({"type":"message_stop"}))
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn limits_headers_and_summed_usage_are_emitted() {
+        let (base, _) = mock_h(vec![(200, usage_reply(100, 1, 40, 500, 20, true)), (200, usage_reply(200, 1, 60, 700, 0, false))], LIMIT_HEADERS);
+        let mut fake = Fake { calls: vec![] };
+        let ev = run(&base, &mut fake, &AtomicBool::new(false)).await;
+        let lim: Vec<Value> = ev.iter().filter(|e| e.0 == "limits").map(|e| serde_json::from_str(&e.1).unwrap()).collect();
+        assert_eq!(lim.len(), 2, "заголовки читаємо в кожному раунді");
+        assert_eq!(lim[0], json!({"type":"api","tokens_remaining":38000,"tokens_limit":40000,"requests_remaining":49,"requests_limit":50,"resets_at":1_782_909_000}));
+        let usage: Vec<&(String, String)> = ev.iter().filter(|e| e.0 == "usage").collect();
+        assert_eq!(usage.len(), 1, "usage рівно один раз");
+        let u: Value = serde_json::from_str(&usage[0].1).unwrap();
+        // output береться з message_delta (накопичувальний), не з message_start; раунди сумуються.
+        assert_eq!(u, json!({"input":300,"output":100,"cache_read":1200,"cache_write":20}));
+        let kinds: Vec<&str> = ev.iter().map(|e| e.0.as_str()).collect();
+        let (iu, is) = (kinds.iter().position(|k| *k == "usage").unwrap(), kinds.iter().position(|k| *k == "state").unwrap());
+        assert!(iu < is, "usage до state: {kinds:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn usage_survives_error_in_later_round() {
+        let (base, _) = mock(vec![(200, usage_reply(100, 1, 40, 500, 20, true)), (500, "x".into())]);
+        let ev = run(&base, &mut Fake { calls: vec![] }, &AtomicBool::new(false)).await;
+        let kinds: Vec<&str> = ev.iter().map(|e| e.0.as_str()).collect();
+        let (iu, ie) = (kinds.iter().position(|k| *k == "usage").expect("usage"), kinds.iter().position(|k| *k == "error").expect("error"));
+        assert!(iu < ie, "{kinds:?}");
+        assert_eq!(kinds.iter().filter(|k| **k == "usage").count(), 1);
+        let u: Value = serde_json::from_str(&ev[iu].1).unwrap();
+        assert_eq!(u, json!({"input":100,"output":40,"cache_read":500,"cache_write":20}));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn no_headers_and_no_usage_means_no_events() {
+        let (base, _) = mock(vec![(200, text_reply("Готово"))]);
+        let ev = run(&base, &mut Fake { calls: vec![] }, &AtomicBool::new(false)).await;
+        assert!(!ev.iter().any(|e| e.0 == "limits" || e.0 == "usage"), "{ev:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn effort_reaches_request_body() {
+        let (base, seen) = mock(vec![(200, text_reply("Готово"))]);
+        let (_, mut sink) = collect();
+        run_api(&base, SECRET, DEFAULT_MODEL, Some("max"), "sys", &user(), &mut Fake { calls: vec![] }, &tools(), &AtomicBool::new(false), &mut sink).await;
+        assert_eq!(seen.lock().unwrap()[0].1["output_config"], json!({"effort":"max"}));
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -104,7 +104,15 @@ pub struct AskReq {
     pub system: String,
     pub session: Option<String>,
     pub model: Option<String>,
+    /// Глибина міркування (`--effort`); лише з білого списку `EFFORTS`.
+    pub effort: Option<String>,
 }
+
+/// Рівні effort, які знає CLI (`--effort`) і API (`output_config.effort`). Значення йде в аргумент
+/// процесу й у тіло запиту, тому приймаємо лише ці п'ять, а не «безпечні символи».
+pub(crate) const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
+
+pub(crate) fn valid_effort(s: &str) -> bool { EFFORTS.contains(&s) }
 
 pub(crate) fn no_window(c: &mut Command) {
     #[cfg(windows)]
@@ -118,7 +126,7 @@ pub(crate) fn no_window(c: &mut Command) {
 }
 
 /// Аргументи `claude`. Питання передається через stdin, не аргументом (довжина й лапки).
-pub fn cc_args(cfg_path: &str, sys_path: &str, session: Option<&str>, model: Option<&str>) -> Vec<String> {
+pub fn cc_args(cfg_path: &str, sys_path: &str, session: Option<&str>, model: Option<&str>, effort: Option<&str>) -> Vec<String> {
     let mut a: Vec<String> = [
         "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
         // Вбудований набір інструментів — лише пошук в інтернеті: жодних файлів, терміналу, WebFetch.
@@ -137,6 +145,7 @@ pub fn cc_args(cfg_path: &str, sys_path: &str, session: Option<&str>, model: Opt
     ].iter().map(|s| s.to_string()).collect();
     if let Some(s) = session { a.push("--resume".into()); a.push(s.into()); }
     if let Some(m) = model { a.push("--model".into()); a.push(m.into()); }
+    if let Some(e) = effort { a.push("--effort".into()); a.push(e.into()); }
     a
 }
 
@@ -189,10 +198,40 @@ pub fn parse_line(line: &str, st: &mut StreamState) -> Vec<Ev> {
             if !st.emitted_text && !full.is_empty() { st.emitted_text = true; out.push(("text", full)); }
             let id = s(&v["session_id"]);
             if !id.is_empty() { out.push(("session", id)); }
+            if let Some(u) = usage_event(&v) { out.push(("usage", u)); }
             out
         }
+        Some("rate_limit_event") => limits_event(&v["rate_limit_info"]).map(|l| vec![("limits", l)]).unwrap_or_default(),
         _ => vec![],
     }
+}
+
+/// Лічильники з `result`. Лише числа: текст із відповіді CLI (назви моделей, ідентифікатори) у
+/// подію не потрапляє. Нуль у всіх полях — подію не шлемо, щоб вкладка не малювала порожній підпис.
+fn usage_event(v: &Value) -> Option<String> {
+    let u = &v["usage"];
+    let n = |x: &Value| x.as_u64().unwrap_or(0);
+    let (input, output) = (n(&u["input_tokens"]), n(&u["output_tokens"]));
+    let (cache_read, cache_write) = (n(&u["cache_read_input_tokens"]), n(&u["cache_creation_input_tokens"]));
+    let cost = v["total_cost_usd"].as_f64().filter(|c| c.is_finite() && *c >= 0.0).unwrap_or(0.0);
+    let turns = n(&v["num_turns"]);
+    if input + output + cache_read + cache_write == 0 && cost == 0.0 { return None; }
+    Some(json!({"input": input, "output": output, "cache_read": cache_read, "cache_write": cache_write,
+                "cost_usd": cost, "turns": turns}).to_string())
+}
+
+/// `rate_limit_event.rate_limit_info` → `{type, status, utilization, resets_at}`. Тип і статус беремо лише з
+/// відомих переліків: невідомі значення CLI вкладка не вміє підписати, тож краще пропустити, ніж показати сміття.
+/// Поля можуть бути відсутні (тоді `null`), `utilization` обмежено до 0..1.
+fn limits_event(info: &Value) -> Option<String> {
+    let t = info["rateLimitType"].as_str().filter(|t| ["five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet", "overage"].contains(t))?;
+    let status = info["status"].as_str().filter(|s| ["allowed", "allowed_warning", "rejected"].contains(s))?;
+    // Формат ще не бачено вживу, тож нормалізуємо: відсотки (1..100) замість частки й мілісекунди замість секунд.
+    let util = info["utilization"].as_f64().filter(|u| u.is_finite())
+        .map(|u| if u > 1.0 && u <= 100.0 { u / 100.0 } else { u }.clamp(0.0, 1.0));
+    let resets = info["resetsAt"].as_f64().filter(|r| r.is_finite() && *r > 0.0)
+        .map(|r| if r > 1e12 { r / 1000.0 } else { r } as u64);
+    Some(json!({"type": t, "status": status, "utilization": util, "resets_at": resets}).to_string())
 }
 
 fn exe_names(base: &str) -> Vec<String> {
@@ -359,6 +398,83 @@ pub async fn advisor_cc_auth(app: State<'_, App>) -> Result<Value, String> {
     }).await.map_err(|e| e.to_string())?
 }
 
+/// Службовий запит `initialize` протоколу stream-json: у відповіді є живий список моделей цього облікового запису
+/// (CLI не має для цього окремої команди). Ім'я `request_id` фіксоване — за ним відрізняємо потрібний рядок.
+const MODELS_REQ: &str = r#"{"type":"control_request","request_id":"models","request":{"subtype":"initialize"}}"#;
+
+fn clip(v: &Value, n: usize) -> String { v.as_str().unwrap_or("").chars().take(n).collect() }
+
+/// З рядка `control_response` бере ЛИШЕ `models[]` і з кожної моделі `{value, name, description, efforts}`.
+/// У тій самій відповіді лежать `account` (пошта, організація), `commands`, `agents`, шляхи: вебвʼю і
+/// журнал його помилок їх бачити не мусять, тому все інше відкидається тут, а не в UI.
+/// Модель із непридатним для аргументу `--model` значенням пропускається: вибрати її було б неможливо.
+pub fn parse_cc_models(line: &str) -> Option<Vec<Value>> { models_line(line)?.ok() }
+
+/// None — рядок не наш; Some(Err) — наш `control_response`, але без `models` (напр. subtype "error"):
+/// чекати далі марно, тож чекачу одразу віддається помилка замість 20 с мовчання.
+fn models_line(line: &str) -> Option<Result<Vec<Value>, String>> {
+    let v: Value = serde_json::from_str(line).ok()?;
+    if v["type"] != "control_response" || v["response"]["request_id"] != "models" { return None; }
+    let Some(models) = v["response"]["response"]["models"].as_array() else {
+        return Some(Err("Claude Code не віддав список моделей".into()));
+    };
+    Some(Ok(models.iter().filter_map(|m| {
+        let value = clip(&m["value"], 120);
+        if !safe_token(&value, "-_.[]") { return None; }
+        let name = clip(&m["displayName"], 120);
+        // Haiku не має ні supportsEffort, ні списку: порожній масив = «effort не підтримується».
+        let efforts: Vec<&str> = if m["supportsEffort"] == true {
+            EFFORTS.iter().copied().filter(|e| m["supportedEffortLevels"].as_array().is_some_and(|a| a.iter().any(|x| x == e))).collect()
+        } else { vec![] };
+        Some(json!({"value": value, "name": if name.is_empty() { value.clone() } else { name },
+                    "description": clip(&m["description"], 120), "efforts": efforts}))
+    }).collect()))
+}
+
+/// Запускає `claude` у порожній теці порадника, шле `initialize` і чекає рядок з моделями. stdin тримаємо
+/// відкритим до відповіді: на EOF CLI виходить, не встигнувши відповісти. Читання йде окремим потоком,
+/// бо `lines()` блокує, а таймаут мусить спрацювати навіть коли CLI мовчить.
+fn cc_models_blocking(claude: &Path, wd: &Path) -> Result<Vec<Value>, String> {
+    let mut cmd = Command::new(claude);
+    cmd.args(["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
+              "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands"])
+        .current_dir(wd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+    no_window(&mut cmd);
+    let mut child = cmd.spawn().map_err(|e| format!("Не вдалося запустити Claude Code: {e}"))?;
+    let mut stdin = child.stdin.take();
+    let stdout = child.stdout.take();
+    let (tx, rx) = std::sync::mpsc::channel::<Result<Vec<Value>, String>>();
+    if let Some(so) = stdout {
+        std::thread::spawn(move || {
+            for line in BufReader::new(so).lines() {
+                let Ok(line) = line else { break };
+                if let Some(m) = models_line(&line) { let _ = tx.send(m); break; }
+            }
+        });
+    }
+    if let Some(si) = stdin.as_mut() {
+        let _ = si.write_all(MODELS_REQ.as_bytes());
+        let _ = si.write_all(b"\n");
+        let _ = si.flush();
+    }
+    let res = rx.recv_timeout(std::time::Duration::from_secs(20));
+    kill_tree(&mut child);
+    drop(stdin);
+    res.map_err(|_| "Claude Code не відповів".to_string())?
+}
+
+#[tauri::command]
+pub async fn advisor_cc_models(app: State<'_, App>) -> Result<Vec<Value>, String> {
+    crate::require_advisor(&app.st)?;
+    // Та сама порожня тека, що й у запусків: навіть якби щось просочилось, читати там нічого.
+    let wd = app.st.dir.join("advisor");
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&wd).map_err(|e| e.to_string())?;
+        let claude = find_claude_env().ok_or("Claude Code не знайдено")?;
+        cc_models_blocking(&claude, &wd)
+    }).await.map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub async fn advisor_cc_login(app: State<'_, App>) -> Result<(), String> {
     crate::require_advisor(&app.st)?;
@@ -410,6 +526,7 @@ pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) ->
     // Значення йдуть в аргументи claude: початковий «-» дозволив би підсунути чужий прапорець.
     if let Some(s) = &req.session { if !safe_token(s, "-_") { return Err("Некоректний ідентифікатор сесії".into()); } }
     if let Some(m) = &req.model { if !safe_token(m, "-_.[]") { return Err("Некоректна назва моделі".into()); } }
+    if let Some(e) = &req.effort { if !valid_effort(e) { return Err("Некоректний рівень effort".into()); } }
 
     let claude = find_claude_env().ok_or("Claude Code не знайдено")?;
     if !node_found() { return Err("Node.js не знайдено".into()); }
@@ -428,7 +545,7 @@ pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) ->
     let cfg_json = serde_json::to_vec_pretty(&mcp_config(&res, &data)).map_err(|e| e.to_string())?;
     std::fs::write(&cfg, cfg_json).map_err(|e| e.to_string())?;
     std::fs::write(&sys, &req.system).map_err(|e| e.to_string())?;
-    let args = cc_args(&cfg.to_string_lossy(), &sys.to_string_lossy(), req.session.as_deref(), req.model.as_deref());
+    let args = cc_args(&cfg.to_string_lossy(), &sys.to_string_lossy(), req.session.as_deref(), req.model.as_deref(), req.effort.as_deref());
 
     let mut cmd = Command::new(&claude);
     cmd.args(&args).current_dir(&wd)
@@ -529,21 +646,34 @@ mod tests {
 
     #[test]
     fn args_lock_down_tools() {
-        let a = cc_args("c.json", "s.md", None, None);
+        let a = cc_args("c.json", "s.md", None, None, None);
         assert!(a.contains(&"--strict-mcp-config".to_string()));
         assert_eq!(a[pos(&a, "--tools") + 1], "WebSearch");
         assert!(!a.iter().any(|x| x.contains("WebFetch") || x.contains("Bash")));
         assert_eq!(a[pos(&a, "--setting-sources") + 1], "");
-        assert!(!a.contains(&"--resume".to_string()) && !a.contains(&"--model".to_string()));
+        assert!(!a.contains(&"--resume".to_string()) && !a.contains(&"--model".to_string()) && !a.contains(&"--effort".to_string()));
         assert_eq!(a[pos(&a, "--mcp-config") + 1], "c.json");
         assert_eq!(a[pos(&a, "--system-prompt-file") + 1], "s.md");
     }
 
     #[test]
     fn args_resume_and_model() {
-        let a = cc_args("c", "s", Some("abc"), Some("sonnet"));
+        let a = cc_args("c", "s", Some("abc"), Some("sonnet"), None);
         assert_eq!(a[pos(&a, "--resume") + 1], "abc");
         assert_eq!(a[pos(&a, "--model") + 1], "sonnet");
+    }
+
+    #[test]
+    fn args_effort_only_when_given() {
+        let a = cc_args("c", "s", None, None, Some("xhigh"));
+        assert_eq!(a[pos(&a, "--effort") + 1], "xhigh");
+        assert!(!cc_args("c", "s", None, None, None).contains(&"--effort".to_string()));
+    }
+
+    #[test]
+    fn effort_whitelist() {
+        for e in ["low", "medium", "high", "xhigh", "max"] { assert!(valid_effort(e), "{e}"); }
+        for e in ["", "LOW", "--model", "high ", "ultra", "medium;x"] { assert!(!valid_effort(e), "{e}"); }
     }
 
     #[test]
@@ -712,5 +842,104 @@ mod tests {
         assert!(safe_token("0a-b_c", "-_"));
         assert!(!safe_token("--model", "-_"));
         assert!(!safe_token("a b", "-_"));
+    }
+
+    #[test]
+    fn model_values_pass_safe_token() {
+        for m in ["default", "opus[1m]", "claude-fable-5-1[1m]", "sonnet", "haiku"] { assert!(safe_token(m, "-_.[]"), "{m}"); }
+        assert!(!safe_token("--model", "-_.[]"));
+    }
+
+    // Штучна відповідь initialize: `account` з поштою має зникнути безслідно.
+    const MODELS_LINE: &str = r#"{"type":"control_response","response":{"subtype":"success","request_id":"models",
+      "response":{"commands":[{"name":"secret-cmd"}],"account":{"email":"user@example.com","organization":"Example Org"},
+      "models":[
+        {"value":"default","resolvedModel":"claude-x","displayName":"Default (recommended)","description":"Model X · Best","supportsEffort":true,"supportedEffortLevels":["low","medium","high","xhigh","max"],"supportsFastMode":true},
+        {"value":"haiku","displayName":"Haiku","description":"Fast"},
+        {"value":"--bad","displayName":"Bad"}
+      ]}}}"#;
+
+    #[test]
+    fn cc_models_keep_only_public_fields() {
+        let m = parse_cc_models(MODELS_LINE).unwrap();
+        assert!(!serde_json::to_string(&m).unwrap().contains("example"), "пошта не мусить вижити");
+        assert_eq!(m.len(), 2, "модель з небезпечним value відкинуто");
+        assert_eq!(m[0], json!({"value":"default","name":"Default (recommended)","description":"Model X · Best",
+            "efforts":["low","medium","high","xhigh","max"]}));
+        assert_eq!(m[1], json!({"value":"haiku","name":"Haiku","description":"Fast","efforts":[]}));
+    }
+
+    #[test]
+    fn rate_limit_event_normalises_percent_and_millis() {
+        let l = r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","rateLimitType":"five_hour","resetsAt":1790000000000,"utilization":42}}"#;
+        let v: Value = serde_json::from_str(&parse_line(l, &mut StreamState::default())[0].1).unwrap();
+        assert_eq!(v["resets_at"], 1790000000u64);
+        assert_eq!(v["utilization"], 0.42);
+        let l = r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","rateLimitType":"five_hour","utilization":1}}"#;
+        assert_eq!(serde_json::from_str::<Value>(&parse_line(l, &mut StreamState::default())[0].1).unwrap()["utilization"], 1.0);
+    }
+
+    #[test]
+    fn models_response_without_models_is_error_not_silence() {
+        let l = r#"{"type":"control_response","response":{"subtype":"error","request_id":"models","error":"x"}}"#;
+        assert_eq!(models_line(l), Some(Err("Claude Code не віддав список моделей".to_string())));
+        assert!(parse_cc_models(l).is_none());
+        assert!(models_line(r#"{"type":"system"}"#).is_none());
+    }
+
+    #[test]
+    fn cc_models_other_lines_are_none() {
+        assert!(parse_cc_models(r#"{"type":"system","subtype":"init"}"#).is_none());
+        assert!(parse_cc_models(r#"{"type":"control_response","response":{"request_id":"other","response":{"models":[]}}}"#).is_none());
+        assert!(parse_cc_models("не json").is_none());
+        assert!(parse_cc_models(r#"{"type":"control_response","response":{"request_id":"models","response":{}}}"#).is_none());
+    }
+
+    #[test]
+    fn cc_models_clip_long_strings() {
+        let long = "ж".repeat(300);
+        let l = json!({"type":"control_response","response":{"request_id":"models","response":{"models":[
+            {"value":"m","displayName":long,"description":long}]}}}).to_string();
+        let m = parse_cc_models(&l).unwrap();
+        assert_eq!(m[0]["name"].as_str().unwrap().chars().count(), 120);
+        assert_eq!(m[0]["description"].as_str().unwrap().chars().count(), 120);
+    }
+
+    #[test]
+    fn rate_limit_event_becomes_limits() {
+        let l = r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed_warning","rateLimitType":"five_hour","resetsAt":1790000000,"utilization":0.42,"isUsingOverage":false}}"#;
+        let ev = parse_line(l, &mut StreamState::default());
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0].0, "limits");
+        let v: Value = serde_json::from_str(&ev[0].1).unwrap();
+        assert_eq!(v, json!({"type":"five_hour","status":"allowed_warning","utilization":0.42,"resets_at":1790000000}));
+    }
+
+    #[test]
+    fn rate_limit_event_tolerates_missing_and_unknown() {
+        let no_util = r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","rateLimitType":"seven_day"}}"#;
+        let v: Value = serde_json::from_str(&parse_line(no_util, &mut StreamState::default())[0].1).unwrap();
+        assert_eq!(v, json!({"type":"seven_day","status":"allowed","utilization":null,"resets_at":null}));
+        let rej = r#"{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","rateLimitType":"five_hour","resetsAt":1790000000,"utilization":170}}"#;
+        let v: Value = serde_json::from_str(&parse_line(rej, &mut StreamState::default())[0].1).unwrap();
+        assert_eq!(v["utilization"], 1.0);
+        for bad in [r#"{"type":"rate_limit_event"}"#,
+                    r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","rateLimitType":"weird"}}"#,
+                    r#"{"type":"rate_limit_event","rate_limit_info":{"status":"?","rateLimitType":"five_hour"}}"#] {
+            assert!(parse_line(bad, &mut StreamState::default()).is_empty(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn result_emits_usage_with_numbers_only() {
+        let l = r#"{"type":"result","is_error":false,"session_id":"abc","result":"x","total_cost_usd":0.0421,"num_turns":3,"duration_ms":900,
+          "usage":{"input_tokens":120,"output_tokens":80,"cache_read_input_tokens":3000,"cache_creation_input_tokens":50,"service_tier":"standard"}}"#;
+        let ev = parse_line(l, &mut StreamState::default());
+        let u = ev.iter().find(|e| e.0 == "usage").expect("usage");
+        let v: Value = serde_json::from_str(&u.1).unwrap();
+        assert_eq!(v, json!({"input":120,"output":80,"cache_read":3000,"cache_write":50,"cost_usd":0.0421,"turns":3}));
+        // result без usage і вартості не дає порожньої події.
+        let plain = r#"{"type":"result","is_error":false,"session_id":"abc","result":"x"}"#;
+        assert!(!parse_line(plain, &mut StreamState::default()).iter().any(|e| e.0 == "usage"));
     }
 }

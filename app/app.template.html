@@ -1674,6 +1674,11 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
    (коли в розмові з'явились повідомлення) не зсуває вікно повідомлень. */
 .advmode{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:var(--ctl);margin-bottom:12px}
 .advmode .tag{flex:none;max-width:none;overflow:visible}
+/* Лічильник лімітів: рядок завжди займає місце (min-height), тож поява чи зникнення чипів
+   не зсуває вікно повідомлень; довгий текст обрізається, а не переносить рядок. */
+.advlim{display:flex;align-items:center;gap:8px;min-height:var(--ctl-sm);margin:-6px 0 6px;overflow:hidden}
+.advlim .tag{flex:0 1 auto;min-width:0}
+.advlim .muted{flex:none;font-size:var(--fs-xs);white-space:nowrap}
 .advoff{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:14px;
   background:var(--surface-2);border-radius:var(--radius-sm)}
 .advoff p{margin:0}
@@ -1706,6 +1711,11 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
 .advrw{flex-wrap:wrap}
 @media (max-width:759px){ .advrw .grow{flex:1 1 100%} }
 .advsc .mf .csel{max-width:520px}
+/* Випадайка моделей і «Оновити список» в одному рядку (на вузькому екрані кнопка йде під поле);
+   вирівнювання за низом, бо над полем стоїть підпис. Порожня підказка не лишає проміжку. */
+.advmdl{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.advmdl .mf{flex:1 1 280px;min-width:0}
+#advModelHint:empty{display:none}
 .advrow{cursor:pointer}
 .advrow .advt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .advrow[aria-current="true"] .advt{color:var(--accent-ink)}
@@ -2337,6 +2347,7 @@ svg.sprite{position:absolute;width:0;height:0}
       <span class="tag" id="advProvTag" hidden></span>
       <span class="tag" id="advBadge">хмара · назви приховано</span>
     </div>
+    <div class="advlim" id="advLim" role="status" aria-live="polite"></div>
     <div class="advmsgs" id="advMsgs" role="log" aria-live="polite" aria-label="Розмова"></div>
     <div class="advoff" id="advOff" hidden>
       <b>Порадник у хмарі вимкнено</b>
@@ -2406,8 +2417,14 @@ svg.sprite{position:absolute;width:0;height:0}
         <button class="btn" id="advCcCheck">Перевірити ще раз</button>
         <button class="btn pri" id="advCcLogin" hidden>Увійти</button>
       </div>
-      <label class="mf"><span>Модель Claude (порожньо — за замовчуванням)</span>
-        <input id="advModel" placeholder="напр. sonnet, opus або повна назва"></label>
+      <div class="advmdl">
+        <label class="mf"><span>Модель Claude</span>
+          <select id="advModel" aria-label="Модель Claude"></select></label>
+        <button class="btn" id="advModelRefresh">Оновити список</button>
+      </div>
+      <p class="muted subhint" id="advModelHint"></p>
+      <label class="mf" id="advCcEffortW" hidden><span>Effort (глибина міркування)</span>
+        <select id="advCcEffort" aria-label="Effort"></select></label>
       <p class="muted subhint" id="advVer"></p>
     </div>
   </div>
@@ -2436,6 +2453,8 @@ svg.sprite{position:absolute;width:0;height:0}
       </div>
       <label class="mf"><span>Модель (порожньо — claude-opus-5-5)</span>
         <input id="advApiModel" placeholder="claude-opus-5-5" autocomplete="off"></label>
+      <label class="mf"><span>Effort (глибина міркування)</span>
+        <select id="advApiEffort" aria-label="Effort"></select></label>
     </div>
   </div>
   <div class="card advsc" data-sec="adv" id="advSetPrompt" hidden>
@@ -9354,7 +9373,11 @@ function advMd(text){
    keyHas: null = ще не питали. lmTok — щоб запізніла відповідь про моделі за
    старою адресою не перебила свіжу. */
 const ADV = { init:false, setIn:false, state:'wait', convs:[], cur:null, stream:null, probe:null, drain:null,
-  prov:'cc', entered:'cc', keyHas:null, lmTok:0 };
+  prov:'cc', entered:'cc', keyHas:null, lmTok:0,
+  /* ccModels: null = списку ще немає (вантажиться, помилка, Порадник вимкнено); mdlTok — як lmTok. */
+  ccModels:null, ccLoading:false, ccHint:'', mdlTok:0, boot:Date.now() };
+const ADV_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+const ADV_EFFORT_UA = { low:'низький', medium:'середній', high:'високий', xhigh:'дуже високий', max:'максимальний' };
 /* Rust читає stdout окремим потоком: після Стоп (kill) він ще віддає
    буферизований хвіст і ЗАВЖДИ закінчує `done` з тим самим conv. Нова
    відповідь у цій розмові підхопила б чужий текст, а запізнілий done її
@@ -9419,9 +9442,35 @@ function advCtl(){
 }
 function advCap(m){
   const p = m.prov || 'cc';
+  const ef = m.effort && ADV_EFFORT_UA[m.effort] ? ' · effort: ' + ADV_EFFORT_UA[m.effort] : '';
   if(p === 'local') return 'LM Studio · ' + (m.model || 'модель не вказано');
-  if(p === 'api') return 'API · ' + (m.model || ADV_API_MODEL);
-  return 'Claude Code · ' + (m.model || 'модель за замовчуванням');
+  if(p === 'api') return 'API · ' + (m.model || ADV_API_MODEL) + ef;
+  return 'Claude Code · ' + (m.model || 'модель за замовчуванням') + ef;
+}
+/* «12,4 тис.»: у підписі важить порядок величини, не точне число. */
+function advTok(n){
+  if(n < 1000) return String(n);
+  const k = n / 1000;
+  return (k < 100 ? k.toFixed(1).replace(/\.0$/, '').replace('.', ',') : String(Math.round(k))) + ' тис.';
+}
+const advUsd = c => '$' + (c >= 0.01 ? c.toFixed(2) : c.toFixed(3)).replace('.', ',');
+/* Підпис = спосіб · модель · effort · токени · кеш · вартість. Вартість за тарифом API —
+   довідкова (підписка платить фіксовано), тому пояснення в data-tip, а не в рядку. */
+function advCapFill(n, m){
+  const c = n._cap;
+  c.textContent = advCap(m);
+  const u = m.usage; if(!u) return;
+  const tot = (u.input || 0) + (u.output || 0), cache = (u.cache_read || 0) + (u.cache_write || 0);
+  let t = '';
+  if(tot > 0) t += ' · ≈ ' + advTok(tot) + ' токенів';
+  if(cache > 0) t += ' · кеш ' + advTok(cache);
+  if(t) c.appendChild(document.createTextNode(t));
+  if(u.cost_usd > 0){
+    const sp = document.createElement('span');
+    sp.dataset.tip = 'Скільки коштувала б відповідь за тарифом API; підписка платить фіксовано';
+    sp.textContent = ' · ' + advUsd(u.cost_usd) + ' за тарифом API';
+    c.appendChild(sp);
+  }
 }
 function advMsgNode(m){
   const n = document.createElement('div');
@@ -9434,7 +9483,7 @@ function advMsgNode(m){
   n._act = document.createElement('div'); n._act.className = 'advact'; n._act.hidden = true;
   n._cap = document.createElement('div'); n._cap.className = 'advcap';
   n._cap.hidden = !m.text;
-  n._cap.textContent = advCap(m);
+  advCapFill(n, m);
   n.append(n._body, n._stat, n._err, n._act, n._cap);
   advAct(n, m);
   return n;
@@ -9460,6 +9509,7 @@ function advProvUi(){
   el('advProvTag').textContent = ADV_PROVS[prov];
   if(el('advProv').value !== prov){ el('advProv').value = prov; cselSync(el('advProv')); }
   el('advBadge').textContent = prov === 'local' ? 'локально' : 'хмара · назви приховано';
+  advLimUi();
   advView();
   if(ADV.entered !== prov){
     ADV.entered = prov;
@@ -9527,6 +9577,164 @@ async function advLmsStart(){
   catch(e){ appToast('Не вдалося запустити сервер: ' + String(e && e.message || e)); return false; }
   finally{ b.disabled = false; }
 }
+/* Заповнює <select> і синхронізує його .csel-обгортку (так само, як advLmFill). */
+function advSelFill(sel, opts, cur){
+  sel.textContent = '';
+  for(const o of opts){
+    const op = document.createElement('option'); op.value = o.v; op.textContent = o.l; sel.appendChild(op);
+  }
+  sel.value = cur;
+  if(window.cselSync) cselSync(sel);
+}
+const advCcModel = () => (store.get('advisorModel', null) || '').trim();
+function advCcHintUi(){ el('advModelHint').textContent = ADV.ccHint || ''; }
+/* Рівні effort для моделі ('' = типова). Список невідомий (ще вантажиться чи помилка) — не ховаємо
+   поле, інакше збережений вибір недоступний до відповіді CLI; відома модель без рівнів (Haiku) — порожньо. */
+function advEffortsOf(model){
+  const l = ADV.ccModels; if(!l) return ADV_EFFORTS;
+  const m = l.find(x => (x.value === 'default' ? '' : x.value) === model);
+  return m ? (m.efforts || []).filter(e => ADV_EFFORTS.includes(e)) : [];
+}
+function advEffortFill(){
+  const efs = advEffortsOf(advCcModel());
+  let cur = store.get('advisorEffort', null) || '';
+  if(cur && !efs.includes(cur)){ cur = ''; store.set('advisorEffort', null); }
+  el('advCcEffortW').hidden = !efs.length;
+  advSelFill(el('advCcEffort'), [{ v:'', l:'За замовчуванням' }].concat(efs.map(e => ({ v:e, l:ADV_EFFORT_UA[e] }))), cur);
+}
+const advApiEffort = () => { const e = store.get('advisorApiEffort', null); return ADV_EFFORTS.includes(e) ? e : 'medium'; };
+function advApiEffortFill(){
+  advSelFill(el('advApiEffort'), ADV_EFFORTS.map(e => ({ v:e, l:ADV_EFFORT_UA[e] + (e === 'medium' ? ' (типово)' : '') })), advApiEffort());
+}
+/* Випадайка моделей Claude Code. Значення `default` зберігається порожнім (тоді --model не передається).
+   Збережена модель, якої немає в свіжому списку, скидається на типову з поясненням — інакше запуск
+   упав би на неіснуючій моделі. Поки списку немає, лишається один пункт зі збереженим значенням. */
+function advCcModelFill(){
+  const l = ADV.ccModels;
+  let cur = advCcModel(), opts;
+  if(l){
+    opts = l.map(m => ({ v:m.value === 'default' ? '' : m.value, l:m.name + (m.description ? ' — ' + m.description : '') }));
+    if(!opts.some(o => o.v === '')) opts.unshift({ v:'', l:'За замовчуванням' });
+    if(cur && !opts.some(o => o.v === cur)){
+      ADV.ccHint = 'Модель «' + cur + '» більше недоступна — вибрано типову';
+      store.set('advisorModel', null); cur = '';
+    }
+  }else{
+    opts = [{ v:cur, l:ADV.ccLoading ? 'Завантаження…' : (cur || 'За замовчуванням') }];
+  }
+  advSelFill(el('advModel'), opts, cur);
+  advCcHintUi();
+  advEffortFill();
+}
+/* force — кнопка або зміна дозволу: ці випадки мусять перепитати навіть за запиту в польоті. Повторне
+   відкриття розділу поки йде запит нового процесу claude не породжує. */
+async function advCcModelsRefresh(force){
+  const D = advDesk(); if(!D) return;
+  if(ADV.ccLoading && !force) return;
+  const tok = ++ADV.mdlTok, btn = el('advModelRefresh');
+  ADV.ccHint = '';
+  if(!privacyAllowed('advisor')){
+    ADV.ccModels = null; ADV.ccLoading = false; btn.disabled = false;
+    ADV.ccHint = 'Увімкніть Порадника в хмарі, щоб побачити список';
+    advCcModelFill(); return;
+  }
+  ADV.ccLoading = true; btn.disabled = true;
+  advCcModelFill();
+  let hint = '';
+  try{
+    const r = await D.advisorCcModels();
+    if(tok !== ADV.mdlTok) return;
+    const list = (Array.isArray(r) ? r : []).filter(m => m && typeof m.value === 'string' && m.value);
+    if(list.length) ADV.ccModels = list; else hint = 'Claude Code не повернув список моделей';
+  }catch(e){
+    if(tok !== ADV.mdlTok) return;
+    hint = String(e && e.message || e);
+    if(/Увімкніть Порадника/.test(hint)) hint = 'Увімкніть Порадника в хмарі, щоб побачити список';
+  }
+  ADV.ccLoading = false; btn.disabled = false;
+  ADV.ccHint = hint;
+  advCcModelFill();
+}
+
+/* Лічильник лімітів. Rust шле події `limits` лише з чисел і часу. Останні відомі значення лежать у
+   store.advisorLimits ({cc:{тип:{status,utilization,resets_at,at}}, api:{...,at}}), щоб після перезапуску
+   було що показати; значення з минулим скиданням уже неправдиві й не показуються. */
+const ADV_LIM_LABEL = { five_hour:'5 год', seven_day:'7 днів', seven_day_opus:'7 днів · Opus',
+  seven_day_sonnet:'7 днів · Sonnet', overage:'понад ліміт' };
+const advHm = ms => new Date(ms).toLocaleTimeString('uk-UA', { hour:'2-digit', minute:'2-digit' });
+const advDm = ms => { const d = new Date(ms); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
+function advLimIn(prov, text){
+  let v; try{ v = JSON.parse(text); }catch(e){ return; }
+  if(!v || typeof v !== 'object') return;
+  const L = Object.assign({}, store.get('advisorLimits', null) || {}), at = Date.now();
+  if(prov === 'api' || v.type === 'api'){
+    const n = k => Number.isFinite(v[k]) ? v[k] : null;
+    L.api = { tokens_remaining:n('tokens_remaining'), tokens_limit:n('tokens_limit'),
+      requests_remaining:n('requests_remaining'), requests_limit:n('requests_limit'), resets_at:n('resets_at'), at };
+  }else{
+    if(!ADV_LIM_LABEL[v.type]) return;
+    L.cc = Object.assign({}, L.cc);
+    L.cc[v.type] = { status:String(v.status || ''), utilization:Number.isFinite(v.utilization) ? v.utilization : null,
+      resets_at:Number.isFinite(v.resets_at) ? v.resets_at : null, at };
+  }
+  store.set('advisorLimits', L);
+  advLimUi();
+}
+/* Скидання (resets_at, секунди) вже минуло — відсоток належав попередньому вікну. */
+/* CC: скидання минуло; «вичерпано» без часу скидання не живе довше доби. API: вікно токенів скидається за
+   секунди, тож за resets_at запис зник би майже одразу — тут працює лише вік запису (10 хв). */
+function advLimStale(e, api){
+  if(!e) return true;
+  const age = Date.now() - (e.at || 0);
+  if(api) return age > 10 * 60000;
+  if(e.resets_at) return e.resets_at * 1000 <= Date.now();
+  return e.status === 'rejected' && age > 24 * 3600000;
+}
+function advLimChip(host, cls, text, dot){
+  const t = document.createElement('span');
+  t.className = 'tag' + (cls ? ' ' + cls : '');
+  if(dot){ const d = document.createElement('span'); d.className = 'dot warn'; t.appendChild(d); }
+  t.appendChild(document.createTextNode(text));
+  host.appendChild(t);
+}
+function advLimUi(){
+  const host = el('advLim'), prov = advProv(), L = store.get('advisorLimits', null) || {};
+  host.textContent = '';
+  let oldest = Infinity;
+  if(prov === 'cc'){
+    const all = Object.entries(L.cc || {}).filter(([k, e]) => ADV_LIM_LABEL[k] && e && !advLimStale(e));
+    /* Тривога (обмеження, вичерпано) йде першою, далі 5 год і 7 днів; більше двох чипів не вміщається. */
+    const rank = ([k, e]) => (e.status === 'rejected' ? 0 : e.status === 'allowed_warning' ? 1 : 2) * 10 + Object.keys(ADV_LIM_LABEL).indexOf(k);
+    for(const [k, e] of all.sort((a, b) => rank(a) - rank(b)).slice(0, 2)){
+      oldest = Math.min(oldest, e.at || Infinity);
+      const until = e.resets_at ? (k === 'five_hour' ? advHm(e.resets_at * 1000) : advDm(e.resets_at * 1000)) : '';
+      if(e.status === 'rejected')
+        advLimChip(host, 'neg', (k === 'five_hour' ? 'Ліміт вичерпано' : k === 'overage' ? 'Ліміт понад план вичерпано'
+          : 'Ліміт (' + ADV_LIM_LABEL[k] + ') вичерпано') + (until ? ' до ' + until : ''));
+      else{
+        const pct = e.utilization == null ? '' : Math.round(e.utilization * 100) + '%';
+        advLimChip(host, '', ADV_LIM_LABEL[k] + ': ' + (pct || 'в межах ліміту') + (pct && until ? ' · до ' + until : ''), e.status === 'allowed_warning');
+      }
+    }
+  }else if(prov === 'api'){
+    const e = L.api;
+    if(e && !advLimStale(e, true)){
+      oldest = e.at || Infinity;
+      const parts = [];
+      if(e.tokens_remaining != null)
+        parts.push('токенів лишилось ' + advTok(e.tokens_remaining) + (e.tokens_limit != null ? ' з ' + advTok(e.tokens_limit) : ''));
+      if(e.requests_remaining != null)
+        parts.push('запитів ' + e.requests_remaining + (e.requests_limit != null ? '/' + e.requests_limit : ''));
+      if(parts.length) advLimChip(host, '', parts.join(' · '));
+    }
+  }
+  /* «Станом на» лише для значень, отриманих до запуску цієї сесії: свіжі й так актуальні. */
+  if(host.childNodes.length && oldest < ADV.boot){
+    const s = document.createElement('span'); s.className = 'muted'; s.textContent = 'станом на ' + advHm(oldest);
+    host.appendChild(s);
+  }
+}
+
 /* Вхід у Claude Code: Rust віддає лише {logged_in, method} — без пошти й організації. */
 async function advCcRefresh(){
   const D = advDesk(); if(!D) return;
@@ -9640,6 +9848,16 @@ function advEvent(p){
   }else if(p.kind === 'tool'){
     const t = advToolLabel(rv(p.text)); st.msg.tools.push(t);
     st.node._stat.textContent = 'дивлюсь: ' + t; st.node._stat.hidden = false;
+  }else if(p.kind === 'limits'){
+    advLimIn(st.conv.provider || 'cc', p.text);
+  }else if(p.kind === 'usage'){
+    /* Лише числа (Rust іншого не шле), але все одно беремо тільки відомі поля. */
+    try{
+      const u = JSON.parse(p.text), num = k => Number.isFinite(u[k]) && u[k] >= 0 ? u[k] : 0;
+      st.msg.usage = { input:num('input'), output:num('output'), cache_read:num('cache_read'),
+        cache_write:num('cache_write'), cost_usd:num('cost_usd'), turns:num('turns') };
+      advCapFill(st.node, st.msg);
+    }catch(e){}
   }else if(p.kind === 'session'){
     if(p.text) st.conv.session = p.text;            // може прийти двічі — перезаписуємо
   }else if(p.kind === 'state'){
@@ -9697,9 +9915,13 @@ async function advSend(q){
       api = { role:'user', content:P.hide(q, dict) };
       req = { messages:((c && c.api) || []).concat([api]), system:P.hide(instr + '\n\n' + digest, dict) };
       const m = (store.get('advisorApiModel', null) || '').trim(); if(m) req.model = m;
+      req.effort = advApiEffort();
     }else{
       req = { prompt:P.hide(q, dict), system:P.hide(instr + '\n\n' + digest, dict) };
-      const m = (store.get('advisorModel', null) || '').trim(); if(m) req.model = m;
+      const m = advCcModel(); if(m) req.model = m;
+      /* Рівень передаємо, лише якщо модель його підтримує: Haiku з --effort відмовив би. */
+      const ef = store.get('advisorEffort', null) || '';
+      if(ef && advEffortsOf(m).includes(ef)) req.effort = ef;
       if(c && c.session) req.session = c.session;
     }
   }catch(e){ appToast('Не вдалось скласти зведення: ' + e.message); return; }
@@ -9713,6 +9935,7 @@ async function advSend(q){
   const model = (prov === 'local' ? localModel : store.get(prov === 'api' ? 'advisorApiModel' : 'advisorModel', null) || '').trim();
   const um = { role:'user', text:q };
   const bm = { role:'assistant', text:'', model, prov, tools:[] };
+  if(req.effort) bm.effort = req.effort;
   c.msgs.push(um, bm);
   const host = el('advMsgs'), emp = host.querySelector('.advempty'); if(emp) emp.remove();
   host.appendChild(advMsgNode(um));
@@ -9765,9 +9988,16 @@ function advBuild(){
     }
     advList();
   }).catch(() => {});
-  el('advModel').value = store.get('advisorModel', null) || '';
   el('advPrompt').value = store.get('advisorPrompt', null) || ADV_PROMPT_DEFAULT;
-  el('advModel').onchange = () => store.set('advisorModel', el('advModel').value.trim() || null);
+  advCcModelFill();                                   // збережена модель одразу видна, до відповіді CLI
+  advApiEffortFill();
+  el('advModel').onchange = () => {
+    store.set('advisorModel', el('advModel').value.trim() || null);
+    ADV.ccHint = ''; advCcHintUi(); advEffortFill();   // рівень, якого нова модель не має, скидається тут
+  };
+  el('advCcEffort').onchange = () => store.set('advisorEffort', el('advCcEffort').value || null);
+  el('advApiEffort').onchange = () => store.set('advisorApiEffort', el('advApiEffort').value === 'medium' ? null : el('advApiEffort').value);
+  el('advModelRefresh').onclick = () => advCcModelsRefresh(true);
   el('advPrompt').onchange = () => {
     const v = el('advPrompt').value.trim();
     store.set('advisorPrompt', !v || v === ADV_PROMPT_DEFAULT ? null : v);
@@ -9858,7 +10088,7 @@ function advSetShow(on){
   advRender();
   if(ADV.setIn || !advDesk()) return;
   ADV.setIn = true;
-  advCcRefresh(); advLocalRefresh(); advKeyRefresh();
+  advCcRefresh(); advCcModelsRefresh(); advLocalRefresh(); advKeyRefresh();
 }
 function navSettingsLabel(){
   /* На вузькому екрані кнопка відкриває меню «Ще», а не налаштування: ім'я для зчитувача екрана
@@ -10440,7 +10670,7 @@ async function privacyToggle(key){
     el('privacyStatus').textContent=value[key]?'Сервіс дозволено. Запити виконуються лише для відповідної можливості.':'Нові запити до сервісу вимкнено. Уже розпочатий запит може завершитися.';
     privacyUi();
     if(ADV.init)advView();                           // картка «вимкнено» у Порадникові
-    if(ADV.init && ADV.setIn)advCcRefresh();         // рядок «вхід не перевіряється» у налаштуваннях
+    if(ADV.init && ADV.setIn){ advCcRefresh(); advCcModelsRefresh(true); }         // рядок «вхід не перевіряється» у налаштуваннях
   }catch(e){el('privacyStatus').textContent='Не вдалося зберегти дозвіл. Спробуйте ще раз.';}
   finally{privacySaving=false;document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=false);
     if(el('advOn'))el('advOn').disabled=false;

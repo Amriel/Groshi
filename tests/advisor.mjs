@@ -67,6 +67,17 @@ async function fakeBridge(page, probe) {
     D.advisorCcLogin = async () => { window.__ccLogins++; };
     D.advisorLmsModels = async () => { if (window.__lmsFail) throw new Error('LM Studio не знайдено'); return window.__lmsModels; };
     D.advisorLmsServerStart = async () => { if (window.__lmsStartFail) throw new Error('збій'); window.__lmsStarts++; };
+    // Живий список моделей Claude Code (штучний): за замовчуванням успішний; __ccModelsFail — текст помилки.
+    window.__ccModels = [
+      {value: 'default', name: 'Default (recommended)', description: 'Test model X', efforts: ['low', 'medium', 'high', 'xhigh', 'max']},
+      {value: 'sonnet', name: 'Sonnet', description: 'Fast', efforts: ['low', 'medium', 'high', 'xhigh', 'max']},
+      {value: 'haiku', name: 'Haiku', description: 'Quick', efforts: []}];
+    window.__ccModelsFail = ''; window.__ccModelCalls = 0;
+    D.advisorCcModels = async () => {
+      window.__ccModelCalls++;
+      if (window.__ccModelsFail) throw new Error(window.__ccModelsFail);
+      return JSON.parse(JSON.stringify(window.__ccModels));
+    };
     window.__keyHas = false; window.__keys = []; window.__keyClears = 0;
     D.advisorKeyHas = async () => window.__keyHas;
     D.advisorKeySet = async k => { window.__keys.push(k); window.__keyHas = true; };
@@ -607,6 +618,225 @@ try {
     await page.click(srv);
     await page.waitForFunction(() => window.__lmsStarts === 2);
     await page.waitForFunction(() => /Сервер запущено, поставте питання ще раз/.test(document.getElementById('advMsgs').innerText));
+    assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+    await ctx.close(); }
+
+  // ── десктоп: живий список моделей, effort, лічильник лімітів ──
+  { const hm = ms => `new Date(${ms}).toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'})`;
+    const {ctx, page, errors} = await openDesktop(browser, {width: 1400, state: {privacyServices: {advisor: true},
+      advisorModel: 'old-model', advisorEffort: 'high'}});
+    await fakeBridge(page, OK);
+    await page.keyboard.press('7');
+    await page.waitForSelector('#advIn', {state: 'visible'});
+    const modelCsel = '#advSetCc .csel:has(#advModel)';
+    const effCsel = '#advCcEffortW .csel';
+    const sel = async (csel, text) => {
+      await page.click(csel + ' .cselb');
+      await page.click(`.cselm:not([hidden]) .cselo:has-text("${text}")`);
+    };
+
+    await gear(page);
+    // список підтягнувся при відкритті розділу; зниклу модель скинуто на типову з поясненням
+    await page.waitForFunction(() => window.__ccModelCalls >= 1 && !!ADV.ccModels);
+    assert.equal(await page.evaluate(() => document.getElementById('advModel').value), '', 'зникла модель не скинута');
+    assert.equal(await page.evaluate(() => store.get('advisorModel', null)), null, 'зниклу модель не стерто зі сховища');
+    assert.equal(await page.evaluate(() => document.getElementById('advModelHint').textContent), 'Модель «old-model» більше недоступна — вибрано типову');
+    await page.click(modelCsel + ' .cselb');
+    assert.deepEqual(await page.$$eval('.cselm:not([hidden]) .cselo', b => b.map(x => x.textContent.trim())),
+      ['Default (recommended) — Test model X', 'Sonnet — Fast', 'Haiku — Quick']);
+    await page.keyboard.press('Escape');
+    // збережений effort 'high' підтримується типовою моделлю → лишився
+    assert.equal(await page.evaluate(() => document.getElementById('advCcEffort').value), 'high');
+
+    // кожне відкриття розділу питає список знову
+    const calls = await page.evaluate(() => window.__ccModelCalls);
+    await back(page); await gear(page);
+    await page.waitForFunction(n => window.__ccModelCalls > n, calls);
+    // але не плодить запити, поки попередній у польоті; кнопка перепитує завжди
+    await page.waitForFunction(() => !ADV.ccLoading);
+    await page.evaluate(() => { window.__ccGate = null; window.__ccPrevModels = window.__DESK__.advisorCcModels;
+      window.__DESK__.advisorCcModels = () => { window.__ccModelCalls++; return new Promise(r => { window.__ccGate = r; }); }; });
+    const c0 = await page.evaluate(() => window.__ccModelCalls);
+    await back(page); await gear(page);
+    await page.waitForFunction(() => !!window.__ccGate);
+    await back(page); await gear(page);
+    assert.equal(await page.evaluate(() => window.__ccModelCalls), c0 + 1, 'повторне відкриття розділу породило ще один запит');
+    await page.evaluate(() => { window.__ccGate(JSON.parse(JSON.stringify(window.__ccModels))); window.__DESK__.advisorCcModels = window.__ccPrevModels; });
+    await page.waitForFunction(() => !ADV.ccLoading);
+    // «Оновити список» в одному рядку з випадайкою; порожня підказка не займає місця
+    const lay = await page.evaluate(() => { const a = document.querySelector('#advSetCc .csel:has(#advModel)').getBoundingClientRect(), b = document.getElementById('advModelRefresh').getBoundingClientRect();
+      return {sameRow: Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < 30, hint: getComputedStyle(document.getElementById('advModelHint')).display}; });
+    assert.deepEqual(lay, {sameRow: true, hint: 'none'}, JSON.stringify(lay));
+
+    // вибір Sonnet → рівні моделі; вибір рівня зберігається; Haiku ховає поле й скидає рівень
+    await sel(modelCsel, 'Sonnet');
+    assert.equal(await page.evaluate(() => store.get('advisorModel', null)), 'sonnet');
+    assert.equal(await page.evaluate(() => document.getElementById('advModelHint').textContent), '', 'підказка лишилась після вибору');
+    assert.equal(await page.evaluate(() => document.getElementById('advCcEffortW').hidden), false);
+    await page.click(effCsel + ' .cselb');
+    assert.deepEqual(await page.$$eval('.cselm:not([hidden]) .cselo', b => b.map(x => x.textContent.trim())),
+      ['За замовчуванням', 'низький', 'середній', 'високий', 'дуже високий', 'максимальний']);
+    await page.click('.cselm:not([hidden]) .cselo:has-text("максимальний")');
+    assert.equal(await page.evaluate(() => store.get('advisorEffort', null)), 'max');
+    await sel(modelCsel, 'Haiku');
+    assert.equal(await page.evaluate(() => document.getElementById('advCcEffortW').hidden), true, 'Haiku: effort не сховано');
+    assert.equal(await page.evaluate(() => store.get('advisorEffort', null)), null, 'effort Haiku не скинуто');
+    await sel(modelCsel, 'Sonnet');
+    await sel(effCsel, 'максимальний');
+
+    // сервер: sonnet + max; Haiku без effort; «Default» без model
+    await back(page);
+    await page.evaluate(() => { window.__script = () => [{kind: 'text', text: 'Відповідь.'}, {kind: 'done'}]; });
+    await ask(page, 'перше'); await idle(page, 1);
+    let r = await page.evaluate(() => window.__reqs[0]);
+    assert.equal(r.model, 'sonnet'); assert.equal(r.effort, 'max');
+    assert.ok(await page.evaluate(() => /Claude Code · sonnet · effort: максимальний/.test(document.getElementById('advMsgs').innerText)), 'нема effort у підписі');
+    await gear(page);
+    await sel(modelCsel, 'Haiku');
+    await back(page);
+    await page.click('#advNew');
+    await ask(page, 'друге'); await idle(page, 2);
+    r = await page.evaluate(() => window.__reqs[1]);
+    assert.equal(r.model, 'haiku'); assert.equal(r.effort, undefined, 'Haiku отримав effort');
+    await gear(page);
+    await sel(modelCsel, 'Default');
+    await back(page);
+    await page.click('#advNew');
+    await ask(page, 'третє'); await idle(page, 3);
+    r = await page.evaluate(() => window.__reqs[2]);
+    assert.ok(!r.model, 'для «Default» model має бути порожнім: ' + r.model); assert.equal(r.effort, undefined);
+
+    // помилка списку: текст помилки, поле лишається з поточним значенням
+    await gear(page);
+    await page.evaluate(() => { window.__ccModelsFail = 'Claude Code не відповів'; });
+    await sel(modelCsel, 'Sonnet');
+    await page.click('#advModelRefresh');
+    await page.waitForFunction(() => document.getElementById('advModelHint').textContent === 'Claude Code не відповів');
+    assert.equal(await page.evaluate(() => document.getElementById('advModel').value), 'sonnet', 'помилка списку скинула модель');
+    assert.equal(await page.evaluate(() => document.getElementById('advModelRefresh').disabled), false);
+    // Порадник у хмарі вимкнено
+    await page.evaluate(() => { window.__ccModelsFail = ''; store.set('privacyServices', {advisor: false}); });
+    await page.click('#advModelRefresh');
+    await page.waitForFunction(() => document.getElementById('advModelHint').textContent === 'Увімкніть Порадника в хмарі, щоб побачити список');
+    assert.equal(await page.evaluate(() => document.getElementById('advModel').value), 'sonnet');
+    await page.evaluate(() => { store.set('privacyServices', {advisor: true}); });
+    await page.click('#advModelRefresh');
+    await page.waitForFunction(() => document.getElementById('advModelHint').textContent === '' && !!ADV.ccModels);
+    // нова модель у списку просто з'являється
+    await page.evaluate(() => { window.__ccModels.push({value: 'opus[1m]', name: 'Opus', description: 'Big', efforts: ['low', 'max']}); });
+    await page.click('#advModelRefresh');
+    await page.waitForFunction(() => ADV.ccModels.length === 4);
+    await sel(modelCsel, 'Opus');
+    assert.equal(await page.evaluate(() => store.get('advisorModel', null)), 'opus[1m]');
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#advCcEffort option')].map(o => o.value)), ['', 'low', 'max']);
+    await sel(modelCsel, 'Default');
+
+    // API: effort за замовчуванням medium, вибір іде в запит і в підпис
+    assert.equal(await page.evaluate(() => document.getElementById('advApiEffort').value), 'medium');
+    await back(page);
+    await page.click('#advNew');
+    await pickProv(page, 'API Anthropic');
+    await page.evaluate(() => { window.__keyHas = true; ADV.keyHas = true; window.__script = () => [{kind: 'text', text: 'API.'}, {kind: 'state', text: '[]'}, {kind: 'done'}]; });
+    await ask(page, 'api-1'); await idle(page, 4);
+    r = await page.evaluate(() => window.__reqs[3]);
+    assert.equal(r.__kind, 'api'); assert.equal(r.effort, 'medium');
+    assert.ok(await page.evaluate(() => /API · claude-opus-5-5 · effort: середній/.test(document.getElementById('advMsgs').innerText)));
+    await gear(page);
+    await sel('#advSetApi .csel', 'високий');
+    assert.equal(await page.evaluate(() => store.get('advisorApiEffort', null)), 'high');
+    await back(page);
+    await page.click('#advNew');
+    await pickProv(page, 'API Anthropic');
+    await ask(page, 'api-2'); await idle(page, 5);
+    assert.equal((await page.evaluate(() => window.__reqs[4])).effort, 'high');
+    // локальна модель effort не передає
+    await page.click('#advNew');
+    await pickProv(page, 'Локальна модель');
+    await page.evaluate(() => { store.set('advisorLocalModel', 'm'); window.__script = () => [{kind: 'text', text: 'Л.'}, {kind: 'done'}]; });
+    await ask(page, 'loc'); await idle(page, 6);
+    assert.equal((await page.evaluate(() => window.__reqs[5])).effort, undefined, 'локальна модель отримала effort');
+
+    // ── токени, вартість і лічильник лімітів (Claude Code) ──
+    await page.click('#advNew');
+    await pickProv(page, 'Claude Code');
+    const inH = Math.floor(Date.now() / 1000) + 3600, in3d = Math.floor(Date.now() / 1000) + 3 * 86400;
+    const L = o => JSON.stringify(o);
+    await page.evaluate(([a, b]) => { window.__script = () => [
+      {kind: 'text', text: 'Готово.'},
+      {kind: 'limits', text: JSON.stringify({type: 'five_hour', status: 'allowed', utilization: 0.42, resets_at: a})},
+      {kind: 'limits', text: JSON.stringify({type: 'seven_day', status: 'allowed', utilization: 0.1, resets_at: b})},
+      {kind: 'usage', text: JSON.stringify({input: 10000, output: 2400, cache_read: 25000, cache_write: 5000, cost_usd: 0.0421, turns: 2})},
+      {kind: 'done'}]; }, [inH, in3d]);
+    const limRect = () => page.evaluate(() => { const b = document.getElementById('advLim').getBoundingClientRect(); return [b.y, b.height]; });
+    const inRect = async () => (await rects(page)).input;
+    const lim0 = await limRect(), in0 = await inRect();
+    await ask(page, 'ліміти'); await idle(page, 7);
+    const cap = await page.evaluate(() => document.querySelector('#advMsgs .advmsg.bot:last-child .advcap').innerText);
+    assert.match(cap, /≈ 12,4 тис\. токенів/); assert.match(cap, /кеш 30 тис\./); assert.match(cap, /\$0,04 за тарифом API/);
+    assert.ok(await page.evaluate(() => /Скільки коштувала б відповідь за тарифом API; підписка платить фіксовано/.test(
+      document.querySelector('#advMsgs .advmsg.bot:last-child .advcap [data-tip]').dataset.tip)), 'нема пояснення вартості');
+    const limTxt = await page.evaluate(() => document.getElementById('advLim').innerText.replace(/\s+/g, ' ').trim());
+    const wantH = await page.evaluate(`(${hm(inH * 1000)})`);
+    assert.ok(limTxt.includes('5 год: 42% · до ' + wantH), limTxt);
+    assert.match(limTxt, /7 днів: 10% · до \d{2}\.\d{2}/);
+    assert.equal(await page.evaluate(() => store.get('advisorLimits', null).cc.five_hour.utilization), 0.42, 'ліміти не збережено');
+    assert.deepEqual(await limRect(), lim0, 'рядок лімітів зсунувся');
+    assert.deepEqual(await inRect(), in0, 'поле вводу зсунулось від лічильника');
+
+    // попередження → чип з крапкою-попередженням; вичерпано → текст про вичерпаний ліміт
+    await page.evaluate(a => { window.__script = () => [{kind: 'text', text: 'Х.'},
+      {kind: 'limits', text: JSON.stringify({type: 'five_hour', status: 'allowed_warning', utilization: 0.91, resets_at: a})}, {kind: 'done'}]; }, inH);
+    await page.click('#advNew'); await ask(page, 'warn'); await idle(page, 8);
+    assert.equal(await page.evaluate(() => document.querySelectorAll('#advLim .tag .dot.warn').length), 1, 'нема позначки попередження');
+    assert.ok((await page.evaluate(() => document.getElementById('advLim').innerText)).includes('5 год: 91%'));
+    await page.evaluate(a => { window.__script = () => [{kind: 'text', text: 'Х.'},
+      {kind: 'limits', text: JSON.stringify({type: 'five_hour', status: 'rejected', utilization: 1, resets_at: a})}, {kind: 'done'}]; }, inH);
+    await page.click('#advNew'); await ask(page, 'rej'); await idle(page, 9);
+    const rejTxt = await page.evaluate(() => document.getElementById('advLim').innerText.replace(/\s+/g, ' ').trim());
+    assert.ok(rejTxt.includes('Ліміт вичерпано до ' + wantH), rejTxt);
+    assert.equal(await page.evaluate(() => document.querySelectorAll('#advLim .tag.neg').length), 1);
+
+    // API: токени й запити
+    await page.click('#advNew');
+    await pickProv(page, 'API Anthropic');
+    await page.evaluate(() => { window.__script = () => [{kind: 'text', text: 'A.'},
+      {kind: 'limits', text: JSON.stringify({type: 'api', tokens_remaining: 38000, tokens_limit: 40000, requests_remaining: 49, requests_limit: 50, resets_at: null})},
+      {kind: 'usage', text: JSON.stringify({input: 800, output: 100, cache_read: 0, cache_write: 0})},
+      {kind: 'state', text: '[]'}, {kind: 'done'}]; });
+    await ask(page, 'api-lim'); await idle(page, 10);
+    assert.equal(await page.evaluate(() => document.getElementById('advLim').innerText.replace(/\s+/g, ' ').trim()),
+      'токенів лишилось 38 тис. з 40 тис. · запитів 49/50');
+    const apiCap = await page.evaluate(() => document.querySelector('#advMsgs .advmsg.bot:last-child .advcap').innerText);
+    assert.ok(apiCap.includes('≈ 900 токенів') && !apiCap.includes('$') && !apiCap.includes('кеш'), apiCap);
+    // локальна розмова: лічильник порожній
+    await page.click('#advNew'); await pickProv(page, 'Локальна модель');
+    assert.equal(await page.evaluate(() => document.getElementById('advLim').childNodes.length), 0, 'лічильник у локальній розмові');
+    assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+    await ctx.close(); }
+
+  // ── десктоп: збережені ліміти після «перезапуску» ──
+  { const nowS = Math.floor(Date.now() / 1000);
+    const {ctx, page, errors} = await openDesktop(browser, {width: 1400, state: {privacyServices: {advisor: true}, advisorLimits: {cc: {
+      five_hour: {status: 'allowed', utilization: 0.9, resets_at: nowS - 600, at: Date.now() - 7200000},
+      seven_day: {status: 'allowed', utilization: 0.33, resets_at: nowS + 2 * 86400, at: Date.now() - 3600000},
+      // «вичерпано» без часу скидання: свіже показуємо, старше за добу — ні
+      overage: {status: 'rejected', utilization: null, resets_at: null, at: Date.now() - 3600000},
+      seven_day_opus: {status: 'rejected', utilization: null, resets_at: null, at: Date.now() - 25 * 3600000}}}}});
+    await fakeBridge(page, OK);
+    await page.keyboard.press('7');
+    await page.waitForSelector('#advIn', {state: 'visible'});
+    const txt = await page.evaluate(() => document.getElementById('advLim').innerText.replace(/\s+/g, ' ').trim());
+    assert.ok(!txt.includes('5 год') && !txt.includes('90%'), 'показано відсоток із минулого вікна: ' + txt);
+    assert.match(txt, /7 днів: 33% · до \d{2}\.\d{2} станом на \d{2}:\d{2}/);
+    assert.ok(txt.includes('Ліміт понад план вичерпано') && !txt.includes('(понад ліміт)'), 'overage: ' + txt);
+    assert.ok(!txt.includes('Opus'), 'добовий «вичерпано» без скидання не прибрано: ' + txt);
+    // API: запис живе 10 хв від отримання, а не до resets_at (воно за секунди)
+    const apiTxt = async at => page.evaluate(a => {
+      store.set('advisorLimits', {api: {tokens_remaining: 100, tokens_limit: 200, requests_remaining: null, requests_limit: null, resets_at: Math.floor(Date.now() / 1000) - 5, at: Date.now() - a}});
+      ADV.prov = 'api'; advProvUi(); return document.getElementById('advLim').innerText.replace(/\s+/g, ' ').trim();
+    }, at);
+    assert.ok((await apiTxt(5 * 60000)).startsWith('токенів лишилось 100 з 200'), 'API: свіжий запис сховано через resets_at');
+    assert.equal(await apiTxt(11 * 60000), '', 'API: запис старший за 10 хв показано');
     assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
     await ctx.close(); }
 

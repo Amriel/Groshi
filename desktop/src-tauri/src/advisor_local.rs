@@ -106,7 +106,9 @@ fn openai_tools(tools: &[McpTool]) -> Value {
 struct ToolAcc { id: String, name: String, args: String }
 
 #[derive(Default)]
-struct Turn { text: String, calls: Vec<ToolAcc>, finish: Option<String>, done: bool }
+struct Turn { text: String, calls: Vec<ToolAcc>, finish: Option<String>, done: bool,
+    /// [prompt_tokens, completion_tokens] з `usage` (сервери шлють його в останньому чанку, часто з порожнім `choices`).
+    usage: [u64; 2] }
 
 fn apply_event(data: &str, turn: &mut Turn, sink: Sink) -> Result<(), String> {
     // Зламаний рядок пропускаємо: сервери подекуди шлють службові дані.
@@ -115,6 +117,11 @@ fn apply_event(data: &str, turn: &mut Turn, sink: Sink) -> Result<(), String> {
         let m = e.get("message").and_then(Value::as_str).or_else(|| e.as_str()).unwrap_or("помилка");
         let m: String = m.chars().take(300).collect();
         return Err(format!("Локальна модель повернула помилку: {m}"));
+    }
+    // До перевірки choices: чанк з usage зазвичай має `choices: []`, і за ранішим поверненням він губився б.
+    if let Some(u) = v.get("usage").filter(|u| u.is_object()) {
+        if let Some(n) = u["prompt_tokens"].as_u64() { turn.usage[0] = n; }
+        if let Some(n) = u["completion_tokens"].as_u64() { turn.usage[1] = n; }
     }
     let Some(ch) = v.get("choices").and_then(|c| c.get(0)) else { return Ok(()) };
     if let Some(t) = ch["delta"]["content"].as_str() {
@@ -208,15 +215,19 @@ pub async fn run_local(
     mut tools: Option<(&mut dyn ToolExec, &[McpTool])>,
     cancel: &AtomicBool, sink: Sink<'_>,
 ) {
-    if let Err(e) = run_inner(base, model, system, messages, &mut tools, cancel, &mut *sink).await {
-        sink("error", &e);
+    let mut usage = [0u64; 2];
+    let r = run_inner(base, model, system, messages, &mut tools, cancel, &mut *sink, &mut usage).await;
+    // Лічильник і після помилки пізніх раундів: токени вже витрачено. Нуль — події немає (сервер usage не шле).
+    if usage.iter().any(|&u| u > 0) {
+        sink("usage", &json!({"input": usage[0], "output": usage[1], "cache_read": 0, "cache_write": 0}).to_string());
     }
+    if let Err(e) = r { sink("error", &e); }
 }
 
 async fn run_inner(
     base: &reqwest::Url, model: &str, system: &str, messages: &[Value],
     tools: &mut Option<(&mut dyn ToolExec, &[McpTool])>,
-    cancel: &AtomicBool, sink: Sink<'_>,
+    cancel: &AtomicBool, sink: Sink<'_>, total: &mut [u64; 2],
 ) -> Result<(), String> {
     let c = client()?;
     let url = endpoint(base, "chat/completions");
@@ -229,6 +240,7 @@ async fn run_inner(
         let mut body = json!({"model": model, "messages": msgs, "stream": true});
         if let Some(t) = &tools_json { body["tools"] = t.clone(); }
         let Some(turn) = stream_turn(&c, &url, &body, cancel, &mut *sink).await? else { return Ok(()) };
+        total[0] += turn.usage[0]; total[1] += turn.usage[1];
         let truncated = turn.finish.as_deref() == Some("length");
         if tools.is_none() || turn.calls.is_empty() || truncated {
             if truncated { return Err("Відповідь обрізано: вичерпано ліміт довжини".into()); }
@@ -576,6 +588,20 @@ mod tests {
         let ev: Events = Arc::new(Mutex::new(vec![]));
         let e2 = ev.clone();
         (ev, move |k: &str, t: &str| e2.lock().unwrap().push((k.to_string(), t.to_string())))
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn usage_chunk_with_empty_choices_becomes_usage_event() {
+        let usage = data(json!({"choices":[],"usage":{"prompt_tokens":120,"completion_tokens":30,"total_tokens":150}}));
+        let fin = data(json!({"choices":[{"delta":{},"finish_reason":"stop"}]}));
+        let (url, _) = mock(vec![text_chunk("Так") + &fin + &usage + "data: [DONE]\n\n"]);
+        let (ev, mut sink) = collect();
+        run_local(&url, "m", "sys", &user(), None, &AtomicBool::new(false), &mut sink).await;
+        let ev = ev.lock().unwrap();
+        assert_eq!(ev.len(), 2, "{ev:?}");
+        assert_eq!(ev[1].0, "usage");
+        let u: Value = serde_json::from_str(&ev[1].1).unwrap();
+        assert_eq!(u, json!({"input":120,"output":30,"cache_read":0,"cache_write":0}));
     }
 
     #[tokio::test(flavor = "multi_thread")]
