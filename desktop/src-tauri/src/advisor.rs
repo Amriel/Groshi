@@ -94,7 +94,7 @@ impl Drop for RunGuard {
 /// `require_service`), бо тут людині треба підказати, ДЕ це ввімкнути, а не показати загальне
 /// «сервіс вимкнено»; чистий bool — щоб перевірка тестувалась без Store.
 pub(crate) fn advisor_gate(enabled: bool) -> Result<(), String> {
-    if enabled { Ok(()) } else { Err("Увімкніть Порадника в Ще → Підключення".into()) }
+    if enabled { Ok(()) } else { Err("Увімкніть Порадника в Налаштуваннях → Порадник".into()) }
 }
 
 #[derive(Deserialize)]
@@ -272,6 +272,104 @@ pub async fn advisor_cc_probe() -> Value {
         json!({"found": found.is_some(), "path": found.map(|p| p.to_string_lossy().to_string()),
                "version": version, "node": node_found()})
     }).await.unwrap_or_else(|_| json!({"found": false, "path": null, "version": null, "node": false}))
+}
+
+/// Запускає зовнішню програму без вікна й чекає не довше за `limit`. Без таймауту завислий `claude`/`lms`
+/// тримав би кнопку в UI вічно. Код виходу перевіряється: інакше невдалий `lms server start` виглядав би
+/// успіхом. Вивід збирають окремі потоки в спільні буфери, а завершення визначає `try_wait`, а не EOF каналу:
+/// демон, що успадкував канал (`lms server start`), тримав би його відкритим і блокував читання.
+pub(crate) fn run_capture(path: &Path, args: &[&str], limit: std::time::Duration) -> Result<String, String> {
+    let mut cmd = Command::new(path);
+    cmd.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    no_window(&mut cmd);
+    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    fn drain<R: Read + Send + 'static>(mut r: R) -> (Arc<Mutex<Vec<u8>>>, Arc<AtomicBool>) {
+        let buf = Arc::new(Mutex::new(Vec::new()));
+        let done = Arc::new(AtomicBool::new(false));
+        let (b, d) = (buf.clone(), done.clone());
+        std::thread::spawn(move || {
+            let mut chunk = [0u8; 4096];
+            while let Ok(n) = r.read(&mut chunk) {
+                if n == 0 { break; }
+                b.lock().unwrap_or_else(|e| e.into_inner()).extend_from_slice(&chunk[..n]);
+            }
+            d.store(true, Ordering::SeqCst);
+        });
+        (buf, done)
+    }
+    let (out, out_done) = drain(child.stdout.take().ok_or("Немає виводу")?);
+    let (err, err_done) = drain(child.stderr.take().ok_or("Немає виводу")?);
+    let start = std::time::Instant::now();
+    let status = loop {
+        match child.try_wait().map_err(|e| e.to_string())? {
+            Some(st) => break st,
+            None if start.elapsed() >= limit => { kill_tree(&mut child); return Err("Час очікування вичерпано".into()); }
+            None => std::thread::sleep(std::time::Duration::from_millis(30)),
+        }
+    };
+    // Короткий запас, щоб дочитати хвіст виводу; далі віддаємо те, що встигло зібратись.
+    let grace = std::time::Instant::now();
+    while !(out_done.load(Ordering::SeqCst) && err_done.load(Ordering::SeqCst))
+        && grace.elapsed() < std::time::Duration::from_millis(300) {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let text = |b: &Arc<Mutex<Vec<u8>>>| String::from_utf8_lossy(&b.lock().unwrap_or_else(|e| e.into_inner())).to_string();
+    if status.success() { return Ok(text(&out)); }
+    let e = text(&err);
+    let line = e.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("");
+    let snippet: String = line.chars().take(120).collect();
+    Err(if snippet.is_empty() { format!("Команда завершилась з кодом {}", status.code().unwrap_or(-1)) } else { snippet })
+}
+
+/// Лише `loggedIn` і `authMethod`: вивід `claude auth status --json` може містити пошту й організацію,
+/// а вебвʼю (і журнал його помилок) їх бачити не мусить.
+pub fn parse_cc_auth(json_text: &str) -> Result<Value, String> {
+    let v: Value = serde_json::from_str(json_text.trim()).map_err(|_| "Некоректна відповідь Claude Code".to_string())?;
+    let logged_in = v.get("loggedIn").and_then(Value::as_bool).unwrap_or(false);
+    let method: String = v.get("authMethod").and_then(Value::as_str).unwrap_or("").chars().take(40).collect();
+    Ok(json!({"logged_in": logged_in, "method": method}))
+}
+
+/// Рядок для `cmd /c`, що відкриває видиме вікно консолі з інтерактивним входом. Заголовок у лапках
+/// після `start` обовʼязковий: без нього `start` прийняв би шлях у лапках за заголовок і нічого б не запустив.
+/// Шлях іде в лапках вручну (raw_arg): звичайний аргумент Rust бере в лапки лише шлях із пробілами, і `&`
+/// чи `^` дійшли б до cmd.exe голими (розбили б команду); `%` cmd розкриває навіть у лапках, тож відхиляємо
+/// і його, і саму лапку.
+pub fn cc_login_line(claude: &Path) -> Result<String, String> {
+    let p = claude.to_string_lossy();
+    if p.contains('"') || p.contains('%') { return Err("Шлях до Claude Code містить недопустимі символи".into()); }
+    Ok(format!("/c start \"Вхід у Claude Code\" \"{p}\" auth login"))
+}
+
+#[tauri::command]
+pub async fn advisor_cc_auth(app: State<'_, App>) -> Result<Value, String> {
+    crate::require_advisor(&app.st)?;
+    tauri::async_runtime::spawn_blocking(|| {
+        let claude = find_claude_env().ok_or("Claude Code не знайдено")?;
+        let out = run_capture(&claude, &["auth", "status", "--json"], std::time::Duration::from_secs(15))?;
+        parse_cc_auth(&out)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn advisor_cc_login(app: State<'_, App>) -> Result<(), String> {
+    crate::require_advisor(&app.st)?;
+    // Пошук claude обходить теки диска: не на потоці команд.
+    tauri::async_runtime::spawn_blocking(|| {
+        let claude = find_claude_env().ok_or("Claude Code не знайдено")?;
+        let line = cc_login_line(&claude)?;
+        let mut cmd = Command::new("cmd");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.raw_arg(&line);
+        }
+        #[cfg(not(windows))]
+        cmd.args(line.split_whitespace());
+        no_window(&mut cmd);
+        // Не чекаємо: вхід інтерактивний, людина завершує його у вікні консолі.
+        cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+    }).await.map_err(|e| e.to_string())?
 }
 
 pub(crate) fn emit(app: &tauri::AppHandle, conv: &str, kind: &str, text: &str) {
@@ -550,9 +648,38 @@ mod tests {
     }
 
     #[test]
+    fn cc_auth_keeps_only_two_fields() {
+        let raw = r#"{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","email":"user@example.com","orgName":"Org"}"#;
+        let v = parse_cc_auth(raw).unwrap();
+        assert_eq!(v, json!({"logged_in": true, "method": "claude.ai"}));
+        assert!(!v.to_string().contains("example.com"));
+        assert_eq!(parse_cc_auth(r#"{"loggedIn":false}"#).unwrap(), json!({"logged_in": false, "method": ""}));
+        assert!(parse_cc_auth("not json").is_err());
+    }
+
+    #[test]
+    fn cc_login_line_quotes_path() {
+        let l = cc_login_line(Path::new("C:/Tools & Co/a^b (x)/claude.exe")).unwrap();
+        assert_eq!(l, "/c start \"Вхід у Claude Code\" \"C:/Tools & Co/a^b (x)/claude.exe\" auth login");
+        assert!(cc_login_line(Path::new("C:/100%/claude.exe")).is_err());
+        assert!(cc_login_line(Path::new("C:/a\"b/claude.exe")).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn run_capture_reports_failure_and_success() {
+        let cmd = Path::new("cmd");
+        let e = run_capture(cmd, &["/c", "exit", "3"], std::time::Duration::from_secs(10)).unwrap_err();
+        assert!(e.contains('3'), "{e}");
+        let e = run_capture(cmd, &["/c", "echo boom 1>&2 & exit 1"], std::time::Duration::from_secs(10)).unwrap_err();
+        assert_eq!(e, "boom");
+        assert_eq!(run_capture(cmd, &["/c", "echo hi"], std::time::Duration::from_secs(10)).unwrap().trim(), "hi");
+    }
+
+    #[test]
     fn advisor_gate_message() {
         assert!(advisor_gate(true).is_ok());
-        assert_eq!(advisor_gate(false).unwrap_err(), "Увімкніть Порадника в Ще → Підключення");
+        assert_eq!(advisor_gate(false).unwrap_err(), "Увімкніть Порадника в Налаштуваннях → Порадник");
     }
 
     #[test]

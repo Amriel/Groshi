@@ -57,6 +57,16 @@ async function fakeBridge(page, probe) {
       if (window.__lmFail) throw new Error('Не вдалося зʼєднатися з локальним сервером');
       return window.__lm;
     };
+    // Вхід у Claude Code та каталог LM Studio: за замовчуванням `lms` «не знайдено», тож старі сценарії
+    // беруть моделі з сервера; нові сценарії вмикають __lmsFail = false.
+    window.__ccAuth = {logged_in: false, method: ''}; window.__ccLogins = 0; window.__ccChecks = 0;
+    window.__lmsModels = [{key: 'test-model-7b', name: 'Test Model 7B', params: '7B', size_gb: 4.4, tools: true},
+                          {key: 'plain-small', name: 'Plain Small', params: '', size_gb: 0.9, tools: false}];
+    window.__lmsFail = true; window.__lmsStarts = 0; window.__lmsStartFail = false;
+    D.advisorCcAuth = async () => { window.__ccChecks++; return window.__ccAuth; };
+    D.advisorCcLogin = async () => { window.__ccLogins++; };
+    D.advisorLmsModels = async () => { if (window.__lmsFail) throw new Error('LM Studio не знайдено'); return window.__lmsModels; };
+    D.advisorLmsServerStart = async () => { if (window.__lmsStartFail) throw new Error('збій'); window.__lmsStarts++; };
     window.__keyHas = false; window.__keys = []; window.__keyClears = 0;
     D.advisorKeyHas = async () => window.__keyHas;
     D.advisorKeySet = async k => { window.__keys.push(k); window.__keyHas = true; };
@@ -74,6 +84,9 @@ const pickProv = async (page, name) => {
   await page.click('#advProvW .cselb');
   await page.click(`.cselm:not([hidden]) .cselo:has-text("${name}")`);
 };
+// Налаштування Порадника живуть у «Налаштування → Порадник»: шестерня в шапці вкладки веде туди, назад — go('advisor').
+const gear = async page => { await page.click('#advGear'); await page.waitForSelector('#advSetLocal', {state: 'visible'}); };
+const back = async page => { await page.evaluate(() => go('advisor')); await page.waitForSelector('#advIn', {state: 'visible'}); };
 const ask = async (page, q) => {
   await page.fill('#advIn', q);
   await page.click('#advSend');
@@ -306,8 +319,9 @@ try {
     assert.equal(await page.evaluate(() => document.getElementById('advProvTag').textContent), 'Локальна модель');
     assert.ok(await page.evaluate(() => document.getElementById('advMsgs').innerText.includes('LM Studio · model-a')), 'нема підпису «LM Studio · model-a»');
     // друге питання: історія текстом; checkbox «З інструментами»
-    await page.click('#advSet summary');
+    await gear(page);
     await page.click('#advLocalTools');
+    await back(page);
     await ask(page, 'а ще?');
     await idle(page, 2);
     const r2 = await page.evaluate(() => window.__reqs[1]);
@@ -320,8 +334,10 @@ try {
     assert.ok(await page.evaluate(() => /lms server start/.test(document.getElementById('advMsgs').innerText)), 'нема підказки про запуск сервера');
     // оновлення списку при недоступному сервері
     await page.evaluate(() => { window.__lmFail = true; });
+    await gear(page);
     await page.click('#advLocalRefresh');
     await page.waitForFunction(() => /lms server start/.test(document.getElementById('advLocalHint').innerText));
+    await back(page);
 
     // нова розмова іншим способом: перемикач знову доступний, історії нема; API при вимкненому дозволі — картка
     // обрив потоку НЕ про вимкнений сервер: звичайна помилка без підказки про запуск
@@ -338,11 +354,11 @@ try {
     assert.equal(await page.evaluate(() => document.getElementById('advBadge').textContent.trim()), 'хмара · назви приховано');
     // без дозволу «Зберегти ключ…» вимкнена й не дзвонить у міст; «Видалити ключ» не залежить від дозволу
     assert.equal(await page.evaluate(() => document.getElementById('advKeySet').disabled), true, 'вимкнений Порадник: «Зберегти ключ» активна');
-    assert.ok(await page.evaluate(() => /Підключення/.test(document.getElementById('advKeySetW').dataset.tip || '')), 'нема підказки, чому ключ не зберегти');
+    assert.ok(await page.evaluate(() => /Налаштуваннях → Порадник/.test(document.getElementById('advKeySetW').dataset.tip || '')), 'нема підказки, чому ключ не зберегти');
     await page.evaluate(() => document.getElementById('advKeySet').click());
     assert.equal(await page.evaluate(() => document.getElementById('modal').hidden), true, 'вимкнена кнопка відкрила вікно ключа');
     assert.deepEqual(await page.evaluate(() => window.__keys), [], 'advisorKeySet викликано при вимкненому Порадникові');
-    // «Увімкнути» пише той самий ключ, що й «Ще → Підключення»
+    // «Увімкнути» пише той самий ключ, що й «Налаштування → Підключення»
     await page.click('#advOn');
     await page.waitForSelector('#advIn', {state: 'visible'});
     assert.equal(await page.evaluate(() => privacyAllowed('advisor')), true, 'дозвіл не записано');
@@ -352,6 +368,7 @@ try {
     // ключ API
     await page.waitForFunction(() => /не збережено/.test(document.getElementById('advKeyState').innerText));
     const SECRET = 'zz-fake-key-0123456789';
+    await gear(page);
     await page.click('#advKeySet');
     await page.waitForSelector('#modal:not([hidden])');
     assert.equal(await page.evaluate(() => document.getElementById('modalI').type), 'password', 'поле ключа не приховує символи');
@@ -363,6 +380,7 @@ try {
       ls: JSON.stringify(Object.entries(localStorage)).includes(s), adv: JSON.stringify(ADV.convs).includes(s) || JSON.stringify(ADV.prov).includes(s),
       st: JSON.stringify(store.get('advisorApiModel', null)).includes(s)}), SECRET);
     assert.deepEqual(leak, {dom: false, inp: '', ls: false, adv: false, st: false}, 'ключ лишився на сторінці: ' + JSON.stringify(leak));
+    await back(page);
 
     // API: hide, дописування лише з state, помилка/Стоп нічого не дописують
     await page.evaluate(c => { window.__alias = groshiPseudo.alias('client', c);
@@ -410,11 +428,13 @@ try {
     assert.equal(await page.evaluate(() => JSON.stringify(window.__hist) + JSON.stringify(Object.entries(localStorage))).then(t => t.includes(SECRET)), false, 'ключ в історії/localStorage');
 
     // видалення ключа
+    await gear(page);
     await page.click('#advKeyClear');
     await page.waitForSelector('#modal:not([hidden])');
     await page.click('#modalYes');
     await page.waitForFunction(() => /не збережено/.test(document.getElementById('advKeyState').innerText));
     assert.equal(await page.evaluate(() => window.__keyClears), 1);
+    await back(page);
 
     // нова розмова Claude Code: без історії попередньої
     await page.click('#advNew');
@@ -491,6 +511,114 @@ try {
     await page.waitForSelector('#advIn', {state: 'visible'});
     assert.equal(await page.evaluate(() => document.getElementById('advSetup').hidden), true, 'картку «не знайдено» видно для local');
     assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+    await ctx.close(); }
+
+
+  // ── десктоп: вхід у Claude Code, розділ «Порадник» у налаштуваннях, список моделей LM Studio ──
+  { const {ctx, page, errors} = await openDesktop(browser, {width: 1400, state: {privacyServices: {advisor: true}}});
+    await fakeBridge(page, OK);
+    await page.keyboard.press('7');
+    await page.waitForSelector('#advIn', {state: 'visible'});
+    // прострочений вхід: кнопка під помилкою відкриває вхід, а не лишає людину без виходу
+    await page.evaluate(() => { window.__script = () => [{kind: 'error', text: 'Failed to authenticate: OAuth session expired'}]; });
+    await ask(page, 'питання');
+    await idle(page, 1);
+    const act = '#advMsgs .advmsg.bot [data-advact="login"]';
+    await page.waitForSelector(act);
+    assert.equal((await page.textContent(act)).trim(), 'Увійти в Claude Code');
+    const hb = await page.evaluate(() => document.getElementById('advIn').getBoundingClientRect().y);
+    await page.click(act);
+    await page.waitForFunction(() => window.__ccLogins === 1);
+    await page.waitForFunction(() => /Завершіть вхід у вікні, що відкрилось, і поставте питання ще раз/.test(document.getElementById('advMsgs').innerText));
+    assert.equal(await page.evaluate(() => document.querySelectorAll('[data-advact]').length), 0, 'кнопка входу лишилась після натискання');
+    assert.equal(await page.evaluate(() => document.getElementById('advIn').getBoundingClientRect().y), hb, 'поле вводу зсунулось після підказки');
+    // звичайна помилка кнопки не має
+    await page.click('#advNew');
+    await page.evaluate(() => { window.__script = () => [{kind: 'error', text: 'Щось зламалось'}]; });
+    await ask(page, 'ще'); await idle(page, 2);
+    assert.equal(await page.evaluate(() => document.querySelectorAll('[data-advact]').length), 0, 'кнопка під сторонньою помилкою');
+
+    // шестерня → розділ «Порадник»
+    await page.click('#advGear');
+    await page.waitForSelector('#advSetLocal', {state: 'visible'});
+    assert.equal(await page.evaluate(() => S.tab), 'settings');
+    assert.equal(await page.evaluate(() => document.querySelector('#setSeg [data-sec="adv"]').getAttribute('aria-pressed')), 'true');
+    const cards = await page.evaluate(() => ['advSetCloud', 'advSetCc', 'advSetLocal', 'advSetApi', 'advSetPrompt']
+      .map(id => !document.getElementById(id).hidden));
+    assert.deepEqual(cards, [true, true, true, true, true], 'не всі картки розділу видно');
+    assert.equal(await page.evaluate(() => document.getElementById('advCloudState').textContent), 'Увімкнено');
+    // та сама кнопка дозволу, що й у «Підключенні»: вимкнення міняє стан і рядок про вхід
+    assert.equal(await page.evaluate(() => document.getElementById('advCloudBtn').classList.contains('pri')), false, '«Вимкнути» в акценті');
+    await page.click('#advCloudBtn');
+    await page.waitForFunction(() => document.getElementById('advCloudState').textContent === 'Вимкнено');
+    assert.equal(await page.evaluate(() => privacyAllowed('advisor')), false);
+    await page.waitForFunction(() => /не перевіряється/.test(document.getElementById('advCcState').textContent));
+    await page.click('#advCloudBtn');
+    await page.waitForFunction(() => document.getElementById('advCloudState').textContent === 'Увімкнено');
+    // стан входу
+    await page.waitForFunction(() => /Не увійдено/.test(document.getElementById('advCcState').textContent));
+    assert.equal(await page.evaluate(() => document.getElementById('advCcLogin').hidden), false, 'нема кнопки «Увійти»');
+    await page.click('#advCcLogin');
+    await page.waitForFunction(() => window.__ccLogins === 2);
+    await page.evaluate(() => { window.__ccAuth = {logged_in: true, method: 'claude.ai'}; });
+    await page.click('#advCcCheck');
+    await page.waitForFunction(() => /Увійдено \(claude\.ai\)/.test(document.getElementById('advCcState').textContent));
+    assert.equal(await page.evaluate(() => document.getElementById('advCcLogin').hidden), true, '«Увійти» лишилась при виконаному вході');
+    // помилка статусу: текст помилки, кнопки «Увійти» нема
+    await page.evaluate(() => { window.__ccPrev = window.__DESK__.advisorCcAuth; window.__DESK__.advisorCcAuth = async () => { throw new Error('Claude Code не знайдено'); }; });
+    await page.click('#advCcCheck');
+    await page.waitForFunction(() => /Стан входу невідомий/.test(document.getElementById('advCcState').textContent));
+    assert.equal(await page.evaluate(() => document.getElementById('advCcLogin').hidden), true, '«Увійти» при помилці статусу');
+    assert.match(await page.evaluate(() => document.getElementById('advCcHint').textContent), /не знайдено/);
+    await page.evaluate(() => { window.__DESK__.advisorCcAuth = window.__ccPrev; });
+    await page.click('#advCcCheck');
+    await page.waitForFunction(() => /Увійдено/.test(document.getElementById('advCcState').textContent));
+    // випадайка моделей із lms (сервер вимкнено, але список є)
+    await page.evaluate(() => { window.__lmsFail = false; store.set('advisorLocalModel', null); });
+    await page.click('#advLocalRefresh');
+    await page.waitForFunction(() => document.getElementById('advLocalModel').value === 'test-model-7b');
+    const before = await page.evaluate(() => ['advSetLocal', 'advSetApi'].map(id => Math.round(document.getElementById(id).getBoundingClientRect().height)));
+    await page.click('#advSetLocal .cselb');
+    const labels = await page.$$eval('.cselm:not([hidden]) .cselo', b => b.map(x => x.textContent.trim()));
+    assert.deepEqual(labels, ['Test Model 7B · 7B · 4,4 ГБ · інструменти', 'Plain Small · 0,9 ГБ']);
+    await page.click('.cselm:not([hidden]) .cselo:has-text("Plain Small")');
+    assert.equal(await page.evaluate(() => store.get('advisorLocalModel', null)), 'plain-small', 'вибір не збережено');
+    await page.click('#advLocalRefresh');
+    await page.waitForTimeout(150);
+    assert.equal(await page.evaluate(() => document.getElementById('advLocalModel').value), 'plain-small', 'оновлення списку скинуло вибір');
+    assert.deepEqual(await page.evaluate(() => ['advSetLocal', 'advSetApi'].map(id => Math.round(document.getElementById(id).getBoundingClientRect().height))), before, 'картка стрибнула після оновлення списку');
+    // порожній каталог і порожній сервер
+    await page.evaluate(() => { window.__lmsModels = []; window.__lm = []; store.set('advisorLocalModel', null); });
+    await page.click('#advLocalRefresh');
+    await page.waitForFunction(() => /Моделей не знайдено — завантажте модель у LM Studio/.test(document.querySelector('#advSetLocal .cselb').textContent));
+    // запуск сервера з налаштувань
+    await page.click('#advLmsStart');
+    await page.waitForFunction(() => window.__lmsStarts === 1);
+    await back(page);
+
+    // локальна розмова без сервера: кнопка запуску під помилкою
+    await page.click('#advNew');
+    await pickProv(page, 'Локальна модель');
+    await page.evaluate(() => { store.set('advisorLocalModel', 'm'); window.__script = () => [{kind: 'error', text: 'Не вдалося зʼєднатися з локальним сервером'}]; });
+    await ask(page, 'локально'); await idle(page, 3);
+    const srv = '#advMsgs .advmsg.bot [data-advact="server"]';
+    await page.waitForSelector(srv);
+    assert.equal((await page.textContent(srv)).trim(), 'Запустити сервер LM Studio');
+    await page.click(srv);
+    await page.waitForFunction(() => window.__lmsStarts === 2);
+    await page.waitForFunction(() => /Сервер запущено, поставте питання ще раз/.test(document.getElementById('advMsgs').innerText));
+    assert.deepEqual(errors, [], 'помилки: ' + errors.join(' | '));
+    await ctx.close(); }
+
+  // ── браузер: розділ «Порадник» лише з нотаткою ──
+  { const ctx = await browser.newContext({viewport: {width: 1400, height: 900}});
+    await ctx.addInitScript(() => localStorage.setItem('wizDone', 'true'));
+    const page = await ctx.newPage();
+    await page.goto(pathToFileURL(path.join(root, '.test-artifacts', 'synthetic_app.html')).href);
+    await page.waitForFunction(() => typeof window.go2set === 'function');
+    await page.evaluate(() => go2set('adv'));
+    await page.waitForSelector('#advSetNote', {state: 'visible'});
+    assert.equal(await page.evaluate(() => document.getElementById('advSetLocal').offsetParent === null), true, 'у браузері видно картки Порадника');
     await ctx.close(); }
 
   console.log('Порадник: браузер, зведення = Огляд, NDA, XSS, error, потік, три способи, ключ API, картка «не знайдено» — OK');

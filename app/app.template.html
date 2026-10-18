@@ -921,6 +921,8 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .shell.collapsed #navToggle .ic{transform:rotate(180deg)}
 .shell.collapsed .side{padding-inline:10px}
 .shell.collapsed .nl{display:none}
+/* «Ще» (три крапки) існує лише в нижній панелі; на бічній панелі ця кнопка — шестерня. */
+nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
 .shell.collapsed nav.tabs button{justify-content:center;padding:0}
 .shell.collapsed nav.tabs button[data-badge]:not([data-badge=""])::after{
   right:6px;top:4px;transform:none;min-width:14px;height:14px;line-height:14px;padding:0 3px;font-size:10px}
@@ -950,6 +952,9 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
   nav.tabs button .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;line-height:14px}
   nav.tabs button[data-tab="cats"],nav.tabs button[data-tab="budget"],nav.tabs button[data-tab="advisor"]{display:none}
   nav.tabs button[data-tab="settings"]{margin-top:0}
+  nav.tabs button .ic-gear,nav.tabs button .nl.nl-gear{display:none}
+  nav.tabs button .ic-more{display:block}
+  nav.tabs button .nl.nl-more{display:block}
   nav.tabs button[aria-current="true"],nav.tabs button:hover{background:none}
   nav.tabs button[aria-current="true"] .ic{color:var(--accent-ink)}
   .tab-ind{display:none}
@@ -1685,6 +1690,7 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .advmsg.bot .tablewrap{margin:0 0 8px}
 .advstat,.advcap{font-size:var(--fs-xs);color:var(--text-mute);margin-top:4px}
 .adverr{margin-top:6px;color:var(--danger)}
+.advact{margin-top:8px;min-height:var(--ctl-sm);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .advempty{margin:auto;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
 .advempty .cluster{justify-content:center}
 .advcomp{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
@@ -1694,12 +1700,12 @@ nav.tabs button[data-badge]:not([data-badge=""])::after{
 .advbtns{flex:none;width:128px;display:flex}
 .advbtns .btn{flex:1;height:auto;min-height:var(--ctl)}
 .advsteps{margin:8px 0 14px;padding-left:22px;line-height:1.7}
-.advset summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
-.advset summary::-webkit-details-marker{display:none}
-.advset summary::before{content:'+';font-size:17px;line-height:1;width:12px}
-.advset[open] summary::before{content:'−'}
-.advset .stack{margin-top:14px}
-.advset textarea{width:100%;min-height:200px}
+.advsc textarea{width:100%;min-height:200px}
+/* На вузькому екрані текст стану й кнопки в одному рядку стискали текст до слова в рядок:
+   рядок переноситься, і кнопки йдуть під текст. */
+.advrw{flex-wrap:wrap}
+@media (max-width:759px){ .advrw .grow{flex:1 1 100%} }
+.advsc .mf .csel{max-width:520px}
 .advrow{cursor:pointer}
 .advrow .advt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .advrow[aria-current="true"] .advt{color:var(--accent-ink)}
@@ -1819,6 +1825,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <symbol id="i-subs" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/></symbol>
     <symbol id="i-advisor" viewBox="0 0 24 24"><path d="M5 5.5h14A1.5 1.5 0 0 1 20.5 7v8a1.5 1.5 0 0 1-1.5 1.5h-7.5L7 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8 10h8M8 13h5"/></symbol>
     <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8l1.6 2.3 2.7-.7 1 2.6 2.7.9-.3 2.8L21.5 12l-1.8 1.9.3 2.8-2.7.9-1 2.6-2.7-.7L12 21.2l-1.6-2.3-2.7.7-1-2.6-2.7-.9.3-2.8L2.5 12l1.8-1.9-.3-2.8 2.7-.9 1-2.6 2.7.7z"/></symbol>
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
     <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
@@ -1850,7 +1857,10 @@ svg.sprite{position:absolute;width:0;height:0}
     <button data-tab="inv" aria-label="Інвестиції" data-tip="Інвестиції" data-key="5"><svg class="ic" width="20" height="20"><use href="#i-inv"/></svg><span class="nl">Інвестиції</span></button>
     <button data-tab="subs" aria-label="Підписки" data-tip="Підписки" data-key="6"><svg class="ic" width="20" height="20"><use href="#i-subs"/></svg><span class="nl">Підписки</span></button>
     <button data-tab="advisor" aria-label="Порадник" data-tip="Порадник" data-key="7"><svg class="ic" width="20" height="20"><use href="#i-advisor"/></svg><span class="nl">Порадник</span></button>
-    <button data-tab="settings" aria-label="Ще" data-tip="Ще" data-key="8"><svg class="ic" width="20" height="20"><use href="#i-more"/></svg><span class="nl">Ще</span></button>
+    <!-- На широкому екрані кнопка відкриває налаштування (шестерня), на вузькому — меню прихованих
+         розділів («Ще», три крапки): два підписи й дві іконки перемикає медіазапит, без JS-перемальовування.
+         aria-label/data-tip на вузькому підміняє navSettingsLabel(). -->
+    <button data-tab="settings" aria-label="Налаштування" data-tip="Налаштування" data-key="8"><svg class="ic ic-gear" width="20" height="20"><use href="#i-gear"/></svg><svg class="ic ic-more" width="20" height="20"><use href="#i-more"/></svg><span class="nl nl-gear">Налаштування</span><span class="nl nl-more">Ще</span></button>
   </nav>
   <div class="side-foot">
     <button class="iconbtn" id="phoneBtn" aria-label="Перегляд на телефоні" data-tip="Перегляд на телефоні" data-key="P" hidden><svg class="ic" width="18" height="18"><use href="#i-phone"/></svg></button>
@@ -2316,6 +2326,7 @@ svg.sprite{position:absolute;width:0;height:0}
       <h2>Порадник</h2>
       <span class="grow"></span>
       <button class="btn sm" id="advNew">Нова розмова</button>
+      <button class="iconbtn" id="advGear" aria-label="Налаштування Порадника" data-tip="Налаштування Порадника"><svg class="ic" width="18" height="18"><use href="#i-gear"/></svg></button>
     </div>
     <div class="advmode">
       <div id="advProvW"><select id="advProv" aria-label="Спосіб підключення">
@@ -2342,40 +2353,6 @@ svg.sprite{position:absolute;width:0;height:0}
       </div>
     </div>
   </div>
-  <details class="card advset" id="advSet" hidden>
-    <summary>Налаштування Порадника</summary>
-    <div class="stack">
-      <div class="stack" id="advSetCc">
-        <label class="mf"><span>Модель Claude (порожньо — за замовчуванням)</span>
-          <input id="advModel" placeholder="напр. sonnet, opus або повна назва"></label>
-        <p class="muted subhint" id="advVer"></p>
-      </div>
-      <div class="stack" id="advSetLocal" hidden>
-        <label class="mf"><span>Адреса сервера (лише цей комп'ютер)</span>
-          <input id="advLocalUrl" placeholder="http://localhost:1234/v1" autocomplete="off"></label>
-        <label class="mf"><span>Модель</span>
-          <input id="advLocalModel" list="advLocalModels" placeholder="оберіть зі списку або впишіть назву" autocomplete="off">
-          <datalist id="advLocalModels"></datalist></label>
-        <div class="cluster">
-          <button class="btn" id="advLocalRefresh">Оновити список</button>
-          <label class="muted optlabel"><input type="checkbox" id="advLocalTools"> З інструментами</label>
-        </div>
-        <p class="muted subhint" id="advLocalHint"></p>
-      </div>
-      <div class="stack" id="advSetApi" hidden>
-        <div class="cluster">
-          <span id="advKeyState">Ключ API: перевіряю…</span>
-          <span id="advKeySetW"><button class="btn" id="advKeySet">Зберегти ключ…</button></span>
-          <button class="btn" id="advKeyClear">Видалити ключ</button>
-        </div>
-        <label class="mf"><span>Модель (порожньо — claude-opus-5-5)</span>
-          <input id="advApiModel" placeholder="claude-opus-5-5" autocomplete="off"></label>
-      </div>
-      <label class="mf"><span>Інструкція</span>
-        <textarea id="advPrompt" rows="10"></textarea></label>
-      <div class="cluster"><button class="btn" id="advPromptReset">Повернути стандартну</button></div>
-    </div>
-  </details>
   <div class="card" id="advListCard" hidden>
     <div class="cardhead"><h2>Розмови</h2></div>
     <div id="advList"></div>
@@ -2393,6 +2370,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <button class="chip" data-sec="src" aria-pressed="false">Підключення</button>
     <button class="chip" data-sec="rules" aria-pressed="false">Категорії і правила</button>
     <button class="chip" data-sec="app" aria-pressed="false">Апка і дані</button>
+    <button class="chip" data-sec="adv" aria-pressed="false">Порадник</button>
   </div>
 
   <div class="card" data-sec="src" id="srcNote" hidden>
@@ -2400,6 +2378,73 @@ svg.sprite{position:absolute;width:0;height:0}
     <p class="muted setlead">Monobank, Interactive Brokers і Binance підключаються
       в десктопному застосунку — браузерний файл не має ні сховища ключів, ні дозволу
       ходити на їхні домени. Тут працює лише імпорт виписки ПриватБанку нижче.</p>
+  </div>
+
+  <!-- Розділ «Порадник»: налаштування, які раніше ховались у розкривному блоці внизу вкладки Порадника
+       (власник шукав їх у «Ще» і не знаходив). Ідентифікатори полів ті самі. У браузерній збірці
+       замість карток — нотатка advSetNote (див. setSecApply). -->
+  <div class="card" data-sec="adv" id="advSetNote" hidden>
+    <div class="cardhead"><h2>Порадник</h2></div>
+    <p class="muted setlead">Порадник працює лише в десктопній версії: він запускає Claude Code,
+      LM Studio або звертається до API Anthropic з цього комп'ютера.</p>
+  </div>
+  <div class="card advsc" data-sec="adv" id="advSetCloud" hidden>
+    <div class="cardhead"><h2>Порадник у хмарі</h2></div>
+    <div class="row advrw">
+      <div class="grow"><b id="advCloudState">Вимкнено</b>
+        <div class="muted privd">Anthropic (Claude Code або API): ваші питання, знеособлене зведення витрат і
+          портфеля; назви клієнтів, проєктів і платників приховано. Локальна модель цього дозволу не потребує.</div></div>
+      <button class="btn privbtn" id="advCloudBtn" aria-pressed="false">Увімкнути</button>
+    </div>
+  </div>
+  <div class="card advsc" data-sec="adv" id="advSetCc" hidden>
+    <div class="cardhead"><h2>Claude Code</h2></div>
+    <div class="stack">
+      <div class="row advrw">
+        <div class="grow"><b id="advCcState">Перевіряю вхід…</b>
+          <div class="muted privd" id="advCcHint"></div></div>
+        <button class="btn" id="advCcCheck">Перевірити ще раз</button>
+        <button class="btn pri" id="advCcLogin" hidden>Увійти</button>
+      </div>
+      <label class="mf"><span>Модель Claude (порожньо — за замовчуванням)</span>
+        <input id="advModel" placeholder="напр. sonnet, opus або повна назва"></label>
+      <p class="muted subhint" id="advVer"></p>
+    </div>
+  </div>
+  <div class="card advsc" data-sec="adv" id="advSetLocal" hidden>
+    <div class="cardhead"><h2>Локальна модель (LM Studio)</h2></div>
+    <div class="stack">
+      <label class="mf"><span>Адреса сервера (лише цей комп'ютер)</span>
+        <input id="advLocalUrl" placeholder="http://localhost:1234/v1" autocomplete="off"></label>
+      <label class="mf"><span>Модель</span>
+        <select id="advLocalModel" aria-label="Модель"></select></label>
+      <div class="cluster">
+        <button class="btn" id="advLocalRefresh">Оновити список</button>
+        <button class="btn" id="advLmsStart">Запустити сервер LM Studio</button>
+        <label class="muted optlabel"><input type="checkbox" id="advLocalTools"> З інструментами</label>
+      </div>
+      <p class="muted subhint" id="advLocalHint"></p>
+    </div>
+  </div>
+  <div class="card advsc" data-sec="adv" id="advSetApi" hidden>
+    <div class="cardhead"><h2>API Anthropic</h2></div>
+    <div class="stack">
+      <div class="cluster">
+        <span id="advKeyState">Ключ API: перевіряю…</span>
+        <span id="advKeySetW"><button class="btn" id="advKeySet">Зберегти ключ…</button></span>
+        <button class="btn" id="advKeyClear">Видалити ключ</button>
+      </div>
+      <label class="mf"><span>Модель (порожньо — claude-opus-5-5)</span>
+        <input id="advApiModel" placeholder="claude-opus-5-5" autocomplete="off"></label>
+    </div>
+  </div>
+  <div class="card advsc" data-sec="adv" id="advSetPrompt" hidden>
+    <div class="cardhead"><h2>Інструкція</h2></div>
+    <div class="stack">
+      <label class="mf"><span>Системна інструкція Порадника</span>
+        <textarea id="advPrompt" rows="10"></textarea></label>
+      <div class="cluster"><button class="btn" id="advPromptReset">Повернути стандартну</button></div>
+    </div>
   </div>
 
   <div class="card" data-sec="rules">
@@ -3338,7 +3383,7 @@ function renderKpis(rows, prev){
       Якщо операції імпортовані зі стороннього знімка, у ньому могли бути
       лише списання: сума без знака, а зарахування туди не потрапляють.
       За всю історію як вхідні розпізнано ${incAll}.<br><br>
-      Щоб надходження зʼявились, підключіть банк напряму: «Ще → Підключення».
+      Щоб надходження зʼявились, підключіть банк напряму: «Налаштування → Підключення».
       Там кожна операція приходить зі знаком, тож дохід і витрата розділяються точно.
       <span class="phonly"></span>
       ${incAll ? `<button class="btn" id="whyIncome">Показати ці ${nOps(incAll)}</button>` : ''}
@@ -4886,7 +4931,7 @@ function renderQuality(){
           Доказу немає: ні пари-списання, ні власного IBAN, ні вашого імені — лише текст опису.
           Перевірте їх. Якщо це справді дохід ззовні — змініть категорію, і сума почне рахуватись.
           Якщо це переказ між своїми рахунками, а пари немає — позначте всі свої рахунки
-          в «Ще → Monobank» і оновіть.
+          в «Налаштування → Monobank» і оновіть.
           <button class="btn" id="showLone">Показати ці ${lone.length}</button>
         </div>` : ''));
     const sl = el('showLone');
@@ -7622,7 +7667,7 @@ function renderInv(){
     const msg = `<div class="card"><p class="muted invempty">${
       !desk ? 'Підключення брокерів живе в десктопній версії — там є сховище ключів Windows і прямий доступ до API. Браузерна версія показує лише витрати.'
       : hasKeys ? 'Ключі збережено — натисніть «Оновити», і апка стягне перший знімок портфеля.'
-      : 'Підключіть Interactive Brokers або Binance у «Ще». Обидва підключення тільки читають: торгувати чи вивести гроші ними неможливо.'}</p>`
+      : 'Підключіть Interactive Brokers або Binance у «Налаштуваннях». Обидва підключення тільки читають: торгувати чи вивести гроші ними неможливо.'}</p>`
       + (desk && !hasKeys ? `<button class="btn pri" data-invgo>Відкрити налаштування</button>` : '') + '</div>';
     el('invPos').innerHTML = msg; el('invPosC').innerHTML = msg;
     /* У браузері платформ немає зовсім — порожня картка з заголовком
@@ -7990,7 +8035,7 @@ function renderInv(){
     ].filter(Boolean).join(' · ');
     el('invStockSum').textContent = secs.length ? money(secVal) : '';
     if(secs.length) posList(el('invPos'), secs, {}, 's:');
-    else el('invPos').innerHTML = '<div class="card"><p class="muted invempty">IBKR ще не підключено або в звіті немає позицій — підключіть у «Ще».</p></div>';
+    else el('invPos').innerHTML = '<div class="card"><p class="muted invempty">IBKR ще не підключено або в звіті немає позицій — підключіть у «Налаштуваннях».</p></div>';
     invNavChart(navh, ivt);
     invDivChart(ivt, secs);
     invDivNext(ivt, secs);
@@ -8131,7 +8176,7 @@ function renderInv(){
     ].map(kpi).join('');
     el('invCryptoSum').textContent = crypto.length ? money(cryVal) : '';
     if(crypto.length) posList(el('invPosC'), crypto, {crypto:'Монети', cash:'Стейбли'}, 'c:');
-    else el('invPosC').innerHTML = '<div class="card"><p class="muted invempty">Binance ще не підключено — підключіть у «Ще».</p></div>';
+    else el('invPosC').innerHTML = '<div class="card"><p class="muted invempty">Binance ще не підключено — підключіть у «Налаштуваннях».</p></div>';
     bars(el('invAllocC'), crypto.map(p=>({k:p.symbol, v:invUAH(p)??0})).sort((a,b)=>b.v-a.v));
   }
 
@@ -9022,7 +9067,7 @@ function invActions(desk){
     (hasI ? `<button class="btn sm" data-invsync="ibkr">Оновити IBKR</button>` : '')
     + (hasB ? `<button class="btn sm" data-invsync="binance">Оновити Binance</button>` : '')
     + (hasSecs ? `<button class="btn sm" data-invquotes>Оновити ціни</button>` : '')
-    + ((hasI||hasB) ? '' : `<button class="btn sm" data-invgo2>Підключити в «Ще»</button>`)
+    + ((hasI||hasB) ? '' : `<button class="btn sm" data-invgo2>Підключити в «Налаштуваннях»</button>`)
     + `<span class="muted invmsg" id="invSyncMsg"></span>`;
   const qb = host.querySelector('[data-invquotes]');
   if(qb) qb.onclick = async ()=>{
@@ -9112,6 +9157,7 @@ function render(){
   if(S.tab==='inv') renderInv();
   if(S.tab==='subs') renderSubs();
   if(S.tab==='advisor') advRender();
+  advSetShow(S.tab==='settings' && SETSEC==='adv');
   if(S.tab==='settings'){ setSecApply(); renderRules(); renderExcl(); renderQuality();
     const cats=[...new Set(TX.map(catOf))].sort();
     el('catlist').innerHTML = cats.map(c=>`<option>${esc(c)}</option>`).join('');
@@ -9199,7 +9245,11 @@ const ADV_PROMPT_LOCAL = `Додаткові правила, бо ти прац�
 const ADV_API_MODEL = 'claude-opus-5-5';
 const ADV_LOCAL_URL = 'http://localhost:1234/v1';
 const ADV_PROVS = { cc:'Claude Code', local:'Локальна модель', api:'API Anthropic' };
-const ADV_LMHINT = 'Запустіть сервер у LM Studio (Developer → Start Server) або <code>lms server start</code>.';
+const ADV_LMHINT = 'Запустіть сервер кнопкою вище, у LM Studio (Developer → Start Server) або командою <code>lms server start</code>.';
+/* Помилки, під якими є кнопка-вихід: розмова Claude Code з простроченим входом
+   і локальна розмова без запущеного сервера LM Studio. */
+const ADV_AUTH_RE = /OAuth|authenticat|not logged in|log in|login/i;
+const ADV_CONN_RE = /Не вдалося зʼєднатися/;
 
 /* Зведення рахується тими самими помічниками, що й «Огляд» (sum/isHidMove/
    isSpend/spendAmt), тому сума місяця тут дорівнює плитці «Витрати за
@@ -9303,7 +9353,7 @@ function advMd(text){
 /* prov — спосіб для НОВОЇ розмови; у наявної він зашитий у conv.provider.
    keyHas: null = ще не питали. lmTok — щоб запізніла відповідь про моделі за
    старою адресою не перебила свіжу. */
-const ADV = { init:false, state:'wait', convs:[], cur:null, stream:null, probe:null, drain:null,
+const ADV = { init:false, setIn:false, state:'wait', convs:[], cur:null, stream:null, probe:null, drain:null,
   prov:'cc', entered:'cc', keyHas:null, lmTok:0 };
 /* Rust читає stdout окремим потоком: після Стоп (kill) він ще віддає
    буферизований хвіст і ЗАВЖДИ закінчує `done` з тим самим conv. Нова
@@ -9348,7 +9398,6 @@ function advView(){
   el('advWait').hidden = st !== 'wait';
   el('advSetup').hidden = !setup;
   el('advMain').hidden = !main;
-  el('advSet').hidden = !main;
   el('advMsgs').hidden = setup;
   el('advOff').hidden = !off;
   el('advComp').hidden = setup || off;
@@ -9357,7 +9406,7 @@ function advView(){
      data-tip на самій кнопці не спрацював би. «Видалити ключ» локальна — лишається доступною. */
   const keyOff = !privacyAllowed('advisor');
   el('advKeySet').disabled = keyOff;
-  if(keyOff) el('advKeySetW').dataset.tip = 'Спершу увімкніть Порадника в Ще → Підключення';
+  if(keyOff) el('advKeySetW').dataset.tip = 'Спершу увімкніть Порадника в Налаштуваннях → Порадник';
   else delete el('advKeySetW').dataset.tip;
   el('advListCard').hidden = !main || !ADV.convs.length;
 }
@@ -9382,10 +9431,12 @@ function advMsgNode(m){
   n._stat = document.createElement('div'); n._stat.className = 'advstat'; n._stat.hidden = true;
   n._err = document.createElement('div'); n._err.className = 'adverr'; n._err.hidden = !m.err;
   n._err.textContent = m.err ? 'Помилка: ' + m.err : '';
+  n._act = document.createElement('div'); n._act.className = 'advact'; n._act.hidden = true;
   n._cap = document.createElement('div'); n._cap.className = 'advcap';
   n._cap.hidden = !m.text;
   n._cap.textContent = advCap(m);
-  n.append(n._body, n._stat, n._err, n._cap);
+  n.append(n._body, n._stat, n._err, n._act, n._cap);
+  advAct(n, m);
   return n;
 }
 function advShow(){
@@ -9409,9 +9460,6 @@ function advProvUi(){
   el('advProvTag').textContent = ADV_PROVS[prov];
   if(el('advProv').value !== prov){ el('advProv').value = prov; cselSync(el('advProv')); }
   el('advBadge').textContent = prov === 'local' ? 'локально' : 'хмара · назви приховано';
-  el('advSetCc').hidden = prov !== 'cc';
-  el('advSetLocal').hidden = prov !== 'local';
-  el('advSetApi').hidden = prov !== 'api';
   advView();
   if(ADV.entered !== prov){
     ADV.entered = prov;
@@ -9421,21 +9469,103 @@ function advProvUi(){
 }
 const advLocalUrl = () => (store.get('advisorLocalUrl', null) || '').trim() || ADV_LOCAL_URL;
 function advLmHint(html){ el('advLocalHint').innerHTML = html || ''; }
+/* Підпис пункту: «Назва · 27B · 17,4 ГБ · інструменти». Порожні частини пропускаємо. */
+function advLmLabel(m){
+  const parts = [m.name || m.key];
+  if(m.params) parts.push(m.params);
+  if(m.size_gb > 0) parts.push(String(m.size_gb.toFixed(1)).replace('.', ',') + ' ГБ');
+  if(m.tools) parts.push('інструменти');
+  return parts.join(' · ');
+}
+/* Список моделей — .csel над <select>, а не <input list>: підпис несе розмір і
+   параметри, а значенням лишається ключ моделі. Збережена модель, якої немає у списку
+   (сервер вимкнено, модель вивантажена), лишається пунктом, щоб вибір не губився мовчки. */
+function advLmFill(items){
+  const sel = el('advLocalModel');
+  let cur = (store.get('advisorLocalModel', null) || '').trim();
+  if(!cur && items.length){ cur = items[0].key; store.set('advisorLocalModel', cur); }
+  const opts = items.slice();
+  if(cur && !opts.some(o => o.key === cur)) opts.unshift({ key:cur, label:cur });
+  if(!opts.length) opts.push({ key:'', label:'Моделей не знайдено — завантажте модель у LM Studio' });
+  sel.textContent = '';
+  for(const o of opts){
+    const op = document.createElement('option'); op.value = o.key; op.textContent = o.label; sel.appendChild(op);
+  }
+  sel.value = cur;
+  if(window.cselSync) cselSync(sel);
+}
 async function advLocalRefresh(){
   const D = advDesk(); if(!D) return;
   const tok = ++ADV.lmTok;
   advLmHint('Оновлюю список моделей…');
+  let items = [], hint = '';
+  /* Спершу `lms ls`: він бачить завантажені моделі й при вимкненому сервері.
+     Порожньо чи помилка (немає lms) — питаємо сам сервер. */
   try{
-    const list = await D.advisorLocalModels(advLocalUrl());
-    if(tok !== ADV.lmTok) return;
-    el('advLocalModels').innerHTML = (list || []).map(m => `<option value="${esc(m)}"></option>`).join('');
-    const inp = el('advLocalModel');
-    if(!inp.value && list && list.length){ inp.value = list[0]; store.set('advisorLocalModel', list[0]); }
-    advLmHint(list && list.length ? '' : 'Сервер відповів, але моделей немає. Завантажте модель у LM Studio.');
-  }catch(e){
-    if(tok !== ADV.lmTok) return;
-    advLmHint(ADV_LMHINT + ' ' + esc(String(e && e.message || e)));
+    const l = await D.advisorLmsModels();
+    items = (l || []).map(m => ({ key:m.key, label:advLmLabel(m) }));
+  }catch(e){}
+  if(tok !== ADV.lmTok) return;
+  if(!items.length){
+    try{
+      const l = await D.advisorLocalModels(advLocalUrl());
+      if(tok !== ADV.lmTok) return;
+      items = (l || []).map(k => ({ key:k, label:k }));
+      if(!items.length) hint = 'Сервер відповів, але моделей немає. Завантажте модель у LM Studio.';
+    }catch(e){
+      if(tok !== ADV.lmTok) return;
+      hint = ADV_LMHINT + ' ' + esc(String(e && e.message || e));
+    }
   }
+  advLmFill(items);
+  advLmHint(hint);
+}
+async function advLmsStart(){
+  const D = advDesk(); if(!D) return false;
+  const b = el('advLmsStart'); b.disabled = true;
+  try{ await D.advisorLmsServerStart(); appToast('Сервер LM Studio запущено'); advLocalRefresh(); return true; }
+  catch(e){ appToast('Не вдалося запустити сервер: ' + String(e && e.message || e)); return false; }
+  finally{ b.disabled = false; }
+}
+/* Вхід у Claude Code: Rust віддає лише {logged_in, method} — без пошти й організації. */
+async function advCcRefresh(){
+  const D = advDesk(); if(!D) return;
+  const st = el('advCcState'), hint = el('advCcHint'), login = el('advCcLogin');
+  if(!privacyAllowed('advisor')){
+    st.textContent = 'Вхід не перевіряється';
+    hint.textContent = 'Спершу увімкніть «Порадник у хмарі» вище.'; login.hidden = true; return;
+  }
+  st.textContent = 'Перевіряю вхід…'; hint.textContent = '';
+  try{
+    const r = await D.advisorCcAuth();
+    st.textContent = r && r.logged_in
+      ? 'Увійдено' + (r.method ? ' (' + r.method + ')' : '') : 'Не увійдено';
+    login.hidden = !!(r && r.logged_in);
+  }catch(e){
+    /* Помилка (напр. «Claude Code не знайдено») — не привід показувати «Увійти»: входити нікуди. */
+    st.textContent = 'Стан входу невідомий';
+    hint.textContent = String(e && e.message || e); login.hidden = true;
+  }
+}
+async function advCcLogin(){
+  const D = advDesk(); if(!D) return false;
+  try{ await D.advisorCcLogin(); return true; }
+  catch(e){ appToast('Не вдалося відкрити вхід: ' + String(e && e.message || e)); return false; }
+}
+/* Кнопка під помилкою: вихід із типової ситуації, а не просто текст. Після натискання кнопка
+   замінюється підказкою — повторне натискання відкривало б друге вікно входу. */
+function advAct(n, m){
+  const err = m.err || '', prov = m.prov || 'cc';
+  let kind = '';
+  if(prov === 'cc' && ADV_AUTH_RE.test(err)) kind = 'login';
+  else if(prov === 'local' && ADV_CONN_RE.test(err)) kind = 'server';
+  n._act.hidden = !kind;
+  n._act.textContent = '';
+  if(!kind) return;
+  const b = document.createElement('button');
+  b.className = 'btn sm'; b.dataset.advact = kind;
+  b.textContent = kind === 'login' ? 'Увійти в Claude Code' : 'Запустити сервер LM Studio';
+  n._act.appendChild(b);
 }
 async function advKeyRefresh(){
   const D = advDesk(); if(!D) return;
@@ -9489,6 +9619,7 @@ function advFinish(){
   const n = st.node;
   n._stat.hidden = true;
   n._err.hidden = !st.msg.err; n._err.textContent = st.msg.err ? 'Помилка: ' + st.msg.err : '';
+  advAct(n, st.msg);
   n._cap.hidden = !st.msg.text;
   ADV.stream = null;
   advCtl(); advSave(); advList();
@@ -9521,7 +9652,7 @@ function advEvent(p){
   }else if(p.kind === 'error'){
     let t = rv(p.text) || 'Невідома помилка';
     // Лише «Не вдалося зʼєднатися…» (відмова зʼєднання): обрив потоку («Зʼєднання … перервано») — не про вимкнений сервер.
-    if(st.conv.provider === 'local' && /Не вдалося зʼєднатися/.test(t))
+    if(st.conv.provider === 'local' && ADV_CONN_RE.test(t))
       t += '. Запустіть сервер у LM Studio (Developer → Start Server) або lms server start.';
     st.msg.err = t;
     advFinish();
@@ -9646,12 +9777,18 @@ function advBuild(){
     appToast('Повернуто стандартну інструкцію');
   };
   el('advLocalUrl').value = store.get('advisorLocalUrl', null) || '';
-  el('advLocalModel').value = store.get('advisorLocalModel', null) || '';
   el('advLocalTools').checked = store.get('advisorLocalTools', true) !== false;
   el('advApiModel').value = store.get('advisorApiModel', null) || '';
   el('advLocalUrl').onchange = () => {
     store.set('advisorLocalUrl', el('advLocalUrl').value.trim() || null); advLocalRefresh(); };
   el('advLocalModel').onchange = () => store.set('advisorLocalModel', el('advLocalModel').value.trim() || null);
+  advLmFill([]);                                      // збережена модель одразу видна, до відповіді lms
+  el('advLmsStart').onclick = advLmsStart;
+  el('advCcCheck').onclick = advCcRefresh;
+  el('advCcLogin').onclick = async () => {
+    if(await advCcLogin()) appToast('Завершіть вхід у вікні, що відкрилось, і натисніть «Перевірити ще раз»');
+  };
+  el('advGear').onclick = () => go2set('adv');
   el('advLocalTools').onchange = () => store.set('advisorLocalTools', el('advLocalTools').checked);
   el('advLocalRefresh').onclick = advLocalRefresh;
   el('advApiModel').onchange = () => store.set('advisorApiModel', el('advApiModel').value.trim() || null);
@@ -9666,6 +9803,7 @@ function advBuild(){
     ADV.prov = el('advProv').value; advProvUi();
   };
   el('advOn').onclick = () => privacyToggle('advisor');
+  el('advCloudBtn').onclick = () => privacyToggle('advisor');
   if(window.cselScan) cselScan();                      // перемикач способу й список моделей
   el('advSend').onclick = () => advSend();
   el('advIn').onkeydown = e => {
@@ -9679,9 +9817,21 @@ function advBuild(){
     Promise.resolve().then(() => D.advisorStop()).catch(() => {});
   };
   el('advNew').onclick = () => { if(ADV.stream) return; ADV.cur = null; advShow(); el('advIn').focus(); };
-  el('advMsgs').onclick = e => {
+  el('advMsgs').onclick = async e => {
     const b = e.target.closest('[data-advsug]');
     if(b) advSend(ADV_SUGGEST[+b.dataset.advsug][1]);
+    const a = e.target.closest('[data-advact]');
+    if(!a || a.disabled) return;
+    a.disabled = true;
+    const ok = a.dataset.advact === 'login' ? await advCcLogin() : await advLmsStart();
+    if(!a.isConnected) return;
+    if(ok){
+      const h = document.createElement('span'); h.className = 'muted';
+      h.textContent = a.dataset.advact === 'login'
+        ? 'Завершіть вхід у вікні, що відкрилось, і поставте питання ще раз'
+        : 'Сервер запущено, поставте питання ще раз';
+      a.replaceWith(h);
+    }else a.disabled = false;
   };
   el('advList').onclick = async e => {
     const del = e.target.closest('[data-advdel]'), open = e.target.closest('[data-advopen]');
@@ -9700,6 +9850,22 @@ function advBuild(){
 function advRender(){
   if(!ADV.init){ ADV.init = true; advBuild(); }
   advView(); advCtl();
+}
+/* Розділ «Порадник» у налаштуваннях: розмітка будується тим самим advBuild, а стан (вхід у Claude Code,
+   список моделей, ключ) оновлюємо раз на відкриття розділу, не на кожен render. */
+function advSetShow(on){
+  if(!on){ ADV.setIn = false; return; }
+  advRender();
+  if(ADV.setIn || !advDesk()) return;
+  ADV.setIn = true;
+  advCcRefresh(); advLocalRefresh(); advKeyRefresh();
+}
+function navSettingsLabel(){
+  /* На вузькому екрані кнопка відкриває меню «Ще», а не налаштування: ім'я для зчитувача екрана
+     має збігатися з видимим підписом. */
+  const b = document.querySelector('#tabs [data-tab="settings"]');
+  const t = NARROW.matches ? 'Ще' : 'Налаштування';
+  b.setAttribute('aria-label', t); b.dataset.tip = t;
 }
 
 const MORE = new Set(['cats', 'budget', 'advisor', 'settings']);
@@ -9766,7 +9932,8 @@ el('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   if(NARROW.matches && b.dataset.tab==='settings') return moreMenu();
   go(b.dataset.tab);
 });
-NARROW.addEventListener('change', ()=>{ applyShell(); markTabs(); });
+NARROW.addEventListener('change', ()=>{ applyShell(); markTabs(); navSettingsLabel(); });
+navSettingsLabel();
 el('themeBtn').onclick = ()=>{
   const next = document.documentElement.dataset.theme==='dark' ? 'light':'dark';
   document.documentElement.dataset.theme = next; store.set('theme',next); render();
@@ -9966,7 +10133,7 @@ setTimeout(async ()=>{
     if(f && f.version && f.available !== false){
       const cur = await D.version();
       if(f.version !== cur)
-        appToast(`Доступна версія ${f.version} — встановіть у «Ще → Апка і дані → Оновлення»`);
+        appToast(`Доступна версія ${f.version} — встановіть у «Налаштування → Апка і дані → Оновлення»`);
     }
   }catch(e){ /* тихо: перевіримо завтра */ }
 }, 9000);
@@ -9990,8 +10157,8 @@ el('bizSignFile').onchange = e=>{
 bizUi();
 
 /* ── розділи налаштувань ───────────────────────────────────────────
-   «Ще» виросло до десятка карток однією колоною — все в купу. Тепер
-   три розділи (Підключення / Категорії і правила / Апка і дані),
+   Налаштування виросли до десятка карток однією колоною — все в купу. Тепер
+   чотири розділи (Підключення / Категорії і правила / Апка і дані / Порадник),
    картки несуть data-sec, перемикач показує один розділ. go2set()
    відкриває налаштування одразу на потрібному розділі. */
 let SETSEC = store.get('setSec', 'src');
@@ -10003,9 +10170,21 @@ function setSecApply(){
     b.onclick = ()=>{ SETSEC = b.dataset.sec; store.set('setSec', SETSEC);
       render(); };
   });
+  /* Чип активного розділу може бути за краєм смуги (на 390 px «Порадник» не влазить):
+     гортаємо лише саму смугу, не сторінку. */
+  const cur = seg.querySelector('[aria-pressed="true"]');
+  if(cur){
+    const c = cur.getBoundingClientRect(), r = seg.getBoundingClientRect();
+    if(c.right > r.right) seg.scrollLeft += c.right - r.right + 8;
+    else if(c.left < r.left) seg.scrollLeft -= r.left - c.left + 8;
+  }
   document.querySelectorAll('#tab-settings .card[data-sec]').forEach(c=>{
     c.hidden = c.dataset.sec !== SETSEC;
   });
+  /* Картки Порадника працюють лише в застосунку; у браузері замість них — нотатка. */
+  const desk = !!(window.__DESK__ && window.__DESK__.tauri);
+  document.querySelectorAll('#tab-settings .advsc').forEach(c=>{ c.hidden = SETSEC!=='adv' || !desk; });
+  const an = el('advSetNote'); if(an) an.hidden = SETSEC!=='adv' || desk;
   /* браузерна примітка про підключення — лише там, де немає застосунку */
   const sn = el('srcNote');
   if(sn) sn.hidden = SETSEC!=='src' || !!(window.__DESK__ && window.__DESK__.tauri);
@@ -10172,7 +10351,7 @@ async function wizard(){
   if(desk && !(window.__BOOT__ && window.__BOOT__.hasToken)){
     const go1 = await uiAsk({ title:'Крок 1 · Банк', input:false, ok:'Відкрити «Підключення»', cancel:'Пізніше',
       text:'Monobank віддає операції за особистим токеном.\n'
-        + 'Візьміть його на api.monobank.ua (кнопка «Отримати токен») і вставте у «Ще → Підключення».\n\n'
+        + 'Візьміть його на api.monobank.ua (кнопка «Отримати токен») і вставте у «Налаштування → Підключення».\n\n'
         + 'Токен лягає в Диспетчер облікових даних Windows — не в файл і не в апку.' });
     if(go1 !== null){ go2set('src'); store.set('wizDone', true); return; }
   }
@@ -10187,9 +10366,9 @@ async function wizard(){
     text:'На Огляді є картка «Податки ФОП»: квартали, ЄП і ВЗ, дедлайни, книга доходів для бухгалтера.\n'
       + 'Вона зʼявляється сама, якщо є рахунок зі словом «ФОП» у назві, і налаштовується під вашу групу.\n\n'
       + 'Не ФОП — просто лишіть її вимкненою, вона не заважатиме.\n\n'
-      + 'Решта: «?» показує гарячі клавіші, «Ще → Апка і дані» — бекапи, код на вхід і решта налаштувань.' });
+      + 'Решта: «?» показує гарячі клавіші, «Налаштування → Апка і дані» — бекапи, код на вхід і решта налаштувань.' });
   store.set('wizDone', true);
-  if(step3 !== null) appToast('Готово. Почніть з «Ще → Підключення»');
+  if(step3 !== null) appToast('Готово. Почніть з «Налаштування → Підключення»');
 }
 setTimeout(wizard, 1400);
 
@@ -10234,6 +10413,11 @@ function privacyUi(){
     button.classList.toggle('pri', on);
     button.textContent = on ? 'Вимкнути' : 'Увімкнути';
   });
+  /* Картка в розділі «Порадник» — друга кнопка того самого дозволу. Без data-privacy: цей атрибут
+     рахує сторож «явних дозволів» (їх рівно шість), а обробник тут свій. */
+  const on = privacyAllowed('advisor'), cs = el('advCloudState'), cb = el('advCloudBtn');
+  if(cs) cs.textContent = on ? 'Увімкнено' : 'Вимкнено';
+  if(cb){ cb.setAttribute('aria-pressed', String(on)); cb.classList.toggle('pri', !on); /* акцент лише для «Увімкнути» */ cb.textContent = on ? 'Вимкнути' : 'Увімкнути'; }
 }
 let privacySaving=false;
 /* Одна функція на кнопку в «Підключеннях» і на картку «Увімкнути» у Порадникові:
@@ -10244,6 +10428,7 @@ async function privacyToggle(key){
   const value={...store.get('privacyServices',{}),[key]:!privacyAllowed(key)};
   document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=true);
   if(el('advOn'))el('advOn').disabled=true;
+  if(el('advCloudBtn'))el('advCloudBtn').disabled=true;
   try{
     // Rust має бачити дозвіл до наступного запиту, а не після відкладеного flush.
     const D=window.__DESK__;
@@ -10255,9 +10440,11 @@ async function privacyToggle(key){
     el('privacyStatus').textContent=value[key]?'Сервіс дозволено. Запити виконуються лише для відповідної можливості.':'Нові запити до сервісу вимкнено. Уже розпочатий запит може завершитися.';
     privacyUi();
     if(ADV.init)advView();                           // картка «вимкнено» у Порадникові
+    if(ADV.init && ADV.setIn)advCcRefresh();         // рядок «вхід не перевіряється» у налаштуваннях
   }catch(e){el('privacyStatus').textContent='Не вдалося зберегти дозвіл. Спробуйте ще раз.';}
   finally{privacySaving=false;document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=false);
-    if(el('advOn'))el('advOn').disabled=false;}
+    if(el('advOn'))el('advOn').disabled=false;
+    if(el('advCloudBtn'))el('advCloudBtn').disabled=false;}
 }
 document.querySelectorAll('[data-privacy]').forEach(button=>button.onclick=()=>privacyToggle(button.dataset.privacy));
 privacyUi();
@@ -10714,7 +10901,7 @@ const TABKEYS = ['overview','cats','tx','budget','inv','subs','advisor','setting
 /* Довідка клавіш: гарячих клавіш стало багато, а списку ніде не було */
 function hotkeysHelp(){
   uiAsk({ title:'Гарячі клавіші', input:false, ok:'Зрозуміло', text:
-`1–8 — вкладки (Огляд … Ще)
+`1–8 — вкладки (Огляд … Налаштування; у нижній панелі остання — «Ще»)
 / — пошук в Операціях
 T (Е) — світла/темна тема
 P (З) — перегляд на телефоні (браузерна версія)

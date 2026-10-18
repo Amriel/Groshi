@@ -28,7 +28,7 @@ const layout = page => page.evaluate(() => {
     navH: Math.round(nav.height),
     labels: [...document.querySelectorAll('#tabs .nl')].some(vis),
     // підпис кожної видимої кнопки: видимий, непорожній і не обрізаний по висоті
-    allLabels: shown.every(b => { const n = b.querySelector('.nl');
+    allLabels: shown.every(b => { const n = [...b.querySelectorAll('.nl')].find(vis);
       return vis(n) && n.textContent.trim() !== '' && n.scrollHeight <= n.clientHeight + 1 &&
         n.getBoundingClientRect().bottom <= b.getBoundingClientRect().bottom + 0.5; }),
     collapsed: document.getElementById('shell').classList.contains('collapsed'),
@@ -62,6 +62,20 @@ try {
       assert.equal(l.labels, exp.labels, `${w}px: підписи ${l.labels}`);
     }
     assert.ok(!l.hscroll, `${w}px: горизонтальний скрол сторінки`);
+    // кнопка data-tab=settings: шестерня й «Налаштування» на бічній панелі, три крапки й «Ще» у нижній
+    const sb = await page.evaluate(() => {
+      const b = document.querySelector('#tabs [data-tab="settings"]');
+      const vis = n => !!n && getComputedStyle(n).display !== 'none';
+      const ic = [...b.querySelectorAll('use')].find(u => vis(u.closest('svg')));
+      const nl = [...b.querySelectorAll('.nl')].find(vis);
+      return {icon: ic && ic.getAttribute('href'), label: nl && nl.textContent.trim(), aria: b.getAttribute('aria-label'), tip: b.dataset.tip};
+    });
+    if (exp.fixed) assert.deepEqual(sb, {icon: '#i-more', label: 'Ще', aria: 'Ще', tip: 'Ще'}, `${w}px: кнопка «Ще» у нижній панелі`);
+    else {
+      assert.equal(sb.icon, '#i-gear', `${w}px: на бічній панелі не шестерня`);
+      assert.equal(sb.aria, 'Налаштування'); assert.equal(sb.tip, 'Налаштування');
+      assert.equal(sb.label, exp.labels ? 'Налаштування' : undefined, `${w}px: підпис кнопки налаштувань`);
+    }
     await ctx.close();
   }
 

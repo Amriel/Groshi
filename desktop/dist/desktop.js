@@ -119,6 +119,12 @@
        слот у Rust зайнятим, і нова розмова отримала б "зайнято". */
     advisorProbe: () => inv ? inv('advisor_cc_probe') : Promise.reject('лише в застосунку'),
     advisorAsk: req => inv ? inv('advisor_cc_ask', { req }) : Promise.reject('лише в застосунку'),
+    /* Вхід у Claude Code: статус повертає лише {logged_in, method}; вхід відкриває окреме вікно консолі. */
+    advisorCcAuth: () => inv ? inv('advisor_cc_auth') : Promise.reject('лише в застосунку'),
+    advisorCcLogin: () => inv ? inv('advisor_cc_login') : Promise.reject('лише в застосунку'),
+    /* Моделі LM Studio через `lms ls` (працює й без запущеного сервера) і запуск сервера. */
+    advisorLmsModels: () => inv ? inv('advisor_lms_models') : Promise.reject('лише в застосунку'),
+    advisorLmsServerStart: () => inv ? inv('advisor_lms_server_start') : Promise.reject('лише в застосунку'),
     advisorStop: () => inv ? inv('advisor_stop') : Promise.reject('лише в застосунку'),
     advisorHist: () => inv ? inv('advisor_hist_all') : Promise.reject('лише в застосунку'),
     advisorHistSet: v => inv ? inv('advisor_hist_set', { v }) : Promise.reject('лише в застосунку'),

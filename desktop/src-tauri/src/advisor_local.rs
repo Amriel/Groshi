@@ -296,6 +296,56 @@ pub async fn advisor_local_models(url: String) -> Result<Vec<String>, String> {
         .take(500).map(String::from).collect()).unwrap_or_default())
 }
 
+/// Модель з `lms ls`: лише те, що показуємо в списку (шляхи до файлів моделей в UI не потрібні).
+#[derive(serde::Serialize, Debug, PartialEq)]
+pub struct LmsModel { pub key: String, pub name: String, pub params: String, pub size_gb: f64, pub tools: bool }
+
+/// Розбір `lms ls --llm --json`. Через CLI, а не `/v1/models`: список видно й тоді, коли сервер вимкнено.
+pub fn parse_lms_models(json_text: &str) -> Result<Vec<LmsModel>, String> {
+    let v: Value = serde_json::from_str(json_text.trim()).map_err(|_| "Некоректна відповідь LM Studio".to_string())?;
+    let arr = v.as_array().ok_or("Некоректна відповідь LM Studio")?;
+    Ok(arr.iter().filter_map(|m| {
+        let key = m["modelKey"].as_str()?.to_string();
+        let name = m["displayName"].as_str().filter(|s| !s.is_empty()).unwrap_or(&key).to_string();
+        let gb = m["sizeBytes"].as_f64().unwrap_or(0.0) / 1e9;
+        Some(LmsModel {
+            key, name,
+            params: m["paramsString"].as_str().unwrap_or("").to_string(),
+            size_gb: (gb * 10.0).round() / 10.0,
+            tools: m["trainedForToolUse"].as_bool().unwrap_or(false),
+        })
+    }).take(500).collect())
+}
+
+/// `lms` у PATH, далі `<home>/.lmstudio/bin`: у застосунку з трею PATH часто урізаний.
+pub fn find_lms(path: &str, home: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    if let Some(p) = crate::advisor::find_in_path(path, "lms") { return Some(p); }
+    let dir = home?.join(".lmstudio").join("bin");
+    crate::advisor::find_in_path(&dir.to_string_lossy(), "lms")
+}
+
+fn find_lms_env() -> Result<std::path::PathBuf, String> {
+    let home = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")).map(std::path::PathBuf::from);
+    find_lms(&std::env::var("PATH").unwrap_or_default(), home.as_deref()).ok_or_else(|| "LM Studio не знайдено".to_string())
+}
+
+#[tauri::command]
+pub async fn advisor_lms_models() -> Result<Vec<LmsModel>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let lms = find_lms_env()?;
+        let out = crate::advisor::run_capture(&lms, &["ls", "--llm", "--json"], Duration::from_secs(20))?;
+        parse_lms_models(&out)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn advisor_lms_server_start() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let lms = find_lms_env()?;
+        crate::advisor::run_capture(&lms, &["server", "start"], Duration::from_secs(60)).map(|_| ())
+    }).await.map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub fn advisor_local_ask(handle: tauri::AppHandle, app: State<App>, req: LocalReq) -> Result<(), String> {
     use tauri::Manager;
@@ -358,6 +408,31 @@ mod tests {
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn lms_models_parse_without_paths() {
+        let raw = r#"[{"type":"llm","modelKey":"test-model-7b","format":"gguf","displayName":"Test Model 7B",
+            "publisher":"acme","path":"acme/test-model/test-model-7b.gguf","sizeBytes":4350000000,"paramsString":"7B",
+            "architecture":"x","quantization":{"name":"Q4","bits":4},"vision":false,"trainedForToolUse":true,"maxContextLength":8192},
+            {"modelKey":"plain","sizeBytes":1000}]"#;
+        let m = parse_lms_models(raw).unwrap();
+        assert_eq!(m[0], LmsModel { key: "test-model-7b".into(), name: "Test Model 7B".into(), params: "7B".into(), size_gb: 4.4, tools: true });
+        assert_eq!(m[1].name, "plain");
+        assert!(!format!("{m:?}").contains("acme"));
+        assert!(parse_lms_models("{}").is_err());
+    }
+
+    #[test]
+    fn find_lms_in_given_dir() {
+        let d = std::env::temp_dir().join(format!("lms-test-{}", std::process::id()));
+        let bin = d.join(".lmstudio").join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        assert!(find_lms("", Some(&d)).is_none());
+        let exe = bin.join(if cfg!(windows) { "lms.exe" } else { "lms" });
+        std::fs::write(&exe, b"").unwrap();
+        assert_eq!(find_lms("", Some(&d)), Some(exe));
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     #[test]
     fn local_url_accepts_loopback_only() {

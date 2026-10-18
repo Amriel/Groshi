@@ -725,7 +725,7 @@ mod tests {
         let stored = Arc::new(Mutex::new(false));
         let s2 = stored.clone();
         let err = key_set_gated(crate::advisor::advisor_gate(false), &base, SECRET, move |_| { *s2.lock().unwrap() = true; Ok(()) }).await.unwrap_err();
-        assert_eq!(err, "Увімкніть Порадника в Ще → Підключення");
+        assert_eq!(err, "Увімкніть Порадника в Налаштуваннях → Порадник");
         assert!(seen.lock().unwrap().is_empty(), "без дозволу жодного запиту в мережу");
         assert!(!*stored.lock().unwrap());
         key_set_gated(crate::advisor::advisor_gate(true), &base, SECRET, |_| Ok(())).await.unwrap();
