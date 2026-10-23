@@ -1473,6 +1473,9 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
   color:var(--text);font-weight:700}
 .pjgrph .cnt{flex:1;font-size:var(--fs-xs);color:var(--text-mute);white-space:nowrap}
 .pjgrph .amt{font-size:var(--fs-md);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Гривня поруч із сумою клієнта: доларові кошториси, а витрати й податки
+   власник рахує в гривні — без неї доводилось відкривати кожен проєкт. */
+.pjgrph .uah{font-size:var(--fs-xs);color:var(--text-mute);font-variant-numeric:tabular-nums;white-space:nowrap}
 /* Стрілка #i-chevron: відкрита група — вниз (.invchev), згорнута — праворуч. */
 .pjgrp:not(.open) .invchev{transform:rotate(180deg)}
 .pjgrpl{display:none;flex-direction:column}
@@ -5869,12 +5872,15 @@ function pjTotals(){
   const sumOf = list => list.reduce((s,p)=>s+pjSum(p,pjTax), 0);
   const clients = new Set(PROJ.map(p=>p.client || PJ_NOCLIENT));
   const wait = by('done');
+  /* Гривня в підписі кожної картки, не лише в «Усього»: курс у кожного
+     проєкту свій (поле «курс ₴» прорахунку), тож рахуємо по проєктах. */
+  const uah = list => money(list.reduce((s,p)=>s+pjSum(p,pjUAH),0));
   host.innerHTML = [
-    ['У роботі', usd(sumOf(by('active'))), `${by('active').length} проєкт${by('active').length===1?'':'ів'}`],
+    ['У роботі', usd(sumOf(by('active'))), `${by('active').length} проєкт${by('active').length===1?'':'ів'} · ${uah(by('active'))}`],
     /* Головна цифра для фрилансера: скільки роботи вже здано, а грошей
        ще нема. Раніше вона ховалась у «Завершено» разом з оплаченим. */
-    ['Чекає оплати', usd(sumOf(wait)), wait.length ? `${wait.length} · ${wait.map(p=>p.name).slice(0,2).join(', ')}` : 'усе оплачено'],
-    ['Оплачено', usd(sumOf(by('paid'))), `${by('paid').length} проєкт${by('paid').length===1?'':'ів'}`],
+    ['Чекає оплати', usd(sumOf(wait)), wait.length ? `${uah(wait)} · ${wait.map(p=>p.name).slice(0,2).join(', ')}` : 'усе оплачено'],
+    ['Оплачено', usd(sumOf(by('paid'))), `${by('paid').length} проєкт${by('paid').length===1?'':'ів'} · ${uah(by('paid'))}`],
     ['Усього', usd(sumOf(PROJ)), money(PROJ.reduce((s,p)=>s+pjSum(p,pjUAH),0))],
   ].map(([l,v,sub])=>`<div class="card kpi"><div class="lbl">${l}</div><div class="val">${v}</div>
       <div class="sub">${esc(sub)}</div></div>`).join('');
@@ -5910,6 +5916,7 @@ function renderPjList(){
         <span class="nm lbl">${esc(c)}</span>
         <span class="cnt">${list.length} проєкт${list.length===1?'':(list.length<5?'и':'ів')}</span>
         <span class="amt">${usd(sumOf(list))}</span>
+        <span class="uah">${money(list.reduce((s,p)=>s+pjSum(p,pjUAH),0))}</span>
       </button>
       <div class="pjgrpl">${list.map(p=>{
         const by = pjBy(p);
