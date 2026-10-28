@@ -4498,20 +4498,21 @@ async function uncatMany(){
 async function linkTxToSub(id){
   const t = TX.find(x=>x.id===id); if(!t) return;
   const mine = subsMine();
-  if(!mine.length){
-    await uiAsk({input:false, ok:'Зрозуміло', cancel:'Закрити',
-      title:'Підписок ще немає',
-      text:'Спершу підтвердьте знайдену підписку або додайте свою — тоді операцію буде до чого привʼязати.'});
-    return;
-  }
+  /* Без жодної підписки вибирати нема з чого — одразу форма нової.
+     Раніше тут був глухий кут «спершу додайте свою» з відсиланням на
+     іншу вкладку, де назву, суму й дату доводилось вводити руками. */
+  if(!mine.length){ await subNewFromTx(t); return; }
   const pick = await uiPick({
     title:'Привʼязати до підписки',
     text:`${t.date} · ${t.merchant} · ${amt2(t.amount)}`,
     /* Наперед — та, чия назва збігається з мерчантом: у дев'яти
-       випадках із десяти саме вона й потрібна. */
+       випадках із десяти саме вона й потрібна. Останнім — «нова»: операція,
+       якій ще немає пари, інакше не мала куди подітись. */
     options: mine.slice().sort((a,b)=> (b.merchant===t.merchant) - (a.merchant===t.merchant))
-      .map(s=>({v:s.key, n:s.merchant, h:`${perOf(s.period).n} · ${money(s.amount)}`}))});
+      .map(s=>({v:s.key, n:s.merchant, h:`${perOf(s.period).n} · ${money(s.amount)}`}))
+      .concat([{v:'__new', n:'Нова підписка з цієї операції', h:'назва, сума, валюта й дата — з операції'}])});
   if(!pick) return;
+  if(pick === '__new'){ await subNewFromTx(t); return; }
   const s = mine.find(x=>x.key===pick); if(!s) return;
   const ids = subTxIds(s);
   if(!ids.includes(id)) setSubTx(s.key, [...ids, id]);
@@ -5245,17 +5246,8 @@ async function subEdit(key){
   if(!r) return;
   const per = (SUB_PERIODS.find(p=>p.n===r.per)||perOf(s.period)).k;
   const amt = parseFloat(String(r.amt).replace(',','.'));
-  /* дата приймається і як 02.10.2026 — людям так звичніше писати */
-  let next = String(r.next||'').trim();
-  const m = next.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if(m) next = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(next)) next = s.next || todayISO();
   /* зберігаємо last, а не next — так рахують і знайдені, і ручні */
-  const P = perOf(per); let last = next;
-  const step = {month:1,quarter:3,half:6,year:12}[per];
-  if(step){ const c = new Date(dnum(next)*864e5);
-    last = dstr(Date.UTC(c.getUTCFullYear(), c.getUTCMonth()-step, c.getUTCDate())/864e5); }
-  else last = dstr(dnum(next) - P.d);
+  const last = subLastFromNext(per, subParseDate(r.next, s.next || todayISO()));
   const ccy = (String(r.ccy||'UAH').trim().toUpperCase().match(/^[A-Z]{3}$/) || ['UAH'])[0];
   const patch = { merchant:(r.nm||'').trim() || s.merchant,
                   period: per, last, cat:(r.cat||'').trim() || s.cat };
@@ -5270,6 +5262,64 @@ async function subEdit(key){
     const mm = SUBS_MAN.find(x=>x.key===key); if(mm) Object.assign(mm, patch);
   } else SUBS_ON[key] = Object.assign({}, SUBS_ON[key], patch);
   saveSubs(); renderSubs();
+}
+
+/* Дата ОСТАННЬОГО списання з дати наступного: так рахують і знайдені,
+   і додані вручну підписки. Одна формула на три місця (форма «додати»,
+   редагування, нова з операції): місячний крок — календарний місяць,
+   а не 30 днів, і розбіжні копії давали б різні «наступні». */
+function subLastFromNext(per, next){
+  const step = {month:1,quarter:3,half:6,year:12}[per];
+  if(step){ const c = new Date(dnum(next)*864e5);
+    return dstr(Date.UTC(c.getUTCFullYear(), c.getUTCMonth()-step, c.getUTCDate())/864e5); }
+  return dstr(dnum(next) - perOf(per).d);
+}
+/* Дата з форми: приймається і 02.10.2026 — людям так звичніше писати. */
+function subParseDate(v, fallback){
+  let next = String(v||'').trim();
+  const m = next.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(m) next = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(next) ? next : fallback;
+}
+/* Нова підписка просто з картки операції. Усе потрібне в операції вже є:
+   назва — мерчант, сума й валюта — з рахунку списання (для $20 з
+   доларової картки показуємо $20, а не гривневий еквівалент), останнє
+   списання — дата операції, наступне — через період. Людина лише
+   підправляє й тисне «Створити»; операція одразу привʼязана. */
+async function subNewFromTx(t){
+  const fccy = t.accCcy && t.accCcy !== 'UAH' && t.accAmount > 0 ? t.accCcy : 'UAH';
+  const shown = fccy === 'UAH' ? t.amount : t.accAmount;
+  const guessNext = per => { const step = {month:1,quarter:3,half:6,year:12}[per];
+    if(!step) return dstr(dnum(t.date) + perOf(per).d);
+    const c = new Date(dnum(t.date)*864e5);
+    return dstr(Date.UTC(c.getUTCFullYear(), c.getUTCMonth()+step, c.getUTCDate())/864e5); };
+  const r = await uiAsk({ title:'Нова підписка з операції', ok:'Створити',
+    text:`${t.date} · ${t.merchant} · ${amt2(t.amount)}`,
+    fields:[
+      {key:'nm',  label:'Назва', value:t.merchant},
+      {key:'amt', label:'Сума', value:String(Math.round(shown*100)/100), half:true},
+      {key:'ccy', label:'Валюта списання', value:fccy, list:['UAH','USD','EUR','PLN','GBP'], half:true},
+      {key:'per', label:'Період', value:perOf('month').n, list:SUB_PERIODS.map(p=>p.n), half:true},
+      {key:'next',label:'Наступне списання (РРРР-ММ-ДД)', value:guessNext('month'), half:true},
+      {key:'cat', label:'Категорія', value:catOf(t) || 'Підписки', half:true},
+    ]});
+  if(!r) return;
+  const per = (SUB_PERIODS.find(p=>p.n===r.per)||perOf('month')).k;
+  const amt = parseFloat(String(r.amt).replace(',','.'));
+  const ccy = (String(r.ccy||'UAH').trim().toUpperCase().match(/^[A-Z]{3}$/) || ['UAH'])[0];
+  if(!(amt > 0)){ appToast('Сума має бути більшою за нуль'); return; }
+  /* Реальне списання свіжіше за оцінку завжди виграє — так само, як у
+     формі «додати» з позначеними операціями. */
+  let last = subLastFromNext(per, subParseDate(r.next, guessNext(per)));
+  if(t.date > last) last = t.date;
+  const s = { key:'man:'+Date.now(), merchant:(r.nm||'').trim() || t.merchant, period:per, last,
+              cat:(r.cat||'').trim() || 'Підписки', txIds:[t.id], note:'' };
+  if(ccy === 'UAH'){ s.amount = amt; s.ccy = 'UAH'; s.famt = 0; }
+  else { s.famt = amt; s.ccy = ccy; s.amount = amt * (fxOf(ccy) || 1); }
+  SUBS_MAN.push(s);
+  saveSubs(); invalidateSubs();
+  appToast(`«${s.merchant}» додано до підписок · операцію привʼязано`);
+  renderTx();
 }
 
 /* Зворотний покажчик: операція → підписка. Потрібен у картці операції,
@@ -11362,12 +11412,7 @@ function mClear(){
     const per = sel.value, next = sdGet(el('mNext')) || todayISO();
     /* Зберігаємо ДАТУ ОСТАННЬОГО списання, а не наступного: далі все
        рахується від неї однаково і для знайдених, і для доданих вручну. */
-    const P = perOf(per);
-    let last = next;
-    const step = {month:1,quarter:3,half:6,year:12}[per];
-    if(step){ const c=new Date(dnum(next)*864e5);
-      last = dstr(Date.UTC(c.getUTCFullYear(), c.getUTCMonth()-step, c.getUTCDate())/864e5); }
-    else last = dstr(dnum(next) - P.d);
+    let last = subLastFromNext(per, next);
     /* Якщо серед позначених операцій є свіжіша за вказану дату —
        вірити треба їй: це реальне списання, а не введена вручну оцінка. */
     const ids = [...MPICK];
