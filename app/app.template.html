@@ -3783,7 +3783,8 @@ function renderInvcDue(){
   host.querySelectorAll('[data-icpaid]').forEach(b=>b.onclick=()=>{
     const x = list[+b.dataset.icpaid];
     const rec = INVCLOG.find(y=>y.no===x.no);
-    if(rec){ rec.paid = { date: todayISO(), auto:false }; store.set('invcLog', INVCLOG); }
+    if(rec){ rec.paid = { date: todayISO(), auto:false }; store.set('invcLog', INVCLOG);
+             if(invcSyncStatus(rec, 'paid')) pjSave(); }
     renderInvcDue(); if(typeof renderInvcLog === 'function') renderInvcLog();
   });
 }
@@ -6315,6 +6316,44 @@ let INVCLOG = store.get('invcLog', []);       // виставлені рахун
    у календар ще одну очікувану суму по тому самому проєкту. */
 const invcLive = x => !x.paid && !x.void;
 
+/* ── стан проєкту йде за рахунком ──
+   Картка «Чекає оплати» на списку проєктів рахує проєкти за p.status, а
+   рахунок раніше стану не торкався: у журналі шість живих рахунків, а картка
+   поруч казала «$0 · усе оплачено». Тепер: є живий рахунок по проєкту →
+   проєкт «чекає оплати» (з «в роботі» і з «оплачено» — новий рахунок означає
+   нове очікування); оплата останнього живого рахунку → «оплачено» з датою
+   зарахування; зняття позначки оплати → знову «чекає». Заміна рахунку
+   («не рахувати» / «↺») і «✕» стану не міняють: борг від цього не зникає й
+   не з'являється. Повертає true, якщо стан змінився — тоді список треба
+   перемалювати. */
+const invcProjOf = inv => inv && inv.pj ? PROJ.find(p=>p.id===inv.pj) : null;
+function invcSyncStatus(inv, reason){
+  const p = invcProjOf(inv); if(!p) return false;
+  const live = INVCLOG.some(x=>x.pj===p.id && invcLive(x));
+  const st = p.status || 'active';
+  const next = live ? 'done' : (reason === 'paid' ? 'paid' : st);
+  if(next === st) return false;
+  p.status = next;
+  if(next === 'paid') p.paidAt = (inv.paid && inv.paid.date) || todayISO(); else delete p.paidAt;
+  pjLog(p, `Стан: ${PJ_ST[next].n} · ${inv.no}`, true);
+  return true;
+}
+/* Одноразово підтягуємо стани під рахунки, виставлені до цього правила:
+   без цього старі живі рахунки так і лишались би в «$0». Саме одноразово,
+   а не на кожному запуску: проєкт, який руками повернули «в роботі» після
+   авансового рахунку, не має стрибати назад щоразу. Проєкти, вже позначені
+   «оплачено» чіпом (рахунок у журналі просто не відмітили — раніше він на
+   картки не впливав), не чіпаємо: інакше зникла б справжня дата оплати. */
+if(!store.get('invcStSync', false)){
+  let n = 0;
+  for(const inv of INVCLOG){
+    const p = invcProjOf(inv);
+    if(p && p.status !== 'paid' && invcLive(inv) && invcSyncStatus(inv)) n++;
+  }
+  if(n) pjSave();
+  store.set('invcStSync', true);
+}
+
 const invcNo = () => {
   const y = new Date().getFullYear();
   return `INV-${y}-${String((INVSEQ[y]||0)+1).padStart(3,'0')}`;
@@ -6624,6 +6663,9 @@ async function invoiceFlow(p){
   INVCLOG.unshift({ no:r.no, pj:p.id, date:r.date, client:r.cname, total: Math.round(tot*100)/100,
                     ccy:r.ccy, paid:null, lang, biz: biz && biz.label || '' });
   store.set('invcLog', INVCLOG);
+  /* рахунок виставлено — проєкт чекає оплати; селект «Стан» у картці
+     має показати це одразу, без повторного відкриття */
+  if(invcSyncStatus(INVCLOG[0])){ const st = el('pjStatus'); if(st) st.value = p.status; }
   pjSave();
   const m = el('pjMsg'); if(m){ m.hidden = false;
     m.textContent = (window.__DESK__ && __DESK__.tauri)
@@ -6643,7 +6685,7 @@ function renderInvcLog(){
   card.hidden = !INVCLOG.length;
   if(!INVCLOG.length) return;
   const accs = new Set(fopAccNames(fopCfg()));
-  let dirty = false;
+  let dirty = false, pjDirty = false;
   for(const inv of INVCLOG){
     if(!invcLive(inv)) continue;      // замінений рахунок оплату не «ловить»
     const expect = inv.total * (inv.ccy==='UAH' ? 1 : (fxOf(inv.ccy)||0));
@@ -6651,9 +6693,13 @@ function renderInvcLog(){
     const hit = TX.find(t=>isIncome(t) && t.date >= inv.date
       && (!accs.size || accs.has(t.account))
       && Math.abs(t.amount - expect) <= expect*0.05);
-    if(hit){ inv.paid = { date: hit.date, auto:true }; dirty = true; }
+    if(hit){ inv.paid = { date: hit.date, auto:true }; dirty = true;
+             if(invcSyncStatus(inv, 'paid')) pjDirty = true; }
   }
   if(dirty) store.set('invcLog', INVCLOG);
+  /* renderProjects малює список ДО журналу, тож зміна стану з автозвірки
+     інакше доходила б до карток лише наступним перемальовуванням */
+  if(pjDirty){ pjSave(); if(PJ_VIEW === 'list') renderPjList(); }
   const dnum = d => Math.floor((Date.now() - new Date(d+'T12:00:00'))/864e5);
   const skipped = INVCLOG.filter(x=>x.void && !x.paid).length;
   el('invcLogHint').textContent = `${INVCLOG.filter(invcLive).length} очікує оплати`
@@ -6674,9 +6720,14 @@ function renderInvcLog(){
            <button class="btn sm ghost" data-ivoid="${i}" data-tip="Не чекати оплату: наприклад, рахунок замінено новим. У журналі він лишиться, але зникне з очікуваних надходжень">Не рахувати</button>`}
       <button class="btn sm ghost danger" data-idel="${i}" aria-label="Прибрати з журналу">✕</button>
     </div>`).join('');
+  /* після зміни оплати — і журнал, і список проєктів: стан міг змінитись */
+  const invcAfter = inv => { store.set('invcLog', INVCLOG);
+    if(inv){ pjSave(); if(PJ_VIEW === 'list') renderPjList(); }
+    renderInvcLog(); };
   el('invcLogList').querySelectorAll('[data-ipay]').forEach(b=>b.onclick=()=>{
-    INVCLOG[+b.dataset.ipay].paid = { date: todayISO(), auto:false };
-    store.set('invcLog', INVCLOG); renderInvcLog(); });
+    const inv = INVCLOG[+b.dataset.ipay];
+    inv.paid = { date: todayISO(), auto:false };
+    invcAfter(invcSyncStatus(inv, 'paid')); });
   el('invcLogList').querySelectorAll('[data-ivoid]').forEach(b=>b.onclick=()=>{
     INVCLOG[+b.dataset.ivoid].void = { date: todayISO() };
     store.set('invcLog', INVCLOG); renderInvcLog(); });
@@ -6684,8 +6735,9 @@ function renderInvcLog(){
     INVCLOG[+b.dataset.iunvoid].void = null;
     store.set('invcLog', INVCLOG); renderInvcLog(); });
   el('invcLogList').querySelectorAll('[data-iunpay]').forEach(b=>b.onclick=()=>{
-    INVCLOG[+b.dataset.iunpay].paid = null;
-    store.set('invcLog', INVCLOG); renderInvcLog(); });
+    const inv = INVCLOG[+b.dataset.iunpay];
+    inv.paid = null;
+    invcAfter(invcSyncStatus(inv)); });
   el('invcLogList').querySelectorAll('[data-idel]').forEach(b=>b.onclick=async ()=>{
     const x = INVCLOG[+b.dataset.idel];
     if(!await uiConfirm({title:'Прибрати з журналу?', text:`${x.no} · ${x.client}`, ok:'Прибрати'})) return;
