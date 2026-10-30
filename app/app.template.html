@@ -1746,10 +1746,11 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
   .advbtns .btn{height:var(--ctl)}
 }
 /* ── Ще (налаштування) ── */
-/* Проміжок між картками — gap колонки, а не margin-bottom кожної: картки
-   розділу ховаються атрибутом hidden ([hidden] display:none !important),
-   і схована картка в gap не бере участі — інакше між розділами лишались
-   би «дірки» від прихованих сусідів. Те саме для десктопних вставок. */
+/* Проміжок між картками — gap колонки панелі (.setpane), а не margin-bottom
+   кожної: ховається вся панель атрибутом hidden, а окремі картки (нотатки
+   браузера, картки Порадника) — теж hidden, і схована картка в gap не бере
+   участі — інакше лишались б «дірки» від прихованих сусідів. Те саме для
+   десктопних вставок. */
 #tab-settings{display:flex;flex-direction:column;gap:12px}
 /* Ліва колонка розділів + одна панель праворуч. Колонка фіксованої ширини,
    панель — решта з обмеженням, щоб рядки не розтягувались на широкому
@@ -1757,6 +1758,15 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
    ні смуг збоку, ні тонування пунктів. */
 .setwrap{display:grid;grid-template-columns:300px minmax(0,1fr);gap:32px;align-items:start}
 .setnav{display:flex;flex-direction:column;gap:12px}
+/* Колонка липка: прокручується вікно, і після гортання довгої панелі
+   («Категорії і правила») клік по короткій («Валюта і мова») зменшує висоту
+   документа — прокрутка стискається, і нелипка колонка стрибала б разом
+   зі сторінкою. Липка стоїть на місці у вікні; top = верхній відступ .wrap (28 px), інакше
+   при повному стисканні сторінки колонка падала б із липкої позиції в природну (стрибок 16 px). Обмеження висоти — щоб на
+   низькому вікні всі пункти лишались досяжними. */
+@media (min-width:760px){
+  .setnav{position:sticky;top:28px;max-height:calc(100vh - 56px);overflow-y:auto}
+}
 .setnavg{background:var(--surface);border-radius:14px;overflow:hidden}
 .setit{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:10px 12px;
   text-align:left;position:relative}
@@ -11059,6 +11069,8 @@ function setNavBuild(vis){
       + '<span class="setchev" aria-hidden="true">›</span></button>';
   });
   nav.innerHTML = h + '</div>';
+  /* Колір — з даних SETSECS, тому через CSSOM, а не 10 класів у CSS: інлайн-атрибута
+     style у розмітці немає, а додати розділ можна одним рядком масиву. */
   nav.querySelectorAll('.setico').forEach(i => { i.style.background = 'var('+i.dataset.c+')'; });
   nav.querySelectorAll('.setit').forEach(b => {
     b.onclick = () => { SETSEC = b.dataset.sec; store.set('setSec', SETSEC); render(); };

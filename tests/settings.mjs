@@ -89,6 +89,22 @@ try {
   await page.evaluate(() => { window.__b = document.querySelector('#setNav .setit[data-sec="rules"]'); render(); });
   assert.ok(await page.evaluate(() => window.__b === document.querySelector('#setNav .setit[data-sec="rules"]')), 'render() не перебудовує колонку');
 
+  // 4б) липка колонка: гортаємо довгу панель, клікаємо коротку — документ стискається,
+  // прокрутка клампиться, і нелипка колонка стрибнула б відносно вікна. Обидві теми.
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
+    await page.evaluate(() => go2set('rules'));
+    await page.evaluate(() => scrollTo(0, 200));
+    await page.waitForFunction(() => scrollY > 100);
+    const navTop = () => page.evaluate(() => document.getElementById('setNav').getBoundingClientRect().y);
+    const y0 = await navTop();
+    await page.locator('#setNav .setit[data-sec="loc"]').click();
+    const y1 = await navTop();
+    assert.ok(Math.abs(y0 - y1) < 0.5, `${theme}: колонка зсунулась ${y0} → ${y1}`);
+    assert.ok(y1 >= 0 && y1 < 40, `${theme}: колонка в межах вікна (${y1})`);
+  }
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; go2set('rules'); });
+
   // 5) усі старі id на місці
   const missing = await page.evaluate(ids => ids.filter(i => !document.getElementById(i)), IDS);
   assert.deepEqual(missing, [], 'втрачені id');
