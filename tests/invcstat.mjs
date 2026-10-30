@@ -71,14 +71,24 @@ try {
     assert.match(k['Чекає оплати'], /Лендінг/, `${mode}: у підписі — назви проєктів: ${k['Чекає оплати']}`);
     assert.match(k['У роботі'], /1 проєкт/, `${mode}: у роботі лишився один: ${k['У роботі']}`);
     assert.equal(await chip('p1'), 'Чекає оплати', `${mode}: чіп у рядку і картка кажуть одне`);
-    // Десктоп пише state із затримкою і в один ключ, браузер — одразу в окремий.
-    const saved = async () => { await page.waitForTimeout(900); return page.evaluate(m =>
-      (m === 'browser' ? JSON.parse(localStorage.getItem('projects')) : JSON.parse(localStorage.getItem('deskState')).projects)
-        .find(p => p.id === 'p1').status, mode); };
-    assert.equal(await saved(), 'done', `${mode}: підтягнутий стан збережено`);
+    // Десктоп пише state із затримкою (400 мс) і в один ключ, браузер — одразу
+    // в окремий. Чекаємо, доки запис СПРАВДІ з'явиться, а не фіксовані 900 мс:
+    // на повільному CI-раннері цього не вистачало, і 31.10.2026 проба впала
+    // на main, хоча код проєктів не мінявся (перезапуск — зелений).
+    const disk = (k, m) => page.evaluate(([k, m]) => m === 'browser' ? JSON.parse(localStorage.getItem(k))
+      : (JSON.parse(localStorage.getItem('deskState')) || {})[k], [k, m]);
+    const p1Disk = async () => ((await disk('projects', mode)) || []).find(p => p.id === 'p1')?.status;
+    const until = async (get, want) => {          // до 5 с, кожні 100 мс
+      for (let i = 0; i < 50 && (await get()) !== want; i++) await page.waitForTimeout(100);
+      return get();
+    };
+    assert.equal(await until(p1Disk, 'done'), 'done', `${mode}: підтягнутий стан збережено`);
     // Одноразовість: повернули «в роботі» руками — після перезавантаження не стрибає назад.
     await page.evaluate(() => { PROJ.find(p => p.id === 'p1').status = 'active'; pjSave(); });
-    assert.equal(await saved(), 'active', `${mode}: ручний стан збережено`);
+    assert.equal(await until(p1Disk, 'active'), 'active', `${mode}: ручний стан збережено`);
+    // Перед reload — сам прапорець одноразовості на диску. Якщо колись він не
+    // запишеться, проба скаже саме це, а не «стан стрибнув назад».
+    assert.equal(await until(() => disk('invcStSync', mode), true), true, `${mode}: прапорець invcStSync збережено`);
     await page.reload();
     await page.waitForFunction(() => typeof window.renderInvcLog === 'function');
     assert.equal((await st()).p1, 'active', `${mode}: вирівнювання станів має бути одноразовим`);
