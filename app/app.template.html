@@ -9449,42 +9449,140 @@ const ADV_LMHINT = 'Запустіть сервер кнопкою вище, у 
 const ADV_AUTH_RE = /OAuth|authenticat|not logged in|log in|login/i;
 const ADV_CONN_RE = /Не вдалося зʼєднатися/;
 
-/* Зведення рахується тими самими помічниками, що й «Огляд» (sum/isHidMove/
-   isSpend/spendAmt), тому сума місяця тут дорівнює плитці «Витрати за
-   період» за той самий місяць. Суми — без режиму скріншоту: fmt0_ не
-   маскує, інакше модель отримала б крапки замість чисел. */
-function advDigest(){
-  const am = n => fmt0_(n / baseK()) + ' ' + sgn(BASE);
+/* ── дані для Порадника ───────────────────────────────────────────
+   Одна функція рахує все, що бачить Порадник: і зведення (advDigest), і
+   знімок для MCP (advice_cache.json) форматуються з її результату. Досі
+   MCP мав власну копію «що вважати витратою» без правил, виключень і
+   повернень — і показував за серпень 1,49 млн проти 601 тис. у зведенні.
+   Рахується тими самими помічниками, що й «Огляд» (sum/isHidMove/isSpend/
+   spendAmt), тож витрати місяця тут дорівнюють плитці «Огляду». Суми — у
+   гривні, без форматування: валюта показу ділить їх лише під час виводу. */
+function advData(){
+  const empty = { months:[], cats:[], tags:{}, subs:[], tx:{}, dmax:DMAX, moveMode:MOVE_MODE, base:BASE, today:TODAY_ISO };
+  if(!TX.length || !DMAX) return empty;
   const [y, mo, d] = DMAX.split('-').map(Number);
   /* Місяць, у якому дані обірвано посередині, не «повний»: його сума
      занижена й давала б хибну «економію» проти попереднього. */
   const last = d === new Date(Date.UTC(y, mo, 0)).getUTCDate() ? LASTYM : ymAdd(LASTYM, -1);
-  const yms = [ymAdd(last, -2), ymAdd(last, -1), last];
-  const rowsOf = ym => TX.filter(t => t.date.slice(0, 7) === ym && !isHidMove(t));
-  const rows = yms.map(rowsOf);
-  const exp = rows.map(r => sum(r, 'expense')), inc = rows.map(r => sum(r, 'income'));
-  const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
-  const dmy = iso => iso.split('-').reverse().join('.');
-  const out = [`Станом на ${dmy(TODAY_ISO)}. Операції в застосунку — до ${dmy(DMAX)}. Суми в ${sgn(BASE)}.`, '',
-    'Місяці (повні):'];
-  yms.forEach((ym, i) => out.push(`- ${ym} (${monthLabel(ym)}): витрати ${am(exp[i])}; доходи ${am(inc[i])}`));
-  out.push(`Середнє за ${yms.length} міс: витрати ${am(avg(exp))} на місяць; доходи ${am(avg(inc))} на місяць.`, '');
-
-  const cats = rows.map(r => new Map(groupSum(r, catOf).map(e => [e.k, e.v])));
-  const top = groupSum(rows[2], catOf).slice(0, 8);
-  out.push(`Топ-${top.length} категорій за ${monthLabel(last)} (зміна до ${monthLabel(yms[1])}, середнє за ${yms.length} міс):`);
-  top.forEach((e, i) => {
-    const prev = cats[1].get(e.k);
-    const ch = prev ? `${e.v >= prev ? '▲' : '▼'} ${Math.abs((e.v - prev) / prev * 100).toFixed(0)}%` : 'нова';
-    const a3 = avg(cats.map(m => m.get(e.k) || 0));
-    out.push(`${i + 1}. ${e.k} — ${am(e.v)} (${ch}); середнє ${am(a3)}`);
+  /* Те саме з початком: місяць, з середини якого почались дані, і місяці
+     до нього — не нулі, а «даних немає». Інакше на свіжій історії середнє
+     ділилося б на шість і занижувало «звичайний місяць» удвічі. */
+  const d0 = ALL_DATES[0] || DMAX;
+  const first = d0.endsWith('-01') ? d0.slice(0, 7) : ymAdd(d0.slice(0, 7), 1);
+  const full = [-5, -4, -3, -2, -1, 0].map(i => ymAdd(last, i)).filter(ym => ym >= first);
+  const yms = last === LASTYM ? full : full.concat([LASTYM]);
+  const inYm = ym => TX.filter(t => t.date.slice(0, 7) === ym);
+  const rowsOf = ym => inYm(ym).filter(t => !isHidMove(t));
+  /* Рух коштів, інвестиції, перекази людям і готівка — сирими сумами
+     списань, незалежно від режиму: Порадникові треба бачити, скільки
+     пішло людям, навіть коли налаштування тримає це поза витратами. */
+  const raw = (rows, c) => rows.reduce((a, t) => t.dir==='expense' && catOf(t)===c ? a + t.amount : a, 0);
+  const months = yms.map(ym => {
+    const all = inYm(ym), rows = rowsOf(ym);
+    return { ym, full: full.includes(ym), exp: sum(rows, 'expense'), inc: sum(rows, 'income'),
+      moves: raw(all, 'Між рахунками'), invest: raw(all, 'Інвестиції'),
+      people: raw(all, 'Перекази'), cash: raw(all, 'Готівка') };
   });
-  if(!top.length) out.push('Витрат за цей місяць немає.');
 
+  /* Ознаки регулярності — сирі, без висновків: «разове» Порадник визначає
+     сам (власник 30.10: «краще щоб агент розумів обсяг і сам вирішував
+     постійність»). Медіана рахує й місяці без витрат — інакше податок
+     раз на квартал виглядав би щомісячним. */
+  const stats = byM => {
+    const v = full.map(ym => byM[ym] || 0), s = [...v].sort((a, b) => a - b), h = s.length >> 1;
+    return { n: v.filter(x => x > 0).length, med: s.length ? (s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2) : 0,
+      min: s[0] || 0, max: s[s.length - 1] || 0 };
+  };
+  const spendRows = full.flatMap(rowsOf).filter(inSpend);
+  const group = (rows, key) => {
+    const m = new Map();
+    for(const t of rows){ const k = key(t), e = m.get(k) || { byM:{}, rows:[] };
+      e.byM[t.date.slice(0, 7)] = (e.byM[t.date.slice(0, 7)] || 0) + spendAmt(t); e.rows.push(t); m.set(k, e); }
+    return m;
+  };
+  const cats = [...group(spendRows, catOf)].map(([k, e]) => ({
+    k, byM: Object.fromEntries(full.map(ym => [ym, e.byM[ym] || 0])), ...stats(e.byM),
+    top: e.rows.filter(isSpend).sort((a, b) => b.amount - a.amount).slice(0, 3)
+      .map(t => ({ date: t.date, amt: t.amount, merchant: t.merchant })),
+    subs: [...group(e.rows, subOf)].map(([s, g]) => ({ k: s, byM: g.byM, ...stats(g.byM) }))
+      .sort((a, b) => b.med - a.med || b.max - a.max),
+    tot: full.reduce((a, ym) => a + (e.byM[ym] || 0), 0),
+  })).filter(c => c.tot > 0).sort((a, b) => b.tot - a.tot);
+
+  const tags = {};
+  for(const ym of yms) for(const t of inYm(ym)){
+    const k = txTag(t.id); if(!k) continue;
+    (tags[k] = tags[k] || {})[ym] = (tags[k][ym] || 0) + t.amount;
+  }
+
+  let subs = [];
   try{
-    const live = subsMine().filter(s => s.live);
-    out.push('', `Підписки: ${am(live.reduce((a, s) => a + perMonth(s), 0))} на місяць, активних ${live.length}.`);
-  }catch(e){ out.push('', 'Підписки: даних немає.'); }
+    subs = subsMine().map(s => ({ name: s.merchant, amount: s.amount, famt: s.famt || null, ccy: s.ccy || 'UAH',
+      period: s.period, last: s.last || null, next: s.next || null, live: !!s.live, perMonth: perMonth(s) }));
+  }catch(e){ /* підписки не мусять валити все зведення */ }
+
+  /* Операції за рік з хвостиком — з рішеннями апки поверх сирих полів.
+     Ручні й імпортовані з ПриватБанку несуть і сирі поля: MCP бачить лише
+     виписку Monobank, і без них ці операції були б у підсумках, але не в
+     пошуку. */
+  const kind = t => isNever(t) ? (catOf(t)==='Інвестиції' ? 'invest' : 'move')
+    : isExcluded(t) ? 'excluded' : isSpend(t) ? 'spend' : isRefund(t) ? 'refund' : isIncome(t) ? 'income' : 'other';
+  const ext = new Set([...MANUAL, ...PRIVAT].map(t => t.id));
+  const since = ymAdd(LASTYM, -12) + '-01', tx = {};
+  for(const t of TX){
+    if(t.date < since) continue;
+    const r = { c: catOf(t), s: subOf(t), k: kind(t), a: spendAmt(t) };
+    if(txTag(t.id)) r.tag = txTag(t.id);
+    if(txNote(t.id)) r.note = txNote(t.id);
+    if(ext.has(t.id)) r.raw = { date: t.date, dir: t.dir, amount: t.amount, merchant: t.merchant, account: t.account || '' };
+    tx[t.id] = r;
+  }
+  return { ...empty, months, cats, tags, subs, tx };
+}
+
+/* Зведення — текстовий вигляд advData(). Суми — без режиму скріншоту:
+   fmt0_ не маскує, інакше модель отримала б крапки замість чисел. */
+function advDigest(){
+  const am = n => fmt0_(n / baseK()) + ' ' + sgn(BASE), n0 = n => fmt0_(n / baseK());
+  const D = advData(), dmy = iso => iso.split('-').reverse().join('.');
+  const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
+  const full = D.months.filter(m => m.full), cur = D.months.find(m => !m.full);
+  const line = m => `- ${m.ym} (${monthLabel(m.ym)}): витрати ${am(m.exp)}; доходи ${am(m.inc)}; `
+    + `між рахунками ${am(m.moves)}; відкладено в інвестиції ${am(m.invest)}; перекази людям ${am(m.people)}; готівка ${am(m.cash)}`;
+  const out = [`Станом на ${dmy(TODAY_ISO)}. Операції в застосунку — до ${D.dmax ? dmy(D.dmax) : '—'}. Суми в ${sgn(BASE)}.`, ''];
+  if(!full.length) out.push('Операцій ще немає.');
+  else{
+    out.push(`Місяці (повні, останні ${full.length}):`, ...full.map(line));
+    if(cur) out.push(`Поточний місяць (неповний, дані до ${dmy(D.dmax)}):`, line(cur));
+    out.push(`Середнє за ${full.length} міс: витрати ${am(avg(full.map(m => m.exp)))} на місяць; доходи ${am(avg(full.map(m => m.inc)))} на місяць.`,
+      'Між рахунками й Відкладено в інвестиції не входять ні у витрати, ні в доходи. Перекази людям і готівка '
+      + (skipMove() ? 'за налаштуванням власника НЕ входять у витрати — їхні суми окремо в рядку місяця.' : 'входять у витрати.'), '');
+
+    /* Таблиця, а не топ одного місяця: Порадник просив «категорія × місяць»
+       — без неї серпень він вираховував із відсотків. 15 рядків тримають
+       контекст коротким; решта — одним рядком. */
+    const head = full.map(m => m.ym.slice(5));
+    out.push(`Категорії по місяцях (повні місяці, суми в ${sgn(BASE)}; «міс.» — у скількох із ${full.length} були витрати):`,
+      `| Категорія | ${head.join(' | ')} | міс. | медіана | макс |`, `|---|${head.map(() => '---:').join('|')}|---:|---:|---:|`);
+    const top = D.cats.slice(0, 15), rest = D.cats.slice(15);
+    for(const c of top) out.push(`| ${c.k} | ${full.map(m => n0(c.byM[m.ym])).join(' | ')} | ${c.n} | ${n0(c.med)} | ${n0(c.max)} |`);
+    if(rest.length) out.push(`| інше (${rest.length} кат.) | ${full.map(m => n0(rest.reduce((a, c) => a + c.byM[m.ym], 0))).join(' | ')} | | | |`);
+    const big = top.filter(c => c.top.length).slice(0, 10)
+      .map(c => `- ${c.k}: ` + c.top.map(t => `${dmy(t.date)} ${am(t.amt)} ${t.merchant}`).join('; '));
+    if(big.length) out.push('', 'Найбільші операції в категоріях:', ...big);
+  }
+
+  const tk = Object.keys(D.tags);
+  if(tk.length){
+    out.push('', 'Мітки переказів (суми за місяць):');
+    for(const k of tk) out.push(`- ${TAGN[k] || k}: ` + Object.entries(D.tags[k]).sort()
+      .map(([ym, v]) => `${ym} ${am(v)}`).join('; '));
+  }
+
+  const live = D.subs.filter(s => s.live);
+  out.push('', `Підписки: ${am(live.reduce((a, s) => a + s.perMonth, 0))} на місяць, активних ${live.length}.`);
+  const soon = live.filter(s => s.next).sort((a, b) => a.next < b.next ? -1 : 1).slice(0, 5);
+  if(soon.length) out.push('Найближчі списання:', ...soon.map(s => `- ${s.name}: ${dmy(s.next)}, ${am(s.amount)}`));
 
   const pos = (INV && INV.pos) || [];
   if(!pos.length) out.push('', 'Портфель: даних немає.');
@@ -9499,8 +9597,18 @@ function advDigest(){
       .forEach(p => out.push(`- ${p.symbol}${p.name ? ' (' + p.name + ')' : ''}: ${am(val(p))}, ${sh(val(p))}`));
     if(pos.length > 12) out.push(`- … ще ${pos.length - 12} позицій`);
   }
+  /* Блок їде разом із даними, а не лише в типовій інструкції: власна
+     інструкція (advisorPrompt) повністю замінює типову, і без цього
+     правила читання даних у ній би зникли. */
+  out.push('', ADV_DATA_HOWTO);
   return out.join('\n');
 }
+const ADV_DATA_HOWTO = `Як читати ці дані:
+- Регулярність визначай сам за ознаками категорії (у скількох місяцях, медіана, максимум). Щоразу називай, що вважаєш разовим і чому — власник виправить.
+- «Звичайний місяць» рахуй без разового; поруч показуй повний підсумок.
+- Перекази між своїми рахунками й інвестиції — не витрати; вони окремими рядками.
+- Мітка «борг» — гроші, що мають повернутися. «Рідним» — змінна, але звичайна витрата: входить у звичайний місяць.
+- Нотатки власника до операцій бачиш в інструменті transactions.`;
 
 /* Безпечний Markdown: увесь текст екранується ДО розмітки, а HTML збирається
    лише з власних тегів. Посилань і картинок немає навмисно. */
