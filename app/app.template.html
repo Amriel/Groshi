@@ -64,6 +64,10 @@
      для 9-ї серії не генерувати. */
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
   --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  /* Нейтральна сіра для значка розділу без власного відтінку («Запуск»):
+     --surface-3 у світлій темі майже білий, і біла іконка на ньому зникала.
+     Те саме значення в обох темах — білий штрих тримає ≥ 3:1 на ньому. */
+  --s9:#6B6B73;
 }
 :root[data-theme="light"]{
   color-scheme:light;
@@ -11020,7 +11024,7 @@ const SETSECS = [
   {k:'notif', n:'Сповіщення',             grp:3, ico:'notif', c:'--s2'},
   {k:'loc',   n:'Валюта і мова',          grp:3, ico:'loc',   c:'--s7'},
   {k:'priv',  n:'Приватність і замок',    grp:4, ico:'priv',  c:'--s5'},
-  {k:'run',   n:'Запуск і синхронізація', grp:4, ico:'run',   c:null,  desk:true},
+  {k:'run',   n:'Запуск і синхронізація', grp:4, ico:'run',   c:'--s9', desk:true},
   {k:'data',  n:'Дані і бекап',           grp:4, ico:'data',  c:'--s8'},
   {k:'adv',   n:'Порадник',               grp:5, ico:'adv',   c:'--s1'},
 ];
@@ -11040,7 +11044,9 @@ const SETICO = {
 function updPending(){ return false; }
 function setPaneHasContent(k){
   const pane = document.querySelector('#tab-settings .setpane[data-sec="'+k+'"]');
-  return !!pane && !!pane.querySelector('.card, .setgrp, [id]');
+  /* Рахуємо лише показане: прихована примітка (#invNote у десктопі) з id не
+     робить панель «непорожньою», інакше розділ висів би в колонці порожнім. */
+  return !!pane && [...pane.children].some(c => !c.matches('.setttl,.setsub') && !c.hidden);
 }
 function setSecsVisible(){
   const desk = isDesk();
@@ -11062,7 +11068,7 @@ function setNavBuild(vis){
   let h = '', g = null;
   vis.forEach(s => {
     if(s.grp !== g){ if(g !== null) h += '</div>'; h += '<div class="setnavg">'; g = s.grp; }
-    h += '<button class="setit" data-sec="'+s.k+'"><span class="setico" data-c="'+(s.c||'--surface-3')+'">'
+    h += '<button class="setit" data-sec="'+s.k+'"><span class="setico" data-c="'+(s.c||'--s9')+'">'
       + '<svg viewBox="0 0 24 24" aria-hidden="true">'+SETICO[s.ico]+'</svg></span>'
       + '<span class="setn">'+s.n+'</span>'
       + (s.k === 'upd' ? '<span class="setcnt" hidden>1</span>' : '')

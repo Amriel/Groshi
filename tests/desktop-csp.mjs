@@ -87,7 +87,7 @@ try{
         return {tag:n.tagName,id:n.id,display:s.display,gap:s.gap,margin:s.margin,padding:s.padding,width:r.width,height:r.height};
       })));
     }
-    await page.evaluate(()=>go2set('src'));
+    await page.evaluate(()=>go2set('bank'));
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     assert.equal(await page.evaluate(()=>window.__styleViolations.length),0,
       'Політика готової Tauri-збірки не повинна блокувати наявні стилі');

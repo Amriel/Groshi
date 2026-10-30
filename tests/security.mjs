@@ -113,7 +113,7 @@ try {
   // Перевіряємо також повільний запуск: таймер знайомства вже мав спрацювати.
   await privacyPage.clock.runFor(1600);
   assert.equal(await privacyPage.locator('#modal.on').count(),0,'підготовлений сценарій приватності не має відкривати майстер знайомства');
-  await privacyPage.evaluate(()=>go2set('src'));
+  await privacyPage.evaluate(()=>go2set('priv'));
   assert.equal(await privacyPage.locator('[data-privacy]').count(),6,'мають бути 6 явних дозволів');
   assert.equal(await privacyPage.locator('[data-privacy][aria-pressed="true"]').count(),0,'типово необов’язкові запити вимкнені');
   const button=privacyPage.locator('[data-privacy="quotes"]');

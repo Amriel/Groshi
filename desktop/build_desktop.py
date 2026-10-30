@@ -110,7 +110,7 @@ NOTICE = """/* У браузерній версії тут пояснювало�
       тож це триває приблизно чверть години. Апку можна згорнути в трей.
       <button class="btn pri" id="goMono">Підключити банк</button>
     </div>`;
-  const gm = el('goMono'); if(gm) gm.onclick = ()=>go2set('src');"""
+  const gm = el('goMono'); if(gm) gm.onclick = ()=>go2set('bank');"""
 tpl = tpl[:i] + NOTICE + tpl[j:]
 
 # ── 3c. «перегляд на телефоні» в десктопі не потрібен ─────────────────
@@ -208,7 +208,7 @@ tpl = sub(tpl, """<span class="hint">Зберігається у браузер�
 # блок «ЕКРАНИ» шаблону); проміжки між картками дає gap #tab-settings,
 # тож власних margin-bottom у вставок немає. Стан підключення — крапка
 # (.dot.ok / .dot.off) і текст, а не кольорова картка.
-MONO_HTML = """  <div class="card" data-sec="src">
+MONO_HTML = """  <div class="card">
     <div class="cardhead"><h2>Monobank</h2><span class="hint stat"><span class="dot off" id="monoDot" aria-hidden="true"></span><span id="monoState"></span></span></div>
     <p class="muted setlead">Токен читає лише виписку — платежі ним неможливі.
       Кнопка «Де взяти токен» відкриє <b>api.monobank.ua</b> — там вхід через застосунок Monobank
@@ -234,8 +234,8 @@ MONO_HTML = """  <div class="card" data-sec="src">
       а виписка приходить вікнами по 31 добі — тому історія набирається довго. Спершу приходить
       останній місяць по всіх рахунках, далі глибина; зупинити можна будь-коли, завантажене лишиться.</p>
   </div>
-
-  <div class="card" data-sec="app">
+"""
+UPD_HTML = """  <div class="card">
     <div class="cardhead"><h2>Оновлення</h2><span class="hint" id="updVer"></span></div>
     <p class="muted setlead">Апка дивиться в Релізи GitHub — там лежать
       збірки. Замість репозиторію можна вказати теку (локальну чи мережеву) або адресу
@@ -250,8 +250,11 @@ MONO_HTML = """  <div class="card" data-sec="src">
     </div>
     <div id="updBox" class="setgap"></div>
   </div>
-
-  <div class="card" data-sec="app">
+"""
+# «Застосунок» розрізано: автозапуск/синхронізація/тиша — у «Запуск і
+# синхронізація», тека з даними — окремим блоком у «Дані і бекап»
+# (Task 3 додасть до нього власні елементи за #dirBlock).
+RUN_HTML = """  <div class="card">
     <div class="cardhead"><h2>Застосунок</h2></div>
     <div class="fieldrow">
       <label class="muted optlabel">
@@ -273,7 +276,11 @@ MONO_HTML = """  <div class="card" data-sec="src">
       <label class="mf"><span>&nbsp;</span>
         <span class="muted mfval xs">уночі банк не смикаємо; однакові години — без паузи</span></label>
     </div>
-    <div class="fieldrow setgap">
+  </div>
+"""
+DIR_HTML = """  <div class="card" id="dirBlock">
+    <div class="cardhead"><h2>Тека з даними</h2></div>
+    <div class="fieldrow">
       <button class="btn" id="openDir">Показати теку з даними</button>
       <button class="btn" id="dirPick">Змінити теку</button>
       <button class="btn" id="dirReset">Стандартна</button>
@@ -286,17 +293,16 @@ MONO_HTML = """  <div class="card" data-sec="src">
       Тільки не тримайте апку відкритою одночасно на двох машинах: хмара не вміє зливати зміни
       й лишить ту версію, яка збереглась останньою.</p>
   </div>
+  </div>
 
 """
-# Усі десктопні вставки поки що йдуть у панель «Дані і бекап» за маркером
-# (розкладати їх по своїх панелях — окреме завдання); порядок збережено:
-# Monobank, брокери, «Оновлення», «Застосунок».
-tpl = sub(tpl, '      <!-- desk:data -->\n',
-          MONO_HTML + '      <!-- desk:data -->\n',
-          'settings')
-
+# Кожна картка — у свою панель за маркером; sub() падає, якщо маркера нема.
+tpl = sub(tpl, '      <!-- desk:bank -->\n', MONO_HTML + '      <!-- desk:bank -->\n', 'desk:bank')
+tpl = sub(tpl, '      <!-- desk:upd -->\n', UPD_HTML + '      <!-- desk:upd -->\n', 'desk:upd')
+tpl = sub(tpl, '      <!-- desk:run -->\n', RUN_HTML + '      <!-- desk:run -->\n', 'desk:run')
+tpl = sub(tpl, '      <!-- desk:data -->\n', DIR_HTML + '      <!-- desk:data -->\n', 'desk:data')
 # ── 4б. екрани брокерів (тільки читання) ──────────────────────────────
-INV_HTML = """  <div class="card" data-sec="src">
+INV_HTML = """  <div class="card">
     <div class="cardhead"><h2>Interactive Brokers</h2><span class="hint stat"><span class="dot off" id="ibkrDot" aria-hidden="true"></span><span id="ibkrState"></span></span></div>
     <p class="muted setlead">Підключення через Flex Web Service — звітний сервіс,
       який фізично не вміє торгувати чи виводити гроші. Налаштовується один раз, хвилин за пʼять:</p>
@@ -347,7 +353,7 @@ INV_HTML = """  <div class="card" data-sec="src">
     </div>
   </div>
 
-  <div class="card" data-sec="src">
+  <div class="card">
     <div class="cardhead"><h2>Binance</h2><span class="hint stat"><span class="dot off" id="binDot" aria-hidden="true"></span><span id="binState"></span></span></div>
     <ol class="muted setsteps">
       <li>На сайті Binance: іконка профілю → <b>Account → API Management</b> →
@@ -379,9 +385,7 @@ INV_HTML = """  <div class="card" data-sec="src">
   </div>
 
 """
-tpl = sub(tpl, '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Оновлення</h2>',
-          INV_HTML + '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Оновлення</h2>',
-          'brokers html')
+tpl = sub(tpl, '      <!-- desk:inv -->\n', INV_HTML + '      <!-- desk:inv -->\n', 'desk:inv')
 
 # ── 5. логіка екрана Monobank ─────────────────────────────────────────
 MONO_JS = r"""
@@ -506,7 +510,7 @@ function monoWire(){
     else if(p.stage === 'рахунки') n.textContent = 'читаю список рахунків…';
     else n.textContent = '';
   });
-  D.onTraySync(()=>{ go2set('src'); monoRun(0); });
+  D.onTraySync(()=>{ go2set('bank'); monoRun(0); });
   /* Апка оновилась сама — мовчки підмінити дані під руками не можна,
      тож перемальовуємо й кажемо, що саме змінилось. */
   /* Брокер оновився сам — дані під руками не можна підмінити мовчки. */
