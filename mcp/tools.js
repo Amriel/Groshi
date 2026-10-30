@@ -657,6 +657,7 @@ T.money_flow = {
       L.push(`ДОХОДИ Й ВИТРАТИ (як на «Огляді» апки, останні ${ms.length} міс., у гривні):`);
       for (const m of ms)
         L.push(`  ${m.ym}${m.full ? '' : ' (неповний)'}: ${net(m.inc, m.exp)}`
+          + (m.work != null ? ` · з витрат робочі (ФОП) ${n0(m.work)} · особисті ${n0(m.exp - m.work)}` : '')
           + ` · між рахунками ${n0(m.moves)} · відкладено в інвестиції ${n0(m.invest)}`
           + ` · перекази людям ${n0(m.people)}${inExp} · готівка ${n0(m.cash)}${inExp}`);
       L.push('  Рух між своїми рахунками й відкладене в інвестиції не входять ні у витрати, ні в доходи.'
@@ -744,6 +745,9 @@ T.transactions = {
     const L = [`Знайдено ${rows.length} операцій, підсумок ${sum >= 0 ? '+' : '−'}${n0(Math.abs(sum))} ₴`];
     /* Вид операції потрібен, щоб не складати непорівнюване: «рух» і
        «інвестиції» в апці не є витратами, «поза підсумками» — виключене. */
+    /* Робочі категорії (ФОП) обирає власник в апці: оренда GPU й софт — для
+       роботи, і Порадник має рахувати їх окремо від особистих. */
+    const work = new Set((s && s.work) || []);
     const KN = { move: 'між рахунками, не витрата', invest: 'інвестиції, не витрата', excluded: 'поза підсумками',
       refund: 'повернення', other: 'поза підсумками за налаштуванням' };
     for (const t of rows.slice(0, lim))
@@ -752,6 +756,7 @@ T.transactions = {
         + (t.account ? ` · ${t.account}` : '')
         + (t.currency && t.opAmount ? ` · ${t.opAmount} ${t.currency}` : '')
         + (KN[t.kind] ? ` · ${KN[t.kind]}` : '')
+        + (work.has(t.category) && t.dir === 'expense' ? ' · робоча (ФОП)' : '')
         + (t.tag ? ` · мітка: ${TAGN[t.tag] || t.tag}` : '')
         + (t.note ? ` · примітка: ${t.note}` : ''));
     if (rows.length > lim) L.push(`  … ще ${rows.length - lim}`);
@@ -785,7 +790,7 @@ T.spending_by_category = {
         `|---|${full.map(() => '---:').join('|')}|---:|---:|---:|---:|`];
       for (const c of list) {
         const x = st(c.byM || {});
-        if (x.n) L.push(`| ${c.k} | ${x.v.map(n0).join(' | ')} | ${x.n} | ${n0(x.med)} | ${n0(x.min)} | ${n0(x.max)} |`);
+        if (x.n) L.push(`| ${c.k}${c.work ? ' (ФОП)' : ''} | ${x.v.map(n0).join(' | ')} | ${x.n} | ${n0(x.med)} | ${n0(x.min)} | ${n0(x.max)} |`);
       }
       return L;
     };

@@ -2545,6 +2545,15 @@ svg.sprite{position:absolute;width:0;height:0}
     </div>
   </div>
 
+  <div class="card" data-sec="rules">
+    <div class="cardhead"><h2>Робочі витрати (ФОП)</h2><span class="hint" id="workHint"></span></div>
+    <p class="muted setlead">Категорії, на які ви витрачаєте для роботи, — наприклад, оренда GPU і софт.
+      Порадник рахує їх окремо від особистих і радить економію насамперед на особистому.
+      На «Огляді» вони лишаються у витратах. Поодинокий особистий платіж перенесіть
+      в іншу категорію в картці операції.</p>
+    <div class="txtags" id="workCats" role="group" aria-label="Робочі категорії"></div>
+  </div>
+
   <div class="card" data-sec="app">
     <div class="cardhead"><h2>Валюта</h2><span class="hint" id="ccyHint"></span></div>
     <p class="muted setlead">Усе зберігається в гривні — валюта тут лише для показу.
@@ -2767,6 +2776,14 @@ const isExcluded = t => exKeys(t).some(k => EXCL.has(k));
    — гроші, перекладені з ФОП на картку й назад (рішення власника 30.10). */
 const NEVER = new Set(['Між рахунками','Інвестиції']);
 const isNever = t => NEVER.has(catOf(t));
+/* Робочі категорії (ФОП). Власник орендує GPU й софт для роботи і майже
+   ніколи — особисто, тож Порадник має радити економію на особистому, а
+   робоче рахувати окремою статтею (31.10.2026). «Огляд» цього не знає:
+   робоче лишається у витратах — розподіл бачить лише Порадник. Поодинокий
+   особистий платіж власник переносить в іншу категорію в картці операції. */
+let WORK = new Set(store.get('workCats', null) ?? ['AI та софт']);
+const saveWork = () => store.set('workCats', [...WORK]);
+const isWork = t => WORK.has(catOf(t));
 const isSpend  = t => t.dir==='expense' && !isNever(t) && !(skipMove() && MOVE.has(catOf(t))) && !isExcluded(t);
 /* Надходження мусять фільтруватись ТАК САМО, як витрати.
    Доти, доки цього не було, переказ між власними рахунками рахувався
@@ -9367,6 +9384,7 @@ function render(){
     el('racclist').innerHTML = allAccounts().map(a=>`<option>${esc(a)}</option>`).join('');
     el('baseCcy').value = BASE; if(window.cselSync) cselSync(el('baseCcy')); ccyHint();
     el('moveMode').value = MOVE_MODE; if(window.cselSync) cselSync(el('moveMode')); moveHint();
+    workRender();
     rulesSubs(); rulesHint(); }
   requestAnimationFrame(moveTabIndicator);
 }
@@ -9483,6 +9501,7 @@ function advData(){
   const months = yms.map(ym => {
     const all = inYm(ym), rows = rowsOf(ym);
     return { ym, full: full.includes(ym), exp: sum(rows, 'expense'), inc: sum(rows, 'income'),
+      work: rows.reduce((a, t) => inSpend(t) && isWork(t) ? a + spendAmt(t) : a, 0),
       moves: raw(all, 'Між рахунками'), invest: raw(all, 'Інвестиції'),
       people: raw(all, 'Перекази'), cash: raw(all, 'Готівка') };
   });
@@ -9504,7 +9523,7 @@ function advData(){
     return m;
   };
   const cats = [...group(spendRows, catOf)].map(([k, e]) => ({
-    k, byM: Object.fromEntries(full.map(ym => [ym, e.byM[ym] || 0])), ...stats(e.byM),
+    k, work: WORK.has(k), byM: Object.fromEntries(full.map(ym => [ym, e.byM[ym] || 0])), ...stats(e.byM),
     top: e.rows.filter(isSpend).sort((a, b) => b.amount - a.amount).slice(0, 3)
       .map(t => ({ date: t.date, amt: t.amount, merchant: t.merchant })),
     subs: [...group(e.rows, subOf)].map(([s, g]) => ({ k: s, byM: g.byM, ...stats(g.byM) }))
@@ -9540,7 +9559,7 @@ function advData(){
     if(ext.has(t.id)) r.raw = { date: t.date, dir: t.dir, amount: t.amount, merchant: t.merchant, account: t.account || '' };
     tx[t.id] = r;
   }
-  return { ...empty, months, cats, tags, subs, tx };
+  return { ...empty, months, cats, tags, subs, tx, work: [...WORK] };
 }
 
 /* Зведення — текстовий вигляд advData(). Суми — без режиму скріншоту:
@@ -9554,6 +9573,7 @@ function advDigest(){
      додала б перекази людям і готівку до витрат удруге. */
   const inExp = skipMove() ? '' : ' (у витратах)';
   const line = m => `- ${m.ym} (${monthLabel(m.ym)}): витрати ${am(m.exp)}; доходи ${am(m.inc)}; `
+    + `з витрат робочі (ФОП) ${am(m.work)}; особисті ${am(m.exp - m.work)}; `
     + `між рахунками ${am(m.moves)}; відкладено в інвестиції ${am(m.invest)}; `
     + `перекази людям ${am(m.people)}${inExp}; готівка ${am(m.cash)}${inExp}`;
   const out = [`Станом на ${dmy(TODAY_ISO)}. Операції в застосунку — до ${D.dmax ? dmy(D.dmax) : '—'}. Суми в ${sgn(BASE)}.`, ''];
@@ -9572,7 +9592,7 @@ function advDigest(){
     out.push(`Категорії по місяцях (повні місяці, суми в ${sgn(BASE)}; «міс.» — у скількох із ${full.length} були витрати):`,
       `| Категорія | ${head.join(' | ')} | міс. | медіана | макс |`, `|---|${head.map(() => '---:').join('|')}|---:|---:|---:|`);
     const top = D.cats.slice(0, 15), rest = D.cats.slice(15);
-    for(const c of top) out.push(`| ${c.k} | ${full.map(m => n0(c.byM[m.ym])).join(' | ')} | ${c.n} | ${n0(c.med)} | ${n0(c.max)} |`);
+    for(const c of top) out.push(`| ${c.k}${c.work ? ' (ФОП)' : ''} | ${full.map(m => n0(c.byM[m.ym])).join(' | ')} | ${c.n} | ${n0(c.med)} | ${n0(c.max)} |`);
     if(rest.length) out.push(`| інше (${rest.length} кат.) | ${full.map(m => n0(rest.reduce((a, c) => a + c.byM[m.ym], 0))).join(' | ')} | | | |`);
     const big = top.filter(c => c.top.length).slice(0, 10)
       .map(c => `- ${c.k}: ` + c.top.map(t => `${dmy(t.date)} ${am(t.amt)} ${t.merchant}`).join('; '));
@@ -9616,7 +9636,7 @@ function advDigest(){
    правок дає один запис, а перемикання вкладок не пише нічого — знімок
    залежить тільки від даних і налаштувань, що змінюють підсумки. */
 const ADV_SNAP_KEYS = new Set(['rules','txCats','refunds','excluded','moveMode','txTags','txNotes',
-  'subsOn','subsOff','subsMan','manualTx','privatTx','baseCcy']);
+  'subsOn','subsOff','subsMan','manualTx','privatTx','baseCcy','workCats']);
 let _advSnapT = 0;
 function advSnapSoon(){
   const D = window.__DESK__;
@@ -9638,6 +9658,7 @@ const ADV_DATA_HOWTO = `Як читати ці дані:
 - «Звичайний місяць» рахуй без разового; поруч показуй повний підсумок.
 - Перекази між своїми рахунками й інвестиції — не витрати; вони окремими рядками.
 - Мітка «борг» — гроші, що мають повернутися. «Рідним» — змінна, але звичайна витрата: входить у звичайний місяць.
+- Категорії з позначкою (ФОП) — робочі витрати (оренда GPU, софт): рахуй їх окремою статтею, а економію радь насамперед на особистих витратах.
 - Нотатки власника до операцій бачиш в інструменті transactions.`;
 
 /* Безпечний Markdown: увесь текст екранується ДО розмітки, а HTML збирається
@@ -10651,6 +10672,33 @@ el('moveMode').addEventListener('change', ()=>{
   MOVE_MODE = el('moveMode').value;
   store.set('moveMode', MOVE_MODE);
   moveHint(); dpInvalidate(); render();
+});
+/* Перелік категорій-кандидатів — лише ті, де були витрати; обрані згори
+   не переставляються: чип міняє лише aria-pressed, перелік не стрибає. */
+function workRender(){
+  const box = el('workCats'); if(!box) return;
+  const cats = [...new Set(TX.filter(t => t.dir==='expense' && !isNever(t)).map(catOf).concat([...WORK]))]
+    .sort((a, b) => a.localeCompare(b, 'uk'));
+  const want = cats.join('\n');
+  if(box.dataset.cats !== want){
+    box.dataset.cats = want;
+    box.innerHTML = cats.map(c => `<button class="chip" data-work="${esc(c)}" aria-pressed="${WORK.has(c)}">${esc(c)}</button>`).join('');
+  } else box.querySelectorAll('[data-work]').forEach(b => b.setAttribute('aria-pressed', String(WORK.has(b.dataset.work))));
+  workHint();
+}
+function workHint(){
+  const h = el('workHint'); if(!h) return;
+  const n = WORK.size, m = n % 10, mm = n % 100;
+  h.textContent = !n ? 'не обрано' : `${n} ${m===1 && mm!==11 ? 'категорія' : m>=2 && m<=4 && (mm<12 || mm>14) ? 'категорії' : 'категорій'}`;
+}
+addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-work]');
+  if(!b) return;
+  const c = b.dataset.work;
+  if(WORK.has(c)) WORK.delete(c); else WORK.add(c);
+  saveWork();
+  b.setAttribute('aria-pressed', String(WORK.has(c)));
+  workHint();
 });
 function moveHint(){
   const h = el('moveHint'); if(!h) return;

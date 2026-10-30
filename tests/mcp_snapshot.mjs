@@ -40,18 +40,19 @@ const state = {clientsDB: {'ТОВ "Альфа Груп"': {name: 'ТОВ "Ал�
 // Шість повних місяців перед поточним (з нульовими) + неповний поточний: середнє
 // money_flow мусить іти за шістьма повними, як у зведенні, а не за п'ятьма.
 const fullYms = [6, 5, 4, 3, 2].map(k => iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - k, 10))).slice(0, 7));
-const zero = m => ({ym: m, full: true, exp: 0, inc: 0, moves: 0, invest: 0, people: 0, cash: 0});
+const zero = m => ({ym: m, full: true, exp: 0, inc: 0, work: 0, moves: 0, invest: 0, people: 0, cash: 0});
 const snap = (today) => ({
   v: 1, built: new Date().toISOString(), today, app: 'test', moveMode: 'count', dmax: iso(now), base: 'UAH',
-  months: [...fullYms.map(zero), {ym, full: true, exp: 3000, inc: 0, moves: 10000, invest: 8000, people: 2500, cash: 700},
-           {ym: iso(now).slice(0, 7), full: false, exp: 100, inc: 0, moves: 0, invest: 0, people: 0, cash: 0}],
+  months: [...fullYms.map(zero), {ym, full: true, exp: 3000, inc: 0, work: 500, moves: 10000, invest: 8000, people: 2500, cash: 700},
+           {ym: iso(now).slice(0, 7), full: false, exp: 100, inc: 0, work: 0, moves: 0, invest: 0, people: 0, cash: 0}],
   cats: [
     {k: 'Перекази', byM: {[ym]: 2500}, n: 1, med: 2500, min: 2500, max: 2500,
      top: [{date: iso(prev), amt: 2500, merchant: 'Олена П.'}], subs: [{k: 'Людям', byM: {[ym]: 2500}, n: 1, med: 2500, min: 2500, max: 2500}], tot: 2500},
-    {k: 'Продукти', byM: {[ym]: 500}, n: 1, med: 500, min: 500, max: 500,
+    {k: 'Продукти', work: true, byM: {[ym]: 500}, n: 1, med: 500, min: 500, max: 500,
      top: [{date: iso(prev), amt: 500, merchant: 'Сільпо'}], subs: [{k: 'Супермаркети', byM: {[ym]: 500}, n: 1, med: 500, min: 500, max: 500}], tot: 500},
   ],
   tags: {debt: {[ym]: 2500}},
+  work: ['Продукти'],
   subs: [
     {name: 'Хмарка', amount: 300, famt: null, ccy: 'UAH', period: 'month', last: iso(prev), next: '2099-01-10', live: true, perMonth: 300},
     {name: 'Стара', amount: 999, famt: null, ccy: 'UAH', period: 'month', last: '2020-01-01', next: '2020-02-01', live: false, perMonth: 999},
@@ -103,6 +104,7 @@ const mf = await call(fresh, 'money_flow');
 has(mf, `${ym}: +0 / −3 000`, 'money_flow: витрати місяця зі знімка');
 has(mf, 'між рахунками', 'money_flow');
 has(mf, 'перекази людям 2 500 (у витратах)', 'money_flow: у режимі count перекази людям позначено як уже враховані');
+has(mf, 'робочі (ФОП) 500 · особисті 2 500', 'money_flow: робочі окремо від особистих');
 has(mf, 'У середньому за 6 повних міс.', 'money_flow: середнє за шістьма повними, як у зведенні'); has(mf, 'відкладено в інвестиції', 'money_flow');
 hasnt(mf, '⚠', 'money_flow свіжий знімок');
 
@@ -121,7 +123,9 @@ has(await call(fresh, 'transactions', {query: 'Банкомат Привату'}
 
 // spending_by_category — таблиця з ознаками; з category — підкатегорії
 const sc = await call(fresh, 'spending_by_category');
-has(sc, 'Перекази', 'spending_by_category'); has(sc, 'медіана', 'spending_by_category');
+has(sc, 'Перекази', 'spending_by_category');
+has(sc, '| Продукти (ФОП) |', 'spending_by_category: робоча категорія позначена');
+has(await call(fresh, 'transactions', {query: 'Сільпо'}), 'робоча (ФОП)', 'transactions: робоча операція позначена'); has(sc, 'медіана', 'spending_by_category');
 has(sc, 'Сільпо', 'spending_by_category: найбільші операції');
 const scs = await call(fresh, 'spending_by_category', {category: 'Продукти'});
 has(scs, 'Супермаркети', 'spending_by_category з category'); hasnt(scs, 'Людям', 'spending_by_category з category');

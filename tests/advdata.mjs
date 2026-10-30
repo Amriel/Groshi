@@ -140,6 +140,61 @@ try {
     await context.close();
   }
 
+  /* Робочі категорії (ФОП): власник орендує GPU й софт для роботи, тож
+     Порадник має рахувати їх окремо від особистих. «Огляд» не змінюється —
+     розподіл бачить лише Порадник. Без збереженого вибору робоча — «AI та
+     софт»; перемикач у налаштуваннях міняє набір на місці. */
+  {
+    const context = await browser.newContext({viewport: {width: 1400, height: 1000}});
+    await context.addInitScript(() => {
+      localStorage.setItem('wizDone', 'true');
+      localStorage.setItem('moveMode', '"count"');
+    });
+    await context.route(/^https?:/, r => r.abort());
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(app);
+    await page.waitForFunction(() => typeof window.go === 'function');
+    assert.deepEqual(await page.evaluate(() => [...WORK]), ['AI та софт'], 'типово робоча — «AI та софт»');
+
+    await page.evaluate(() => go('settings'));
+    await page.locator('button.chip[data-sec="rules"]').click();
+    const chip = page.locator('#workCats .chip', {hasText: 'Продукти'});
+    const box0 = await page.locator('#workCats').boundingBox();
+    await chip.click();
+    assert.equal(await chip.getAttribute('aria-pressed'), 'true', 'чип натиснуто');
+    assert.ok(JSON.parse(await page.evaluate(() => localStorage.getItem('workCats'))).includes('Продукти'), 'збережено');
+    const box1 = await page.locator('#workCats').boundingBox();
+    assert.ok(Math.abs(box0.y - box1.y) < 0.5 && Math.abs(box0.height - box1.height) < 0.5, 'перелік не зсунувся');
+    assert.match(await page.locator('#workHint').innerText(), /2 категорії/, 'підказка рахує обрані');
+
+    const r = await page.evaluate(() => {
+      const D = advData(), dg = advDigest();
+      const ok = D.months.map(m => {
+        const rows = TX.filter(t => t.date.slice(0, 7) === m.ym && !isHidMove(t) && inSpend(t));
+        const w = rows.filter(t => ['Продукти', 'AI та софт'].includes(catOf(t))).reduce((a, t) => a + spendAmt(t), 0);
+        return Math.abs(m.work - w) < 0.01;
+      });
+      return {ok, work: D.work, flag: (D.cats.find(c => c.k === 'Продукти') || {}).work,
+        food: D.months.some(m => m.work > 0), dg,
+        ov: sum(TX.filter(t => t.date.slice(0, 7) === D.months[D.months.length - 1].ym && !isHidMove(t)), 'expense'),
+        ovWant: D.months[D.months.length - 1].exp};
+    });
+    assert.ok(r.ok.every(Boolean) && r.food, 'робочі витрати місяця = сума робочих категорій: ' + r.ok);
+    assert.deepEqual(r.work.sort(), ['AI та софт', 'Продукти'], 'перелік робочих у даних');
+    assert.equal(r.flag, true, 'категорія позначена робочою');
+    assert.equal(r.ov, r.ovWant, '«Огляд» не змінився');
+    assert.match(r.dg, /^- \d{4}-\d{2} .*робочі \(ФОП\) [^;]+; особисті /m, 'рядок місяця: робочі й особисті');
+    assert.match(r.dg, /^\| Продукти \(ФОП\) \|/m, 'таблиця позначає робочу категорію');
+
+    await chip.click();
+    assert.equal(await chip.getAttribute('aria-pressed'), 'false', 'повторний клік знімає');
+    assert.deepEqual(errors, [], 'робочі категорії: помилки сторінки');
+    console.log('advdata: робочі категорії (ФОП) — OK');
+    await context.close();
+  }
+
   /* Порожня апка (свіжа установка): зведення й дані не падають. */
   {
     const dir = path.join(root, '.test-artifacts');
