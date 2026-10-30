@@ -72,6 +72,15 @@ try {
     assert.ok(r.ttl && r.sub, `${k}: заголовок і підзаголовок`);
   }
 
+  // 3б) структура: кожна панель у .setmain, id із даних/бекапу — у своїх панелях, чужі не бачать
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('.setpane')].filter(p => p.parentElement.className !== 'setmain').length), 0, 'браузер: кожна .setpane у .setmain');
+  assert.equal(await page.evaluate(() => document.querySelectorAll('.setwrap > :not(.setnav):not(.setmain)').length), 0, 'браузер: у .setwrap лише nav і main');
+  for (const [k, ids] of Object.entries({bank: ['pvImport'], data: ['bkNow','expCsv','quality'], rules: ['workCats'], priv: ['privacyOptions']})) {
+    assert.deepEqual(await page.evaluate(([k, ids]) => ids.filter(i => document.getElementById(i).closest('.setpane')?.dataset.sec !== k), [k, ids]), [], `браузер: id ${k} у своїй панелі`);
+  }
+  await page.evaluate(() => go2set('loc'));
+  assert.equal(await page.locator('#bkNow').isVisible(), false, 'браузер: #bkNow не видно в чужій панелі');
+
   // 4) клік по rules: aria-current, вміст, колонка не зсунулась
   await page.evaluate(() => go2set('bank'));
   const nav = () => page.evaluate(() => { const r = document.getElementById('setNav').getBoundingClientRect();
@@ -141,7 +150,12 @@ try {
       }), ids);
       assert.deepEqual(r.vis, [k], `${k}: видима одна панель`);
       for (const i of ids) assert.ok(r.ids[i], `${k}: #${i} видно`);
+      assert.deepEqual(await dp.evaluate(ids => ids.filter(i => document.getElementById(i).closest('.setpane')?.dataset.sec !== SETSEC), ids), [], `${k}: усі id усередині своєї панелі`);
     }
+    assert.equal(await dp.evaluate(() => [...document.querySelectorAll('.setpane')].filter(p => p.parentElement.className !== 'setmain').length), 0, 'десктоп: кожна .setpane у .setmain');
+    assert.equal(await dp.evaluate(() => document.querySelectorAll('.setwrap > :not(.setnav):not(.setmain)').length), 0, 'десктоп: у .setwrap лише nav і main');
+    await dp.evaluate(() => go2set('loc'));
+    assert.equal(await dp.locator('#bkNow').isVisible(), false, 'десктоп: #bkNow не видно в чужій панелі');
     // Тека даних — всередині #dirBlock у панелі data, а автозапуск — у run.
     assert.equal(await dp.evaluate(() => ['openDir','dirPick','dirReset','dirPath','dirFiles']
       .every(i => document.getElementById(i).closest('#dirBlock') && document.getElementById(i).closest('.setpane').dataset.sec === 'data')), true, 'тека → data/#dirBlock');
@@ -190,6 +204,9 @@ try {
       const lum = rgb => { const v = rgb.match(/\d+/g).slice(0,3).map(n => { n /= 255; return n <= .03928 ? n/12.92 : ((n+.055)/1.055)**2.4; }); return .2126*v[0]+.7152*v[1]+.0722*v[2]; };
       const ratio = 1.05 / (lum(c.ico) + .05);
       assert.ok(ratio >= 3, `${theme}: білий штрих на значку run ≥ 3:1 (${ratio.toFixed(2)})`);
+      const gr = (lum(c.ico) + .05), gs = (lum(c.grp) + .05);
+      const sq = Math.max(gr, gs) / Math.min(gr, gs);
+      assert.ok(sq >= 3, `${theme}: квадрат run проти поверхні колонки ≥ 3:1 (${sq.toFixed(2)})`);
     }
     await dp.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
     assert.deepEqual(derr, [], 'десктоп: помилки JavaScript');

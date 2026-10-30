@@ -293,9 +293,12 @@ DIR_HTML = """  <div class="card" id="dirBlock">
       Тільки не тримайте апку відкритою одночасно на двох машинах: хмара не вміє зливати зміни
       й лишить ту версію, яка збереглась останньою.</p>
   </div>
-  </div>
 
 """
+# Лишній </div> у вставці виштовхує наступні картки з .setpane (так і було
+# з DIR_HTML), а візуальна проба цього не бачить: баланс тегів ловимо тут.
+for _n, _h in (('MONO_HTML', MONO_HTML), ('UPD_HTML', UPD_HTML), ('RUN_HTML', RUN_HTML), ('DIR_HTML', DIR_HTML)):
+    assert _h.count('<div') == _h.count('</div>'), f'{_n}: <div {_h.count("<div")} проти </div> {_h.count("</div>")}'
 # Кожна картка — у свою панель за маркером; sub() падає, якщо маркера нема.
 tpl = sub(tpl, '      <!-- desk:bank -->\n', MONO_HTML + '      <!-- desk:bank -->\n', 'desk:bank')
 tpl = sub(tpl, '      <!-- desk:upd -->\n', UPD_HTML + '      <!-- desk:upd -->\n', 'desk:upd')
@@ -385,6 +388,7 @@ INV_HTML = """  <div class="card">
   </div>
 
 """
+assert INV_HTML.count('<div') == INV_HTML.count('</div>'), 'INV_HTML: баланс <div>'
 tpl = sub(tpl, '      <!-- desk:inv -->\n', INV_HTML + '      <!-- desk:inv -->\n', 'desk:inv')
 
 # ── 5. логіка екрана Monobank ─────────────────────────────────────────
