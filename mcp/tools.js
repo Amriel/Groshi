@@ -158,6 +158,45 @@ const ago = ts => {
   return Math.round(m / 1440) + ' дн. тому';
 };
 
+/* ── знімок апки ─────────────────────────────────────────────────────
+   Що вважати витратою, вирішує апка: правила, ручні категорії, повернення,
+   виключення, режим переказів, мітки, підписки. Власна копія цієї логіки
+   тут відставала (серпень: 1,49 млн проти 601 тис. у зведенні), тож
+   сервер читає готовий знімок, який пише десктопна апка, і нічого не
+   перераховує. Без знімка — запасний розрахунок із попередженням. */
+const snap = () => {
+  const s = readJson('advice_cache.json', null);
+  return s && s.v === 1 ? s : null;
+};
+function snapWarn(s) {
+  if (!s) return '⚠ Знімка апки немає — цифри пораховано без правил і налаштувань апки. '
+    + 'Відкрийте десктопну апку «Гроші»: за кілька секунд вона запише знімок.\n\n';
+  const raw = readJson('mono_raw.json', null);
+  const built = Date.parse(s.built) / 1000;
+  /* Підписки рахують «активна» й «наступне списання» від дня запису, тож
+     знімок старіє й без нової виписки. */
+  if (s.today !== today() || (raw && raw.synced && built < raw.synced))
+    return `⚠ Знімок апки застарів (побудовано ${ago(built)}) — відкрийте апку, щоб оновити цифри.\n\n`;
+  return '';
+}
+const TAGN = { debt: 'борг', rent: 'квартира', family: 'рідним', gift: 'подарунок' };
+/* Операції з рішеннями апки поверх сирих полів. Ручні й приватбанківські
+   операції є лише в знімку (з полем raw): виписка Monobank про них не знає. */
+function txView() {
+  const s = snap(), base = txAll();
+  const plain = t => ({ ...t, category: t.category || t.cat });
+  if (!s || !s.tx) return base.map(plain);
+  const seen = new Set(), out = [];
+  for (const t of base) {
+    seen.add(t.id);
+    const r = s.tx[t.id];
+    out.push(r ? { ...t, category: r.c, sub: r.s, kind: r.k, tag: r.tag, note: r.note } : plain(t));
+  }
+  for (const [id, r] of Object.entries(s.tx))
+    if (!seen.has(id) && r.raw) out.push({ id, ...r.raw, category: r.c, sub: r.s, kind: r.k, tag: r.tag, note: r.note });
+  return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
 /* ── позиції з цінами ─────────────────────────────────────────────── */
 function positions() {
   const inv = invCache();
@@ -215,6 +254,9 @@ T.groshi_status = {
     L.push(`Котирування: ${Object.keys(q.quotes).length} тікерів, оновлені ${ago(q.fetched)}`);
     L.push(`Знімки капіталу: ${nw.length}${nw.length ? ` (з ${nw[0].date})` : ''}`);
     L.push(`Підписки: ${(st.subsMan || []).length} вручну + ${Object.keys(st.subsOn || {}).length} підтверджених`);
+    const s = snap();
+    L.push(`Знімок апки: ${s ? `побудовано ${ago(Date.parse(s.built) / 1000)}, операції до ${s.dmax}` + (snapWarn(s) ? ' ⚠ застарів' : '')
+      : 'немає — відкрийте десктопну апку, щоб цифри збігались із нею'}`);
     L.push(`Рахунки клієнтам у журналі: ${(st.invcLog || []).length}`);
     const r = usdRate();
     L.push(`Курс USD для перерахунку: ${r.rate ? r.rate.toFixed(2) + ' (НБУ на ' + r.date + ')' : 'немає — суми будуть у валюті інструмента'}`);
@@ -602,21 +644,45 @@ T.money_flow = {
       if (nw.length > 1) L.push(`  від ${f.date}: ${l.total - f.total >= 0 ? '+' : '−'}${n0(Math.abs(l.total - f.total))} ₴ за ${dnum(l.date) - dnum(f.date)} дн.`);
       L.push('');
     }
-    if (!tx.length) return L.join('\n') + '\nОперацій немає (mononorm.js поруч із сервером?).';
+    const s = snap();
+    const net = (i, e) => `+${n0(i)} / −${n0(e)} → ${i - e >= 0 ? '+' : '−'}${n0(Math.abs(i - e))}`;
+    if (s && s.months && s.months.length) {
+      /* Знімок: ті самі витрати й доходи, що на «Огляді» апки. Рух між
+         своїми рахунками й інвестиції — окремо, бо в підсумки не входять. */
+      const ms = s.months.slice(-months);
+      L.push(`ДОХОДИ Й ВИТРАТИ (як на «Огляді» апки, останні ${ms.length} міс., у гривні):`);
+      for (const m of ms)
+        L.push(`  ${m.ym}${m.full ? '' : ' (неповний)'}: ${net(m.inc, m.exp)}`
+          + ` · між рахунками ${n0(m.moves)} · відкладено в інвестиції ${n0(m.invest)}`
+          + ` · перекази людям ${n0(m.people)} · готівка ${n0(m.cash)}`);
+      L.push('  Рух між своїми рахунками й відкладене в інвестиції не входять ні у витрати, ні в доходи.'
+        + (s.moveMode === 'count' ? ' Перекази людям і готівка входять у витрати.'
+                                  : ' Перекази людям і готівка за налаштуванням власника у витрати НЕ входять.'));
+      const full = ms.filter(m => m.full);
+      if (full.length) {
+        const ai = full.reduce((a, m) => a + m.inc, 0) / full.length;
+        const ae = full.reduce((a, m) => a + m.exp, 0) / full.length;
+        L.push(`\nУ середньому за ${full.length} повних міс.: дохід ${n0(ai)} ₴, витрати ${n0(ae)} ₴, лишається ${n0(ai - ae)} ₴/міс`);
+        const r = usdRate().rate;
+        if (r && ai - ae > 0) L.push(`Це ≈ ${n0((ai - ae) / r)} $ на місяць — стеля регулярного внеску до подушки безпеки.`);
+      }
+      return snapWarn(s) + L.join('\n');
+    }
+    if (!tx.length) return snapWarn(s) + L.join('\n') + '\nОперацій немає (mononorm.js поруч із сервером?).';
 
+    /* Без знімка — запасний розрахунок. Перекази між своїми рахунками тут
+       принаймні не рахуються: саме вони роздували серпень до 1,49 млн. */
     const by = {};
     for (const t of tx) {
+      if (t.internal || (t.category || t.cat) === 'Між рахунками') continue;
       const m = t.date.slice(0, 7);
       const b = by[m] = by[m] || { inc: 0, exp: 0 };
       if (t.dir === 'income' && !t.refund) b.inc += t.amount;
       else if (t.dir === 'expense') b.exp += t.amount;
     }
     const keys = Object.keys(by).sort().slice(-months);
-    L.push(`ДОХОДИ Й ВИТРАТИ (останні ${keys.length} міс., у гривні):`);
-    for (const k of keys) {
-      const b = by[k];
-      L.push(`  ${k}: +${n0(b.inc)} / −${n0(b.exp)} → ${b.inc - b.exp >= 0 ? '+' : '−'}${n0(Math.abs(b.inc - b.exp))}`);
-    }
+    L.push(`ДОХОДИ Й ВИТРАТИ (останні ${keys.length} міс., у гривні, без переказів між своїми рахунками):`);
+    for (const k of keys) L.push(`  ${k}: ${net(by[k].inc, by[k].exp)}`);
     /* Поточний місяць неповний — у середнє його не беремо, інакше воно
        завжди виглядало б краще за правду. */
     const full = keys.filter(k => k !== today().slice(0, 7));
@@ -627,80 +693,156 @@ T.money_flow = {
       const r = usdRate().rate;
       if (r && ai - ae > 0) L.push(`Це ≈ ${n0((ai - ae) / r)} $ на місяць — стеля регулярного внеску до подушки безпеки.`);
     }
-    return L.join('\n');
+    return snapWarn(s) + L.join('\n');
   }
 };
 
 T.transactions = {
-  desc: 'Пошук операцій банку з фільтрами (період, напрямок, рахунок, текст, сума). Для перевірки конкретних витрат чи надходжень.',
+  desc: 'Пошук операцій банку з фільтрами (період, напрямок, рахунок, категорія, мітка, текст, сума). Категорії, мітки й примітки — як в апці, тож «з чого складаються Послуги» закривається одним запитом.',
   schema: {
     type: 'object',
     properties: {
-      query: { type: 'string', description: 'Текст: мерчант, коментар, контрагент' },
+      query: { type: 'string', description: 'Текст: мерчант, коментар, контрагент, примітка власника' },
       from: { type: 'string', description: 'Від РРРР-ММ-ДД' },
       to: { type: 'string', description: 'До РРРР-ММ-ДД' },
       direction: { type: 'string', description: 'income | expense' },
       account: { type: 'string', description: 'Назва рахунку (частково)' },
+      category: { type: 'string', description: 'Категорія апки, точна назва (регістр не важить)' },
+      sub: { type: 'string', description: 'Підкатегорія апки, точна назва (регістр не важить)' },
+      tag: { type: 'string', description: 'Мітка переказу: debt | rent | family | gift (або борг / квартира / рідним / подарунок)' },
       min: { type: 'number' }, max: { type: 'number' },
       limit: { type: 'number', description: 'Типово 50' }
     }
   },
   run(a) {
     a = a || {};
-    let rows = txAll();
-    if (!rows.length) return 'Операцій немає.';
+    const s = snap(), warn = snapWarn(s);
+    let rows = txView();
+    if (!rows.length) return warn + 'Операцій немає.';
+    const eq = (x, y) => String(x || '').toLowerCase() === String(y).toLowerCase();
     if (a.from) rows = rows.filter(t => t.date >= a.from);
     if (a.to) rows = rows.filter(t => t.date <= a.to);
     if (a.direction) rows = rows.filter(t => t.dir === a.direction);
     if (a.account) rows = rows.filter(t => (t.account || '').toLowerCase().includes(a.account.toLowerCase()));
+    if (a.category) rows = rows.filter(t => eq(t.category, a.category));
+    if (a.sub) rows = rows.filter(t => eq(t.sub, a.sub));
+    if (a.tag) rows = rows.filter(t => t.tag && (eq(t.tag, a.tag) || eq(TAGN[t.tag], a.tag)));
     if (a.min != null) rows = rows.filter(t => t.amount >= a.min);
     if (a.max != null) rows = rows.filter(t => t.amount <= a.max);
     if (a.query) {
       const q = a.query.toLowerCase();
-      rows = rows.filter(t => [t.merchant, t.comment, t.counterName, t.category, t.account]
+      rows = rows.filter(t => [t.merchant, t.comment, t.counterName, t.category, t.account, t.note]
         .some(x => x && String(x).toLowerCase().includes(q)));
     }
-    if (!rows.length) return 'За цими умовами нічого не знайдено.';
+    if (!rows.length) return warn + 'За цими умовами нічого не знайдено.';
     const sum = rows.reduce((s, t) => s + (t.dir === 'income' ? t.amount : -t.amount), 0);
     const lim = a.limit || 50;
     const L = [`Знайдено ${rows.length} операцій, підсумок ${sum >= 0 ? '+' : '−'}${n0(Math.abs(sum))} ₴`];
+    /* Вид операції потрібен, щоб не складати непорівнюване: «рух» і
+       «інвестиції» в апці не є витратами, «поза підсумками» — виключене. */
+    const KN = { move: 'між рахунками, не витрата', invest: 'інвестиції, не витрата', excluded: 'поза підсумками', refund: 'повернення' };
     for (const t of rows.slice(0, lim))
       L.push(`  ${t.date}  ${t.dir === 'income' ? '+' : '−'}${n2(t.amount)} ₴  ${t.merchant || t.counterName || ''}`
-        + (t.category ? ` · ${t.category}` : '') + (t.account ? ` · ${t.account}` : '')
-        + (t.currency && t.opAmount ? ` · ${t.opAmount} ${t.currency}` : ''));
+        + (t.category ? ` · ${t.category}${t.sub && t.sub !== t.category ? ' / ' + t.sub : ''}` : '')
+        + (t.account ? ` · ${t.account}` : '')
+        + (t.currency && t.opAmount ? ` · ${t.opAmount} ${t.currency}` : '')
+        + (KN[t.kind] ? ` · ${KN[t.kind]}` : '')
+        + (t.tag ? ` · мітка: ${TAGN[t.tag] || t.tag}` : '')
+        + (t.note ? ` · примітка: ${t.note}` : ''));
     if (rows.length > lim) L.push(`  … ще ${rows.length - lim}`);
-    return L.join('\n');
+    return warn + L.join('\n');
+  }
+};
+
+T.spending_by_category = {
+  desc: 'Витрати по категоріях за місяцями (як на «Огляді» апки) з ознаками регулярності: у скількох місяцях були витрати, медіана, мінімум, максимум, найбільші операції. З параметром category — те саме для підкатегорій однієї категорії. Щоб відрізнити регулярне від разового й рахувати «звичайний місяць».',
+  schema: {
+    type: 'object',
+    properties: {
+      months: { type: 'number', description: 'Скільки останніх повних місяців (типово 6, не більше, ніж у знімку)' },
+      category: { type: 'string', description: 'Розкласти одну категорію на підкатегорії' }
+    }
+  },
+  run(a) {
+    a = a || {};
+    const s = snap(), warn = snapWarn(s);
+    if (!s || !Array.isArray(s.cats)) return warn + 'Без знімка апки категорій по місяцях немає.';
+    const full = (s.months || []).filter(m => m.full).map(m => m.ym).slice(-(a.months || 6));
+    if (!full.length) return warn + 'Повних місяців у даних ще немає.';
+    /* Ознаки рахуються за вікном, яке попросили, а не за всіма місяцями
+       знімка: інакше «у скількох місяцях» не збігалось би з таблицею поруч. */
+    const st = byM => {
+      const v = full.map(ym => byM[ym] || 0), o = [...v].sort((x, y) => x - y), h = o.length >> 1;
+      return { v, n: v.filter(x => x > 0).length, med: o.length % 2 ? o[h] : (o[h - 1] + o[h]) / 2, min: o[0], max: o[o.length - 1] };
+    };
+    const table = (list, head, title) => {
+      const L = [title, `| ${head} | ${full.join(' | ')} | міс. | медіана | мін | макс |`,
+        `|---|${full.map(() => '---:').join('|')}|---:|---:|---:|---:|`];
+      for (const c of list) {
+        const x = st(c.byM || {});
+        if (x.n) L.push(`| ${c.k} | ${x.v.map(n0).join(' | ')} | ${x.n} | ${n0(x.med)} | ${n0(x.min)} | ${n0(x.max)} |`);
+      }
+      return L;
+    };
+    let L;
+    if (a.category) {
+      const c = s.cats.find(c => c.k.toLowerCase() === String(a.category).toLowerCase());
+      if (!c) return warn + `Категорії «${a.category}» з витратами за ці місяці немає. Є: ${s.cats.map(c => c.k).join(', ')}.`;
+      L = table(c.subs || [], 'Підкатегорія', `Підкатегорії «${c.k}» по місяцях (у гривні; «міс.» — у скількох місяцях були витрати):`);
+      if (c.top && c.top.length) L.push('', 'Найбільші операції:', ...c.top.map(t => `  ${t.date}  ${n2(t.amt)} ₴  ${t.merchant}`));
+    } else {
+      L = table(s.cats, 'Категорія', 'Категорії по місяцях (у гривні; «міс.» — у скількох місяцях були витрати):');
+      L.push('', 'Найбільші операції в категоріях:');
+      for (const c of s.cats.slice(0, 15)) if (c.top && c.top.length)
+        L.push(`  ${c.k}: ` + c.top.map(t => `${t.date} ${n0(t.amt)} ₴ ${t.merchant}`).join('; '));
+      const tg = Object.entries(s.tags || {});
+      if (tg.length) {
+        L.push('', 'Мітки переказів:');
+        for (const [k, byM] of tg) L.push(`  ${TAGN[k] || k}: ` + Object.entries(byM).sort().map(([m, v]) => `${m} ${n0(v)} ₴`).join('; '));
+      }
+    }
+    return warn + L.join('\n');
   }
 };
 
 T.subscriptions = {
-  desc: 'Підписки: підтверджені й додані вручну, суми на місяць і на рік, дати найближчих списань.',
+  desc: 'Підписки: активні й зупинені окремо, суми на місяць і на рік, дати останнього й наступного списання — як у вкладці «Підписки» апки.',
   schema: { type: 'object', properties: {} },
   run() {
+    const PN = { week: 'щотижня', '2weeks': 'раз на 2 тижні', month: 'щомісяця', quarter: 'щокварталу', half: 'раз на пів року', year: 'щороку' };
+    const s = snap(), warn = snapWarn(s);
+    const line = x => `  ${x.name || x.merchant}: ${n0(x.amount || 0)} ₴ ${PN[x.period] || x.period}`
+      + (x.ccy && x.ccy !== 'UAH' && x.famt ? ` (${x.famt} ${x.ccy})` : '')
+      + (x.last ? ` · останнє ${x.last}` : '') + (x.next ? ` · наступне ${x.next}` : '')
+      + (x.src ? ` · ${x.src}` : '') + (x.note ? ` · ${x.note}` : '');
+    if (s && Array.isArray(s.subs)) {
+      /* Знайдені апкою підписки зберігають у стані лише правки, а суму
+         рахує апка — тому беремо її зі знімка, а не з state.json (звідти
+         непоправлені підписки виходили з 0 ₴). Зупинені — окремо й поза
+         сумою, як у зведенні. */
+      if (!s.subs.length) return warn + 'Підписок не збережено.';
+      const live = s.subs.filter(x => x.live), off = s.subs.filter(x => !x.live);
+      const perM = live.reduce((a, x) => a + (x.perMonth || 0), 0);
+      const L = ['ПІДПИСКИ (активні):', ...live.sort((x, y) => ((x.next || '') < (y.next || '') ? -1 : 1)).map(line)];
+      if (off.length) L.push('', 'ЗУПИНЕНІ (не рахуються в сумі — давно не було списання):', ...off.map(line));
+      L.push(`\nРазом: ${n0(perM)} ₴/міс · ${n0(perM * 12)} ₴/рік`);
+      return warn + L.join('\n');
+    }
     const st = state();
     const man = st.subsMan || [], on = st.subsOn || {};
     const PD = { week: 7, '2weeks': 14, month: 30.4375, quarter: 91.31, half: 182.62, year: 365.25 };
-    const PN = { week: 'щотижня', '2weeks': 'раз на 2 тижні', month: 'щомісяця', quarter: 'щокварталу', half: 'раз на пів року', year: 'щороку' };
     const list = man.map(m => ({ ...m, src: 'вручну' }));
     for (const [k, v] of Object.entries(on)) {
       const name = k.split('|')[0];
       list.push({ merchant: v.merchant || name, amount: v.amount, period: v.period || 'month',
         last: v.last, ccy: v.ccy, famt: v.famt, src: 'знайдена апкою', note: v.note });
     }
-    if (!list.length) return 'Підписок не збережено.';
+    if (!list.length) return warn + 'Підписок не збережено.';
     let perM = 0;
     const L = ['ПІДПИСКИ:'];
-    for (const s of list) {
-      const d = PD[s.period] || 30.4375;
-      const amt = s.amount || 0;
-      perM += amt * 30.4375 / d;
-      L.push(`  ${s.merchant}: ${n0(amt)} ₴ ${PN[s.period] || s.period}`
-        + (s.ccy && s.ccy !== 'UAH' && s.famt ? ` (${s.famt} ${s.ccy})` : '')
-        + (s.last ? ` · останнє ${s.last}` : '') + ` · ${s.src}`
-        + (s.note ? ` · ${s.note}` : ''));
-    }
+    for (const x of list) { perM += (x.amount || 0) * 30.4375 / (PD[x.period] || 30.4375); L.push(line(x)); }
     L.push(`\nРазом: ${n0(perM)} ₴/міс · ${n0(perM * 12)} ₴/рік`);
-    return L.join('\n');
+    return warn + L.join('\n');
   }
 };
 

@@ -79,7 +79,7 @@ node mcp/selftest.js
 (`update-key.pub`); `native_csp.rs` + `safety.rs` — CSP і захисні перевірки.
 Токени — лише в Диспетчері облікових даних Windows.
 
-**MCP** (`mcp/groshi-mcp.js` — лише stdio-протокол, `mcp/tools.js` — 11
+**MCP** (`mcp/groshi-mcp.js` — лише stdio-протокол, `mcp/tools.js` — 12
 інструментів) — сервер лише для читання даних апки, без мережевого коду й без
 коду запису. `mcp/mononorm.js` — копія `desktop/dist/mononorm.js` (джерело);
 змінюючи одну, синхронізувати другу — рівність сторожить

@@ -30,7 +30,7 @@ const exit = await new Promise(res => {
 assert.ok(!exit.hung, 'імпорт tools.js завис: процес не вийшов сам за 2 с (stdin відкритий)');
 assert.equal(exit.code, 0, se);
 const o = JSON.parse(so);
-assert.equal(o.keys.length, 11, 'очікувано 11 інструментів, є ' + o.keys.length);
+assert.equal(o.keys.length, 12, 'очікувано 12 інструментів, є ' + o.keys.length);
 for (const n of NAMES) assert.ok(o.keys.includes(n), 'бракує ' + n);
 assert.deepEqual(o.exp.sort(), ['DIR', 'T', 'state', 'txAll']);
 assert.equal(o.tx, 'function');
@@ -46,7 +46,7 @@ p.kill();
 const msgs = out.trim().split('\n').filter(Boolean).map(JSON.parse);
 const init = msgs.find(m => m.id === 1), list = msgs.find(m => m.id === 2);
 assert.ok(init && init.result, 'initialize без відповіді');
-assert.equal(list.result.tools.length, 11);
+assert.equal(list.result.tools.length, 12);
 
 // 3) market: лише кеш на диску. Штучні теки; форми файлів — з quotes.rs / nbu.rs / main.rs (fx).
 const runMarket = dir => {
