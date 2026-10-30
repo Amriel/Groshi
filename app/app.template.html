@@ -2526,7 +2526,9 @@ svg.sprite{position:absolute;width:0;height:0}
       «Сховати повністю» прибирає зі списків <b>лише перекази між власними рахунками</b> —
       зняття готівки й поповнення банок залишаються на видноті.
       «Не рахувати» тримає поза підсумками, як і раніше, все разом:
-      перекази, готівку і банки.</p>
+      перекази, готівку і банки. «Рахувати як звичайні» рахує перекази людям
+      і готівку. Перекази між власними рахунками й інвестиції не рахуються
+      витратами ніколи.</p>
     <div class="fieldrow">
       <select id="moveMode">
         <option value="skip">Показувати, але не рахувати</option>
@@ -2751,7 +2753,14 @@ let EXCL = new Set(store.get('excluded', []));
 const saveExcl = () => store.set('excluded', [...EXCL]);
 const exKeys = t => ['cat:'+catOf(t), 'sub:'+catOf(t)+'|'+subOf(t), 'merch:'+t.merchant];
 const isExcluded = t => exKeys(t).some(k => EXCL.has(k));
-const isSpend  = t => t.dir==='expense' && !(skipMove() && MOVE.has(catOf(t))) && !isExcluded(t);
+/* Перекази між власними рахунками й гроші, відкладені до брокера, — не
+   споживання і не заробіток у ЖОДНОМУ режимі. Режим «Рахувати як звичайні»
+   існує заради переказів людям і готівки, але тягнув за собою й рух між
+   своїми рахунками: серпень 2026 показав 1,49 млн «витрат», з них 898 тис.
+   — гроші, перекладені з ФОП на картку й назад (рішення власника 30.10). */
+const NEVER = new Set(['Між рахунками','Інвестиції']);
+const isNever = t => NEVER.has(catOf(t));
+const isSpend  = t => t.dir==='expense' && !isNever(t) && !(skipMove() && MOVE.has(catOf(t))) && !isExcluded(t);
 /* Надходження мусять фільтруватись ТАК САМО, як витрати.
    Доти, доки цього не було, переказ між власними рахунками рахувався
    однобоко: списання з ФОП відсіювалось як рух коштів, а зарахування на
@@ -2778,14 +2787,14 @@ const rfnBack = t => {                     // чим повернули цю п�
 };
 const rfn0 = id => { const x = TX.find(v=>v.id===id); return x ? rfn(x) : false; };
 
-const isIncome = t => t.dir==='income' && !rfn(t)
+const isIncome = t => t.dir==='income' && !rfn(t) && !isNever(t)
   && !(skipMove() && MOVE.has(catOf(t))) && !isExcluded(t);
 /* Повернення — не дохід. Замовлення скасували, гроші повернулись: це
    мінус до витрати, і рахувати його заробітком означає роздути й дохід,
    і витрати одночасно на ту саму суму. Тому воно бере участь у витратах
    зі знаком мінус — і в підсумку місяця, і в категорії, куди пішла
    первісна покупка. */
-const isRefund = t => t.dir==='income' && rfn(t)
+const isRefund = t => t.dir==='income' && rfn(t) && !isNever(t)
   && !(skipMove() && MOVE.has(catOf(t))) && !isExcluded(t);
 const inSpend  = t => isSpend(t) || isRefund(t);        // бере участь у витратах
 const spendAmt = t => isSpend(t) ? t.amount : (isRefund(t) ? -t.amount : 0);

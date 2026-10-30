@@ -31,6 +31,19 @@ export function syntheticTx(days = 120) {
         mcc, cat, sub, account: 'Чорна картка', acctype: 'black',
       });
     }
+    /* Рух коштів і перекази людям — раз на десять днів: потрібні пробам
+       підсумків (advdata.mjs), а частіше вони б перекосили решту картинки. */
+    if (d % 10 === 5) {
+      const ex = (cat, sub, amount, dir = 'expense', merchant = sub) => out.push({
+        id: 's' + (++n), date, time: '18:00', merchant, amount, dir, conf: 'mono',
+        balance: 50000, mcc: '', cat, sub, account: 'Чорна картка', acctype: 'black',
+      });
+      ex('Між рахунками', 'Свої рахунки', 15000);
+      ex('Між рахунками', 'Свої рахунки', 15000, 'income');
+      ex('Інвестиції', 'Брокер', 8000, 'expense', 'TransferGo');
+      ex('Перекази', 'Людям', 2500, 'expense', 'Олена П.');
+      ex('Готівка', 'Банкомат', 3000, 'expense', 'Банкомат');
+    }
   }
   return out;
 }
