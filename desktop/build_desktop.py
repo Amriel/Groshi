@@ -288,8 +288,11 @@ MONO_HTML = """  <div class="card" data-sec="src">
   </div>
 
 """
-tpl = sub(tpl, '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Дані</h2></div>',
-          MONO_HTML + '  <div class="card" data-sec="app">\n    <div class="cardhead"><h2>Дані</h2></div>',
+# Усі десктопні вставки поки що йдуть у панель «Дані і бекап» за маркером
+# (розкладати їх по своїх панелях — окреме завдання); порядок збережено:
+# Monobank, брокери, «Оновлення», «Застосунок».
+tpl = sub(tpl, '      <!-- desk:data -->\n',
+          MONO_HTML + '      <!-- desk:data -->\n',
           'settings')
 
 # ── 4б. екрани брокерів (тільки читання) ──────────────────────────────

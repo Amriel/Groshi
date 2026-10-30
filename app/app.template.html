@@ -1751,16 +1751,35 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
    і схована картка в gap не бере участі — інакше між розділами лишались
    би «дірки» від прихованих сусідів. Те саме для десктопних вставок. */
 #tab-settings{display:flex;flex-direction:column;gap:12px}
-/* Навігатор розділів — той самий сегмент, що й період. Рухомого
-   індикатора тут немає (три пункти, перемикання миттєве), тож активний
-   чип малює власну заливку, як на «Інвестиціях». */
-#tab-settings .periodbar .chip[aria-pressed="true"]{background:var(--surface-3)}
-/* На 390 px три назви з типовим відступом чипа (14 px) ширші за колонку
-   на ~17 px, і сегмент гортався вбік, ховаючи край «Апки і даних».
-   Сегмент на всю ширину, чипи ділять її, відступ менший. */
+/* Ліва колонка розділів + одна панель праворуч. Колонка фіксованої ширини,
+   панель — решта з обмеженням, щоб рядки не розтягувались на широкому
+   екрані. Колір є лише у квадратику іконки (його ставить JS з SETSECS):
+   ні смуг збоку, ні тонування пунктів. */
+.setwrap{display:grid;grid-template-columns:300px minmax(0,1fr);gap:32px;align-items:start}
+.setnav{display:flex;flex-direction:column;gap:12px}
+.setnavg{background:var(--surface);border-radius:14px;overflow:hidden}
+.setit{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:10px 12px;
+  text-align:left;position:relative}
+.setnavg .setit+.setit::before{content:'';position:absolute;left:52px;right:0;top:0;height:1px;background:var(--border)}
+.setit:hover{background:var(--surface-2)}
+.setit[aria-current="page"]{background:var(--surface-3)}
+.setit:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
+.setico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none}
+.setico svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.setn{flex:1;min-width:0;font-weight:500}
+.setchev{color:var(--text-mute);font-size:16px;flex:none}
+.setcnt{background:var(--accent);color:var(--accent-contrast);font-size:12px;font-weight:700;
+  border-radius:var(--radius-pill);padding:1px 8px;flex:none}
+.setcnt[hidden]{display:none}
+.setmain{max-width:760px;min-width:0}
+.setpane{display:flex;flex-direction:column;gap:12px}
+.setpane[hidden]{display:none}
+.setttl{font-size:var(--fs-2xl);font-weight:700;margin:0}
+.setsub{color:var(--text-dim);margin:-8px 0 6px}
+/* Вузький екран (панель замість списку) доробляє окреме завдання; поки що
+   колонка просто лягає над панеллю, горизонтального скролу немає. */
 @media (max-width:759px){
-  #setSeg{width:100%}
-  #setSeg .chip{flex:1 1 auto;justify-content:center;padding:0 10px}
+  .setwrap{grid-template-columns:minmax(0,1fr);gap:16px}
 }
 #rHead{cursor:pointer}
 /* Вступний абзац картки й рядок стану під діями. min-height у стану:
@@ -2393,107 +2412,56 @@ svg.sprite{position:absolute;width:0;height:0}
 
 <!-- ══════════════════ SETTINGS ══════════════════ -->
 <section id="tab-settings" hidden>
-  <!-- Розділи замість купи карток підряд: сім-десять карток однією
-       колоною змушували гортати і шукати очима. Кожна картка несе
-       data-sec, перемикач показує один розділ. Перемикач — той самий
-       сегмент, що й період (.periodbar .chip), з aria-pressed замість
-       класу .on: глобальне button.on фарбує лаймом, а лайм — за основною дією. -->
-  <div class="periodbar" id="setSeg" role="group" aria-label="Розділ налаштувань">
-    <button class="chip" data-sec="src" aria-pressed="false">Підключення</button>
-    <button class="chip" data-sec="rules" aria-pressed="false">Категорії і правила</button>
-    <button class="chip" data-sec="app" aria-pressed="false">Апка і дані</button>
-    <button class="chip" data-sec="adv" aria-pressed="false">Порадник</button>
-  </div>
-
-  <div class="card" data-sec="src" id="srcNote" hidden>
-    <div class="cardhead"><h2>Банки і брокери</h2></div>
-    <p class="muted setlead">Monobank, Interactive Brokers і Binance підключаються
-      в десктопному застосунку — браузерний файл не має ні сховища ключів, ні дозволу
-      ходити на їхні домени. Тут працює лише імпорт виписки ПриватБанку нижче.</p>
-  </div>
-
-  <!-- Розділ «Порадник»: налаштування, які раніше ховались у розкривному блоці внизу вкладки Порадника
-       (власник шукав їх у «Ще» і не знаходив). Ідентифікатори полів ті самі. У браузерній збірці
-       замість карток — нотатка advSetNote (див. setSecApply). -->
-  <div class="card" data-sec="adv" id="advSetNote" hidden>
-    <div class="cardhead"><h2>Порадник</h2></div>
-    <p class="muted setlead">Порадник працює лише в десктопній версії: він запускає Claude Code,
-      LM Studio або звертається до API Anthropic з цього комп'ютера.</p>
-  </div>
-  <div class="card advsc" data-sec="adv" id="advSetCloud" hidden>
-    <div class="cardhead"><h2>Порадник у хмарі</h2></div>
-    <div class="row advrw">
-      <div class="grow"><b id="advCloudState">Вимкнено</b>
-        <div class="muted privd">Anthropic (Claude Code або API): ваші питання, знеособлене зведення витрат і
-          портфеля; назви клієнтів, проєктів і платників приховано. Локальна модель цього дозволу не потребує.</div></div>
-      <button class="btn privbtn" id="advCloudBtn" aria-pressed="false">Увімкнути</button>
-    </div>
-  </div>
-  <div class="card advsc" data-sec="adv" id="advSetCc" hidden>
-    <div class="cardhead"><h2>Claude Code</h2></div>
-    <div class="stack">
-      <div class="row advrw">
-        <div class="grow"><b id="advCcState">Перевіряю вхід…</b>
-          <div class="muted privd" id="advCcHint"></div></div>
-        <button class="btn" id="advCcCheck">Перевірити ще раз</button>
-        <button class="btn pri" id="advCcLogin" hidden>Увійти</button>
+  <!-- Ліва колонка розділів (#setNav, будується з SETSECS у JS) і праворуч одна
+       панель .setpane. Колонка замінила сегмент із чотирьох чипів: розділів стало
+       десять, у чипи вони не влазять, а групи з іконками читаються одразу.
+       Видимість — на рівні панелі, окремі картки data-sec більше не несуть.
+       Маркери desk:* — місця, куди desktop/build_desktop.py вставляє десктопні картки. -->
+  <div class="setwrap">
+    <nav class="setnav" id="setNav" aria-label="Розділи налаштувань"></nav>
+    <div class="setmain">
+  <section class="setpane" data-sec="upd" hidden>
+    <h2 class="setttl">Оновлення</h2>
+    <p class="setsub">Версія застосунку та джерело оновлень</p>
+      <!-- desk:upd -->
+  </section>
+  <section class="setpane" data-sec="bank" hidden>
+    <h2 class="setttl">Банки</h2>
+    <p class="setsub">Звідки апка бере операції</p>
+      <div class="card" id="srcNote" hidden>
+        <div class="cardhead"><h2>Банки</h2></div>
+        <p class="muted setlead">Monobank підключається в десктопному застосунку — браузерний файл
+          не має ні сховища ключів, ні дозволу ходити на його домен. Тут працює лише імпорт виписки
+          ПриватБанку нижче.</p>
       </div>
-      <div class="advmdl">
-        <label class="mf"><span>Модель Claude</span>
-          <select id="advModel" aria-label="Модель Claude"></select></label>
-        <button class="btn" id="advModelRefresh">Оновити список</button>
-      </div>
-      <p class="muted subhint" id="advModelHint"></p>
-      <label class="mf" id="advCcEffortW" hidden><span>Effort (глибина міркування)</span>
-        <select id="advCcEffort" aria-label="Effort"></select></label>
-      <div class="row advrw">
-        <p class="muted subhint grow" id="advVer"></p>
-        <button class="btn" id="advCcUpdate" hidden>Оновити Claude Code</button>
-      </div>
-      <p class="muted subhint" id="advUpdHint"></p>
-      <label class="muted optlabel" id="advAutoUpdW" hidden><input type="checkbox" id="advAutoUpd"> Оновлювати Claude Code автоматично</label>
-      <p class="muted subhint" id="advAutoUpdSt"></p>
+      <!-- desk:bank -->
+  <div class="card">
+    <div class="cardhead"><h2>ПриватБанк — виписка</h2><span class="hint" id="pvHint"></span></div>
+    <p class="muted setlead">Приват API для фізосіб не дає, але виписку віддає файлом:
+      <b>Приват24 → Мої рахунки → Виписка → Експорт → CSV</b>. Імпортуйте її сюди — операції
+      стануть поруч із Monobank, правила категорій діятимуть і на них.
+      Повторний імпорт того ж періоду безпечний: однакові операції не дублюються.</p>
+    <div class="fieldrow">
+      <button class="btn" id="pvImport">Імпортувати виписку (CSV)</button>
+      <button class="btn" id="pvClear" hidden>Прибрати імпортоване</button>
+      <input type="file" id="pvFile" accept=".csv" hidden>
     </div>
+    <p class="muted setmsg" id="pvMsg"></p>
   </div>
-  <div class="card advsc" data-sec="adv" id="advSetLocal" hidden>
-    <div class="cardhead"><h2>Локальна модель (LM Studio)</h2></div>
-    <div class="stack">
-      <label class="mf"><span>Адреса сервера (лише цей комп'ютер)</span>
-        <input id="advLocalUrl" placeholder="http://localhost:1234/v1" autocomplete="off"></label>
-      <label class="mf"><span>Модель</span>
-        <select id="advLocalModel" aria-label="Модель"></select></label>
-      <div class="cluster">
-        <button class="btn" id="advLocalRefresh">Оновити список</button>
-        <button class="btn" id="advLmsStart">Запустити сервер LM Studio</button>
-        <label class="muted optlabel"><input type="checkbox" id="advLocalTools"> З інструментами</label>
+  </section>
+  <section class="setpane" data-sec="inv" hidden>
+    <h2 class="setttl">Брокери й біржі</h2>
+    <p class="setsub">Інвестиційні рахунки та їхня синхронізація</p>
+      <div class="card" id="invNote" hidden>
+        <div class="cardhead"><h2>Брокери й біржі</h2></div>
+        <p class="muted setlead">Interactive Brokers і Binance підключаються в застосунку.</p>
       </div>
-      <p class="muted subhint" id="advLocalHint"></p>
-    </div>
-  </div>
-  <div class="card advsc" data-sec="adv" id="advSetApi" hidden>
-    <div class="cardhead"><h2>API Anthropic</h2></div>
-    <div class="stack">
-      <div class="cluster">
-        <span id="advKeyState">Ключ API: перевіряю…</span>
-        <span id="advKeySetW"><button class="btn" id="advKeySet">Зберегти ключ…</button></span>
-        <button class="btn" id="advKeyClear">Видалити ключ</button>
-      </div>
-      <label class="mf"><span>Модель (порожньо — claude-opus-5-5)</span>
-        <input id="advApiModel" placeholder="claude-opus-5-5" autocomplete="off"></label>
-      <label class="mf"><span>Effort (глибина міркування)</span>
-        <select id="advApiEffort" aria-label="Effort"></select></label>
-    </div>
-  </div>
-  <div class="card advsc" data-sec="adv" id="advSetPrompt" hidden>
-    <div class="cardhead"><h2>Інструкція</h2></div>
-    <div class="stack">
-      <label class="mf"><span>Системна інструкція Порадника</span>
-        <textarea id="advPrompt" rows="10"></textarea></label>
-      <div class="cluster"><button class="btn" id="advPromptReset">Повернути стандартну</button></div>
-    </div>
-  </div>
-
-  <div class="card" data-sec="rules">
+      <!-- desk:inv -->
+  </section>
+  <section class="setpane" data-sec="rules" hidden>
+    <h2 class="setttl">Категорії і правила</h2>
+    <p class="setsub">Як операції потрапляють у категорії та що рахується витратами</p>
+  <div class="card">
     <div class="cardhead" id="rHead">
       <span class="tw-arrow" id="rArrow">▾</span>
       <h2>Власні категорії</h2>
@@ -2519,7 +2487,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <div id="rules"></div>
     </div><!-- /rBody -->
   </div>
-  <div class="card" data-sec="rules">
+  <div class="card">
     <div class="cardhead"><h2>Не рахується як витрати</h2></div>
     <p class="muted setlead">У «Категоріях» натисніть ⊗ на будь-якому рядку —
       категорії, підкатегорії чи мерчанті — і він перестане потрапляти в суму витрат.
@@ -2527,7 +2495,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <div id="excl"></div>
   </div>
 
-  <div class="card" data-sec="rules">
+  <div class="card">
     <div class="cardhead"><h2>Перекази між своїми рахунками</h2><span class="hint" id="moveHint"></span></div>
     <p class="muted setlead">Переказ самому собі — не заробіток і не витрата.
       «Сховати повністю» прибирає зі списків <b>лише перекази між власними рахунками</b> —
@@ -2545,7 +2513,7 @@ svg.sprite{position:absolute;width:0;height:0}
     </div>
   </div>
 
-  <div class="card" data-sec="rules">
+  <div class="card">
     <div class="cardhead"><h2>Робочі витрати (ФОП)</h2><span class="hint" id="workHint"></span></div>
     <p class="muted setlead">Категорії, на які ви витрачаєте для роботи, — наприклад, оренда GPU і софт.
       Порадник рахує їх окремо від особистих і радить економію насамперед на особистому.
@@ -2553,8 +2521,36 @@ svg.sprite{position:absolute;width:0;height:0}
       в іншу категорію в картці операції.</p>
     <div class="txtags" id="workCats" role="group" aria-label="Робочі категорії"></div>
   </div>
-
-  <div class="card" data-sec="app">
+  </section>
+  <section class="setpane" data-sec="notif" hidden>
+    <h2 class="setttl">Сповіщення</h2>
+    <p class="setsub">Про що застосунок нагадує</p>
+  <div class="card">
+    <div class="cardhead"><h2>Сповіщення інвестицій</h2></div>
+    <p class="muted setlead">Системні повідомлення від застосунку: різкий рух
+      позиції за день і день виплати дивідендів. Watchlist-цілі сповіщаються завжди.</p>
+    <div class="fieldrow loose">
+      <label class="muted optlabel">
+        Рух позиції від ±<input id="alertPct" class="setnum" type="number" min="0" step="0.5">%
+        <span class="setnote">(0 — вимкнено)</span></label>
+      <label class="muted optlabel">
+        <input type="checkbox" id="divNotifyCk"> День виплати дивідендів</label>
+    </div>
+  </div>
+  <div class="card">
+    <div class="cardhead"><h2>Рахунки клієнтам</h2></div>
+    <p class="muted setlead">Через скільки днів неоплачений рахунок вважати простроченим —
+      такий випливе на Огляді з готовим текстом нагадування.</p>
+    <div class="fieldrow">
+      <label class="muted optlabel">
+        Нагадувати після <input id="invcDueDays" class="setnum" type="number" min="1" max="180" step="1"> днів</label>
+    </div>
+  </div>
+  </section>
+  <section class="setpane" data-sec="loc" hidden>
+    <h2 class="setttl">Валюта і мова</h2>
+    <p class="setsub">Як показувати суми й новини</p>
+  <div class="card">
     <div class="cardhead"><h2>Валюта</h2><span class="hint" id="ccyHint"></span></div>
     <p class="muted setlead">Усе зберігається в гривні — валюта тут лише для показу.
       Перемикання нічого не змінює в даних: суми діляться на курс під час малювання.
@@ -2567,8 +2563,20 @@ svg.sprite{position:absolute;width:0;height:0}
       </select>
     </div>
   </div>
-
-  <div class="card" data-sec="src" id="privacyCard">
+  <div class="card">
+    <div class="cardhead"><h2>Мова</h2></div>
+    <p class="muted setlead">Застосунок — українською. Новини по акціях приходять
+      англійською з Yahoo; заголовки можна автоматично перекладати.</p>
+    <div class="fieldrow">
+      <label class="muted optlabel">
+        <input type="checkbox" id="newsUk"> Перекладати заголовки новин українською</label>
+    </div>
+  </div>
+  </section>
+  <section class="setpane" data-sec="priv" hidden>
+    <h2 class="setttl">Приватність і замок</h2>
+    <p class="setsub">Що дозволено надсилати назовні і хто бачить дані</p>
+  <div class="card" id="privacyCard">
     <div class="cardhead"><h2>Приватність і зовнішні сервіси</h2></div>
     <p class="muted setlead">Необов’язкові запити вимкнені, доки ви їх не дозволите.
       Банк і брокери працюють окремо за вашими підключеннями. Зовнішній сервіс бачить вашу IP-адресу та запит.
@@ -2576,22 +2584,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <div id="privacyOptions"></div>
     <p class="muted setmsg" id="privacyStatus" role="status"></p>
   </div>
-
-  <div class="card" data-sec="src">
-    <div class="cardhead"><h2>ПриватБанк — виписка</h2><span class="hint" id="pvHint"></span></div>
-    <p class="muted setlead">Приват API для фізосіб не дає, але виписку віддає файлом:
-      <b>Приват24 → Мої рахунки → Виписка → Експорт → CSV</b>. Імпортуйте її сюди — операції
-      стануть поруч із Monobank, правила категорій діятимуть і на них.
-      Повторний імпорт того ж періоду безпечний: однакові операції не дублюються.</p>
-    <div class="fieldrow">
-      <button class="btn" id="pvImport">Імпортувати виписку (CSV)</button>
-      <button class="btn" id="pvClear" hidden>Прибрати імпортоване</button>
-      <input type="file" id="pvFile" accept=".csv" hidden>
-    </div>
-    <p class="muted setmsg" id="pvMsg"></p>
-  </div>
-
-  <div class="card" data-sec="app">
+  <div class="card">
     <div class="cardhead"><h2>Замок на вхід</h2><span class="hint" id="pinHint"></span></div>
     <p class="muted setlead">Необовʼязково. Коли ввімкнено, апка при запуску питає код —
       щоб той, хто сів за компʼютер, не побачив ваші операції одним кліком.
@@ -2604,41 +2597,17 @@ svg.sprite{position:absolute;width:0;height:0}
         хв. без дій <span class="setnote">(0 — тільки при запуску)</span></label>
     </div>
   </div>
-
-  <div class="card" data-sec="app">
-    <div class="cardhead"><h2>Рахунки клієнтам</h2></div>
-    <p class="muted setlead">Через скільки днів неоплачений рахунок вважати простроченим —
-      такий випливе на Огляді з готовим текстом нагадування.</p>
-    <div class="fieldrow">
-      <label class="muted optlabel">
-        Нагадувати після <input id="invcDueDays" class="setnum" type="number" min="1" max="180" step="1"> днів</label>
-    </div>
-  </div>
-
-  <div class="card" data-sec="app">
-    <div class="cardhead"><h2>Сповіщення інвестицій</h2></div>
-    <p class="muted setlead">Системні повідомлення від застосунку: різкий рух
-      позиції за день і день виплати дивідендів. Watchlist-цілі сповіщаються завжди.</p>
-    <div class="fieldrow loose">
-      <label class="muted optlabel">
-        Рух позиції від ±<input id="alertPct" class="setnum" type="number" min="0" step="0.5">%
-        <span class="setnote">(0 — вимкнено)</span></label>
-      <label class="muted optlabel">
-        <input type="checkbox" id="divNotifyCk"> День виплати дивідендів</label>
-    </div>
-  </div>
-
-  <div class="card" data-sec="app">
-    <div class="cardhead"><h2>Мова</h2></div>
-    <p class="muted setlead">Застосунок — українською. Новини по акціях приходять
-      англійською з Yahoo; заголовки можна автоматично перекладати.</p>
-    <div class="fieldrow">
-      <label class="muted optlabel">
-        <input type="checkbox" id="newsUk"> Перекладати заголовки новин українською</label>
-    </div>
-  </div>
-
-  <div class="card" data-sec="app" id="bkCard">
+  </section>
+  <section class="setpane" data-sec="run" hidden>
+    <h2 class="setttl">Запуск і синхронізація</h2>
+    <p class="setsub">Автозапуск, трей і розклад синхронізації</p>
+      <!-- desk:run -->
+  </section>
+  <section class="setpane" data-sec="data" hidden>
+    <h2 class="setttl">Дані і бекап</h2>
+    <p class="setsub">Копії, експорт і перевірка якості</p>
+      <!-- desk:data -->
+  <div class="card" id="bkCard">
     <div class="cardhead"><h2>Бекап</h2><span class="hint" id="bkHint"></span></div>
     <p class="muted setlead">Банк віддає лише 31 добу історії — все старше,
       разом із категоріями, правилами, примітками і знімками крипти, живе тільки у файлах апки.
@@ -2652,8 +2621,7 @@ svg.sprite{position:absolute;width:0;height:0}
     </div>
     <p class="muted setmsg" id="bkMsg"></p>
   </div>
-
-  <div class="card" data-sec="app">
+  <div class="card">
     <div class="cardhead"><h2>Дані</h2></div>
     <div class="fieldrow">
       <button class="btn" id="expCsv">Експорт CSV</button>
@@ -2662,9 +2630,96 @@ svg.sprite{position:absolute;width:0;height:0}
     </div>
     <p class="muted setmsg" id="dataInfo"></p>
   </div>
-  <div class="card" data-sec="app">
+  <div class="card">
     <div class="cardhead"><h2>Якість даних</h2></div>
     <div id="quality"></div>
+  </div>
+  </section>
+  <section class="setpane" data-sec="adv" hidden>
+    <h2 class="setttl">Порадник</h2>
+    <p class="setsub">Модель, доступ і інструкція</p>
+  <!-- Розділ «Порадник»: налаштування, які раніше ховались у розкривному блоці внизу вкладки Порадника
+       (власник шукав їх у «Ще» і не знаходив). Ідентифікатори полів ті самі. У браузерній збірці
+       замість карток — нотатка advSetNote (див. setSecApply). -->
+  <div class="card" id="advSetNote" hidden>
+    <div class="cardhead"><h2>Порадник</h2></div>
+    <p class="muted setlead">Порадник працює лише в десктопній версії: він запускає Claude Code,
+      LM Studio або звертається до API Anthropic з цього комп'ютера.</p>
+  </div>
+  <div class="card advsc" id="advSetCloud" hidden>
+    <div class="cardhead"><h2>Порадник у хмарі</h2></div>
+    <div class="row advrw">
+      <div class="grow"><b id="advCloudState">Вимкнено</b>
+        <div class="muted privd">Anthropic (Claude Code або API): ваші питання, знеособлене зведення витрат і
+          портфеля; назви клієнтів, проєктів і платників приховано. Локальна модель цього дозволу не потребує.</div></div>
+      <button class="btn privbtn" id="advCloudBtn" aria-pressed="false">Увімкнути</button>
+    </div>
+  </div>
+  <div class="card advsc" id="advSetCc" hidden>
+    <div class="cardhead"><h2>Claude Code</h2></div>
+    <div class="stack">
+      <div class="row advrw">
+        <div class="grow"><b id="advCcState">Перевіряю вхід…</b>
+          <div class="muted privd" id="advCcHint"></div></div>
+        <button class="btn" id="advCcCheck">Перевірити ще раз</button>
+        <button class="btn pri" id="advCcLogin" hidden>Увійти</button>
+      </div>
+      <div class="advmdl">
+        <label class="mf"><span>Модель Claude</span>
+          <select id="advModel" aria-label="Модель Claude"></select></label>
+        <button class="btn" id="advModelRefresh">Оновити список</button>
+      </div>
+      <p class="muted subhint" id="advModelHint"></p>
+      <label class="mf" id="advCcEffortW" hidden><span>Effort (глибина міркування)</span>
+        <select id="advCcEffort" aria-label="Effort"></select></label>
+      <div class="row advrw">
+        <p class="muted subhint grow" id="advVer"></p>
+        <button class="btn" id="advCcUpdate" hidden>Оновити Claude Code</button>
+      </div>
+      <p class="muted subhint" id="advUpdHint"></p>
+      <label class="muted optlabel" id="advAutoUpdW" hidden><input type="checkbox" id="advAutoUpd"> Оновлювати Claude Code автоматично</label>
+      <p class="muted subhint" id="advAutoUpdSt"></p>
+    </div>
+  </div>
+  <div class="card advsc" id="advSetLocal" hidden>
+    <div class="cardhead"><h2>Локальна модель (LM Studio)</h2></div>
+    <div class="stack">
+      <label class="mf"><span>Адреса сервера (лише цей комп'ютер)</span>
+        <input id="advLocalUrl" placeholder="http://localhost:1234/v1" autocomplete="off"></label>
+      <label class="mf"><span>Модель</span>
+        <select id="advLocalModel" aria-label="Модель"></select></label>
+      <div class="cluster">
+        <button class="btn" id="advLocalRefresh">Оновити список</button>
+        <button class="btn" id="advLmsStart">Запустити сервер LM Studio</button>
+        <label class="muted optlabel"><input type="checkbox" id="advLocalTools"> З інструментами</label>
+      </div>
+      <p class="muted subhint" id="advLocalHint"></p>
+    </div>
+  </div>
+  <div class="card advsc" id="advSetApi" hidden>
+    <div class="cardhead"><h2>API Anthropic</h2></div>
+    <div class="stack">
+      <div class="cluster">
+        <span id="advKeyState">Ключ API: перевіряю…</span>
+        <span id="advKeySetW"><button class="btn" id="advKeySet">Зберегти ключ…</button></span>
+        <button class="btn" id="advKeyClear">Видалити ключ</button>
+      </div>
+      <label class="mf"><span>Модель (порожньо — claude-opus-5-5)</span>
+        <input id="advApiModel" placeholder="claude-opus-5-5" autocomplete="off"></label>
+      <label class="mf"><span>Effort (глибина міркування)</span>
+        <select id="advApiEffort" aria-label="Effort"></select></label>
+    </div>
+  </div>
+  <div class="card advsc" id="advSetPrompt" hidden>
+    <div class="cardhead"><h2>Інструкція</h2></div>
+    <div class="stack">
+      <label class="mf"><span>Системна інструкція Порадника</span>
+        <textarea id="advPrompt" rows="10"></textarea></label>
+      <div class="cluster"><button class="btn" id="advPromptReset">Повернути стандартну</button></div>
+    </div>
+  </div>
+  </section>
+    </div>
   </div>
 </section>
 
@@ -7888,7 +7943,7 @@ function renderInv(){
     /* У браузері платформ немає зовсім — порожня картка з заголовком
        лише дублювала б пояснення вище. */
     el('invPlatCard').hidden = !desk;
-    document.querySelectorAll('[data-invgo]').forEach(g=>g.onclick=()=>go2set('src'));
+    document.querySelectorAll('[data-invgo]').forEach(g=>g.onclick=()=>go2set('inv'));
     invActions(desk);
     return;
   }
@@ -9295,7 +9350,7 @@ function invActions(desk){
     invQuotesRefresh();
   invLogosKick();      // домени вже в кеші котирувань — доберемо картинки
   invNbuKick();        // курси НБУ для податків і розкладу прибутку
-  const g2 = host.querySelector('[data-invgo2]'); if(g2) g2.onclick = ()=>go2set('src');
+  const g2 = host.querySelector('[data-invgo2]'); if(g2) g2.onclick = ()=>go2set('inv');
   host.querySelectorAll('[data-invsync]').forEach(b=>b.onclick=async ()=>{
     const which = b.dataset.invsync, D = window.__DESK__;
     const msg = el('invSyncMsg');
@@ -10941,39 +10996,98 @@ el('bizSignFile').onchange = e=>{
 bizUi();
 
 /* ── розділи налаштувань ───────────────────────────────────────────
-   Налаштування виросли до десятка карток однією колоною — все в купу. Тепер
-   чотири розділи (Підключення / Категорії і правила / Апка і дані / Порадник),
-   картки несуть data-sec, перемикач показує один розділ. go2set()
-   відкриває налаштування одразу на потрібному розділі. */
-let SETSEC = store.get('setSec', 'src');
-function setSecApply(){
-  const seg = el('setSeg');
-  if(!seg) return;
-  seg.querySelectorAll('[data-sec]').forEach(b=>{
-    b.setAttribute('aria-pressed', String(b.dataset.sec===SETSEC));
-    b.onclick = ()=>{ SETSEC = b.dataset.sec; store.set('setSec', SETSEC);
-      render(); };
-  });
-  /* Чип активного розділу може бути за краєм смуги (на 390 px «Порадник» не влазить):
-     гортаємо лише саму смугу, не сторінку. */
-  const cur = seg.querySelector('[aria-pressed="true"]');
-  if(cur){
-    const c = cur.getBoundingClientRect(), r = seg.getBoundingClientRect();
-    if(c.right > r.right) seg.scrollLeft += c.right - r.right + 8;
-    else if(c.left < r.left) seg.scrollLeft -= r.left - c.left + 8;
-  }
-  document.querySelectorAll('#tab-settings .card[data-sec]').forEach(c=>{
-    c.hidden = c.dataset.sec !== SETSEC;
-  });
-  /* Картки Порадника працюють лише в застосунку; у браузері замість них — нотатка. */
-  const desk = !!(window.__DESK__ && window.__DESK__.tauri);
-  document.querySelectorAll('#tab-settings .advsc').forEach(c=>{ c.hidden = SETSEC!=='adv' || !desk; });
-  const an = el('advSetNote'); if(an) an.hidden = SETSEC!=='adv' || desk;
-  /* браузерна примітка про підключення — лише там, де немає застосунку */
-  const sn = el('srcNote');
-  if(sn) sn.hidden = SETSEC!=='src' || !!(window.__DESK__ && window.__DESK__.tauri);
+   Десять розділів у лівій колонці (#setNav), праворуч одна панель
+   .setpane[data-sec]. Порядок і групи — SETSECS. go2set() відкриває
+   налаштування одразу на потрібному розділі; старі значення стану
+   (src, app) мігрують у setSecNorm, щоб апка не відкрилась на порожній панелі. */
+const isDesk = () => !!(window.__DESK__ && window.__DESK__.tauri);
+// desk:true — розділ існує лише в десктопі (у браузері пункт не малюється).
+const SETSECS = [
+  {k:'upd',   n:'Оновлення',              grp:1, ico:'upd',   c:'--s1', desk:true},
+  {k:'bank',  n:'Банки',                  grp:2, ico:'bank',  c:'--s6'},
+  {k:'inv',   n:'Брокери й біржі',        grp:2, ico:'inv',   c:'--s3'},
+  {k:'rules', n:'Категорії і правила',    grp:3, ico:'rules', c:'--s4'},
+  {k:'notif', n:'Сповіщення',             grp:3, ico:'notif', c:'--s2'},
+  {k:'loc',   n:'Валюта і мова',          grp:3, ico:'loc',   c:'--s7'},
+  {k:'priv',  n:'Приватність і замок',    grp:4, ico:'priv',  c:'--s5'},
+  {k:'run',   n:'Запуск і синхронізація', grp:4, ico:'run',   c:null,  desk:true},
+  {k:'data',  n:'Дані і бекап',           grp:4, ico:'data',  c:'--s8'},
+  {k:'adv',   n:'Порадник',               grp:5, ico:'adv',   c:'--s1'},
+];
+const SETICO = {
+  upd:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  bank:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/>',
+  inv:'<path d="M4 18l5-6 4 3 7-9"/>',
+  rules:'<path d="M4 7h10M4 12h16M4 17h7"/>',
+  notif:'<path d="M6 8a6 6 0 0112 0c0 7 3 8 3 8H3s3-1 3-8M10 20h4"/>',
+  loc:'<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/>',
+  priv:'<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/>',
+  run:'<path d="M12 3v9M7 6a8 8 0 1010 0"/>',
+  data:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3 3 7 3s7-1.3 7-3"/>',
+  adv:'<path d="M4 5h16v11H9l-5 4z"/>',
+};
+/* Заглушка: справжню перевірку «є нове оновлення» додає розділ «Оновлення». */
+function updPending(){ return false; }
+function setPaneHasContent(k){
+  const pane = document.querySelector('#tab-settings .setpane[data-sec="'+k+'"]');
+  return !!pane && !!pane.querySelector('.card, .setgrp, [id]');
 }
-function go2set(sec){ SETSEC = sec; store.set('setSec', sec); go('settings'); }
+function setSecsVisible(){
+  const desk = isDesk();
+  /* Десктопний розділ без жодного вмісту не показуємо: порожня панель з
+     заголовком збиває з пантелику (доки картки не розкладено по панелях). */
+  return SETSECS.filter(s => !s.desk || (desk && setPaneHasContent(s.k)));
+}
+/* Міграція: src (Підключення) → bank; app (Апка і дані) → upd у десктопі,
+   data у браузері; невідоме → перший видимий. */
+function setSecNorm(k){
+  const vis = setSecsVisible().map(s => s.k);
+  if(k === 'src') k = 'bank';
+  else if(k === 'app') k = vis.includes('upd') ? 'upd' : 'data';
+  return vis.includes(k) ? k : vis[0];
+}
+let SETSEC = store.get('setSec', 'bank');
+function setNavBuild(vis){
+  const nav = el('setNav'); if(!nav) return;
+  let h = '', g = null;
+  vis.forEach(s => {
+    if(s.grp !== g){ if(g !== null) h += '</div>'; h += '<div class="setnavg">'; g = s.grp; }
+    h += '<button class="setit" data-sec="'+s.k+'"><span class="setico" data-c="'+(s.c||'--surface-3')+'">'
+      + '<svg viewBox="0 0 24 24" aria-hidden="true">'+SETICO[s.ico]+'</svg></span>'
+      + '<span class="setn">'+s.n+'</span>'
+      + (s.k === 'upd' ? '<span class="setcnt" hidden>1</span>' : '')
+      + '<span class="setchev" aria-hidden="true">›</span></button>';
+  });
+  nav.innerHTML = h + '</div>';
+  nav.querySelectorAll('.setico').forEach(i => { i.style.background = 'var('+i.dataset.c+')'; });
+  nav.querySelectorAll('.setit').forEach(b => {
+    b.onclick = () => { SETSEC = b.dataset.sec; store.set('setSec', SETSEC); render(); };
+  });
+  nav.dataset.keys = vis.map(s => s.k).join(',');
+}
+function setSecApply(){
+  const nav = el('setNav');
+  if(!nav) return;
+  const vis = setSecsVisible();
+  SETSEC = setSecNorm(SETSEC);
+  /* Колонку малюємо один раз і далі міняємо лише aria-current і бейдж:
+     перемальовка на кожен render() скидала б фокус і наведення. */
+  if(nav.dataset.keys !== vis.map(s => s.k).join(',')) setNavBuild(vis);
+  nav.querySelectorAll('.setit').forEach(b => {
+    if(b.dataset.sec === SETSEC) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
+  const cnt = nav.querySelector('.setcnt'); if(cnt) cnt.hidden = !updPending();
+  document.querySelectorAll('#tab-settings .setpane').forEach(p => { p.hidden = p.dataset.sec !== SETSEC; });
+  /* Картки Порадника працюють лише в застосунку; у браузері замість них — нотатка. */
+  const desk = isDesk();
+  document.querySelectorAll('#tab-settings .advsc').forEach(c => { c.hidden = !desk; });
+  const an = el('advSetNote'); if(an) an.hidden = desk;
+  /* браузерні примітки про підключення — лише там, де немає застосунку */
+  const sn = el('srcNote'); if(sn) sn.hidden = desk;
+  const iv = el('invNote'); if(iv) iv.hidden = desk;
+}
+function go2set(sec){ SETSEC = setSecNorm(sec); store.set('setSec', SETSEC); go('settings'); }
 
 /* ── бекап ─────────────────────────────────────────────────────────
    Живе в застосунку: браузерний файл не має доступу до диска. */
@@ -11137,7 +11251,7 @@ async function wizard(){
       text:'Monobank віддає операції за особистим токеном.\n'
         + 'Візьміть його на api.monobank.ua (кнопка «Отримати токен») і вставте у «Налаштування → Підключення».\n\n'
         + 'Токен лягає в Диспетчер облікових даних Windows — не в файл і не в апку.' });
-    if(go1 !== null){ go2set('src'); store.set('wizDone', true); return; }
+    if(go1 !== null){ go2set('bank'); store.set('wizDone', true); return; }
   }
 
   const step2 = await uiAsk({ title:'Крок 2 · Підписки', input:false, ok:'Далі', cancel:'Пропустити',

@@ -553,7 +553,7 @@ try {
     await page.click('#advGear');
     await page.waitForSelector('#advSetLocal', {state: 'visible'});
     assert.equal(await page.evaluate(() => S.tab), 'settings');
-    assert.equal(await page.evaluate(() => document.querySelector('#setSeg [data-sec="adv"]').getAttribute('aria-pressed')), 'true');
+    assert.equal(await page.evaluate(() => document.querySelector('#setNav .setit[data-sec="adv"]').getAttribute('aria-current')), 'page');
     const cards = await page.evaluate(() => ['advSetCloud', 'advSetCc', 'advSetLocal', 'advSetApi', 'advSetPrompt']
       .map(id => !document.getElementById(id).hidden));
     assert.deepEqual(cards, [true, true, true, true, true], 'не всі картки розділу видно');

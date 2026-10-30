@@ -159,8 +159,11 @@ try {
     assert.deepEqual(await page.evaluate(() => [...WORK]), ['AI та софт'], 'типово робоча — «AI та софт»');
 
     await page.evaluate(() => go('settings'));
-    await page.locator('button.chip[data-sec="rules"]').click();
+    await page.locator('#setNav .setit[data-sec="rules"]').click();
     const chip = page.locator('#workCats .chip', {hasText: 'Продукти'});
+    // Панель «Категорії і правила» довга: без прокрутки до переліку клік гортає сторінку,
+    // і boundingBox (відносно вікна) зсувається без жодного зсуву розмітки.
+    await page.locator('#workCats').scrollIntoViewIfNeeded();
     const box0 = await page.locator('#workCats').boundingBox();
     await chip.click();
     assert.equal(await chip.getAttribute('aria-pressed'), 'true', 'чип натиснуто');
