@@ -19,7 +19,7 @@ PRIVATE_NAMES = (
     "*.private.*", "*_raw.json", "*.csv", "*.tsv", "*.xml", "*.tmp", "*.bak",
     "*.backup", "*.key", "*.pem", "*.p12", "*.pfx", "*.keystore", "*.jks",
     "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "credentials*", "secrets*",
-    "state.json", "networth.json", "inv_cache.json", "quotes.json", "nbu_rates.json",
+    "state.json", "networth.json", "inv_cache.json", "advice_cache.json", "quotes.json", "nbu_rates.json",
     "cry_hist.json", "logos.json", "dataset.json", "meta.json", "legacy.json",
     "advisor_chats.json",
 )

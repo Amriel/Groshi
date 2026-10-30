@@ -148,6 +148,8 @@ export async function openDesktop(browser, {width, height = 900, theme = 'dark',
       // капіталу (nwKick), щойно капітал більший за нуль: зі штучними
       // інвестиціями так буває на «Огляді», який обходить snap.mjs.
       if (['inv_cache_set', 'cryhist_add', 'nw_add'].includes(command)) return;
+      // Знімок для MCP: зберігаємо, щоб проба advdata.mjs бачила, що й скільки разів писалось.
+      if (command === 'advice_cache_set') { (window.__advSnaps = window.__advSnaps || []).push(args.value); return; }
       if (command === 'quotes_cached') return b.quotes;
       if (command === 'logos_cached') return {TSTA: b.logo};
       // Курс НБУ на кожну запитану дату: порожня відповідь змусила б

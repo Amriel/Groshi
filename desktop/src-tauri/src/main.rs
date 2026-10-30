@@ -546,6 +546,16 @@ fn inv_cache_set(app: State<App>, value: Value) -> Result<(), String> {
     app.st.write("inv_cache.json", &value)
 }
 
+/// Знімок для MCP «Порадника»: підсумки, категорії, мітки й підписки,
+/// пораховані апкою. MCP читає його замість власної копії логіки, яка
+/// відставала від апки (серпень: 1,49 млн у MCP проти 601 тис. у зведенні).
+/// Похідний файл: у резервну копію й перенесення теки не входить —
+/// апка перебудовує його після кожного запуску.
+#[tauri::command]
+fn advice_cache_set(app: State<App>, value: Value) -> Result<(), String> {
+    app.st.write("advice_cache.json", &value)
+}
+
 /// Сирі дані обох брокерів для фронтенду — розбирає їх invnorm.js.
 #[tauri::command]
 fn inv_raw(app: State<App>) -> Value {
@@ -1413,6 +1423,7 @@ fn main() {
             inv_raw,
             inv_cache,
             inv_cache_set,
+            advice_cache_set,
             nw_add,
             nw_all
         ])

@@ -443,6 +443,7 @@ async function monoReload(){
   bootDates();
   render();
   monoRenderState();
+  advSnapSoon();                   // нова виписка — нові підсумки для MCP
 }
 
 function monoWire(){

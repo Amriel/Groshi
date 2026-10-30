@@ -86,6 +86,7 @@
     binSync: () => inv ? inv('binance_sync') : Promise.reject('лише в застосунку'),
     invCache: () => inv ? inv('inv_cache') : Promise.resolve(null),
     invCacheSet: v => inv ? inv('inv_cache_set', { value: v }) : Promise.resolve(),
+    adviceCacheSet: v => inv ? inv('advice_cache_set', { value: v }) : Promise.resolve(),
     invRaw: () => inv ? inv('inv_raw')
       : Promise.resolve(JSON.parse(localStorage.getItem('deskInv') || 'null') || { ibkr: null, binance: null }),
     quotesSync: syms => inv ? inv('quotes_sync', { symbols: syms }) : Promise.reject('лише в застосунку'),

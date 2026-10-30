@@ -9603,6 +9603,29 @@ function advDigest(){
   out.push('', ADV_DATA_HOWTO);
   return out.join('\n');
 }
+/* ── знімок для MCP ───────────────────────────────────────────────
+   MCP читає advice_cache.json замість власних підрахунків. Пишеться лише
+   в десктопі (у браузерної збірки немає теки даних), із затримкою: серія
+   правок дає один запис, а перемикання вкладок не пише нічого — знімок
+   залежить тільки від даних і налаштувань, що змінюють підсумки. */
+const ADV_SNAP_KEYS = new Set(['rules','txCats','refunds','excluded','moveMode','txTags','txNotes',
+  'subsOn','subsOff','subsMan','manualTx','privatTx','baseCcy']);
+let _advSnapT = 0;
+function advSnapSoon(){
+  const D = window.__DESK__;
+  if(!D || !D.adviceCacheSet) return;
+  clearTimeout(_advSnapT);
+  _advSnapT = setTimeout(async () => {
+    try{
+      const app = await D.version().catch(() => '—');
+      await D.adviceCacheSet({ ...advData(), v: 1, built: new Date().toISOString(), app });
+    }catch(e){ /* знімок — допомога Порадникові; без нього MCP попередить сам */ }
+  }, 2000);
+}
+{
+  const set0 = store.set;
+  store.set = function(k, v){ const r = set0.call(this, k, v); if(ADV_SNAP_KEYS.has(k)) advSnapSoon(); return r; };
+}
 const ADV_DATA_HOWTO = `Як читати ці дані:
 - Регулярність визначай сам за ознаками категорії (у скількох місяцях, медіана, максимум). Щоразу називай, що вважаєш разовим і чому — власник виправить.
 - «Звичайний місяць» рахуй без разового; поруч показуй повний підсумок.
@@ -11725,6 +11748,7 @@ if(location.protocol.startsWith('http')){
   document.head.appendChild(l);
 }
 render();
+advSnapSoon();
 
 </script>
 </body>

@@ -10,6 +10,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import {openDesktop} from './helpers/desktop-boot.mjs';
 
 const require = createRequire(import.meta.url);
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -133,6 +134,34 @@ try {
     assert.deepEqual(errors, [], 'порожні дані: помилки сторінки');
     console.log('advdata: порожня апка — OK');
     await context.close();
+  }
+
+  /* Десктоп пише знімок advice_cache.json для MCP: один раз після старту
+     й по одному разу після кожної правки, що змінює підсумки (debounce —
+     серія правок не дає серії записів). */
+  {
+    const {ctx, page, errors} = await openDesktop(browser, {width: 1400});
+    const snaps = () => page.evaluate(() => (window.__advSnaps || []).length);
+    await page.waitForTimeout(3500);
+    assert.equal(await snaps(), 1, 'після старту — рівно один запис знімка');
+    const v = await page.evaluate(() => window.__advSnaps[0]);
+    assert.equal(v.v, 1, 'версія формату');
+    assert.ok(v.months.length > 0 && v.cats.length > 0 && Object.keys(v.tx).length > 0, 'знімок не порожній');
+    assert.ok(v.built && v.today && v.app, 'built/today/app');
+    await page.evaluate(() => { const t = TX.find(x => catOf(x) === 'Перекази'); setTxTag(t.id, 'gift'); });
+    await page.waitForTimeout(2600);
+    assert.equal(await snaps(), 2, 'мітка — ще один запис');
+    assert.ok(Object.values(await page.evaluate(() => window.__advSnaps[1].tx)).some(r => r.tag === 'gift'), 'мітка в знімку');
+    await page.evaluate(() => { RULES.push({match: 'Таксі', cat: 'Транспорт'}); store.set('rules', RULES); store.set('rules', RULES); });
+    await page.waitForTimeout(2600);
+    assert.equal(await snaps(), 3, 'дві правки поспіль — один запис');
+    await page.evaluate(() => go('cats'));
+    await page.waitForTimeout(2600);
+    assert.equal(await snaps(), 3, 'перемикання вкладки знімок не пише');
+    assert.deepEqual(await page.evaluate(() => window.__unexpectedCommands), [], 'неочікувані IPC-команди');
+    assert.deepEqual(errors, [], 'десктоп: помилки сторінки');
+    console.log('advdata: десктоп пише знімок — OK');
+    await ctx.close();
   }
 } finally {
   await browser.close();
