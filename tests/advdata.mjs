@@ -111,7 +111,32 @@ try {
     assert.ok(r.food && r.food.n === r.food.want && r.food.n > 0 && r.food.months === r.full && r.food.top > 0, 'ознаки категорії: ' + JSON.stringify(r.food));
     assert.ok(r.moves && r.invest, 'рядки руху між рахунками й інвестицій');
     assert.deepEqual(errors, [], 'advData: помилки сторінки');
+    /* Режим count: перекази людям і готівка вже у витратах — рядок місяця
+       мусить це казати, інакше модель, що складає колонки, порахує їх двічі. */
+    assert.match(r.dg, /^- \d{4}-\d{2} .*перекази людям [^;]*\(у витратах\)/m, 'count: «(у витратах)» у рядку місяця');
+    /* Підказка режиму не бреше: «Між рахунками» й «Інвестиції» не рахуються ніколи. */
+    const hint = await page.evaluate(() => { moveHint(); return el('moveHint').textContent; });
+    assert.ok(!/скрізь/.test(hint) && /людям/.test(hint), 'підказка режиму count: ' + hint);
     console.log('advdata: advData() і зведення — OK');
+    await context.close();
+  }
+
+  /* Дата знімка — день запису, а не запуску: апка живе в треї тижнями, і
+     після півночі MCP інакше кричав би «знімок застарів» на щойно записаний. */
+  {
+    const context = await browser.newContext();
+    await context.addInitScript(() => localStorage.setItem('wizDone', 'true'));
+    await context.route(/^https?:/, r => r.abort());
+    const page = await context.newPage();
+    await page.clock.install({time: new Date()});
+    await page.goto(app);
+    await page.waitForFunction(() => typeof window.go === 'function');
+    const d0 = await page.evaluate(() => advData().today);
+    await page.clock.fastForward('25:00:00');
+    const d1 = await page.evaluate(() => [advData().today, new Date().toISOString().slice(0, 10)]);
+    assert.notEqual(d1[0], d0, 'today у знімку не зсунувся через добу');
+    assert.equal(d1[0], d1[1], 'today = поточна дата');
+    console.log('advdata: дата знімка — день запису — OK');
     await context.close();
   }
 

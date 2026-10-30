@@ -142,12 +142,13 @@ mod tests {
     }
 
     #[test]
-    fn lists_eleven_tools_with_market() {
+    fn lists_twelve_tools_with_market() {
         let Some((node, script, dir)) = setup("list") else { return };
         let mut m = Mcp::start(&node, &script, &dir, true).unwrap();
         let t = m.tools().unwrap();
-        assert_eq!(t.len(), 11);
+        assert_eq!(t.len(), 12);
         assert!(t.iter().any(|x| x.name == "market"));
+        assert!(t.iter().any(|x| x.name == "spending_by_category"));
         assert!(t.iter().all(|x| x.input_schema.is_object()));
         let _ = std::fs::remove_dir_all(&dir);
     }

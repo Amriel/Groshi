@@ -32,7 +32,7 @@ assert.equal(exit.code, 0, se);
 const o = JSON.parse(so);
 assert.equal(o.keys.length, 12, 'очікувано 12 інструментів, є ' + o.keys.length);
 for (const n of NAMES) assert.ok(o.keys.includes(n), 'бракує ' + n);
-assert.deepEqual(o.exp.sort(), ['DIR', 'T', 'state', 'txAll']);
+assert.deepEqual(o.exp.sort(), ['DIR', 'T', 'state', 'txAll', 'txView']);
 assert.equal(o.tx, 'function');
 
 // 2) stdio-обгортка: initialize → tools/list

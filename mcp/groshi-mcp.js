@@ -11,7 +11,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { T, DIR, state, txAll } = require('./tools.js');
+const { T, DIR, state, txView } = require('./tools.js');
 const pseudo = require('./pseudo.js');
 
 /* Режим «Порадник»: GROSHI_PSEUDO=1 ховає NDA-імена в тексті кожного інструмента, бо відповідь
@@ -19,10 +19,13 @@ const pseudo = require('./pseudo.js');
    прохід по операціях, а викликів за розмову багато. */
 let _dict = null, _dictKey = '';
 function pseudoDict() {
-  const key = ['state.json', 'mono_raw.json'].map(f => {
+  const key = ['state.json', 'mono_raw.json', 'advice_cache.json'].map(f => {
     try { return fs.statSync(path.join(DIR, f)).mtimeMs; } catch (e) { return 0; }
   }).join('|');
-  if (!_dict || key !== _dictKey) { _dict = pseudo.buildDict(state(), txAll()); _dictKey = key; }
+  /* Ручні й приватбанківські операції mononorm не бачить, а transactions
+     показує їх зі знімка — тож і платників ФОП серед них словник мусить
+     знати, інакше назва клієнта з виписки Привату пішла б у хмару як є. */
+  if (!_dict || key !== _dictKey) { _dict = pseudo.buildDict(state(), txView()); _dictKey = key; }
   return _dict;
 }
 

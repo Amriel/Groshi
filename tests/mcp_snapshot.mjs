@@ -36,10 +36,15 @@ const raw = {
     {id: 'm3', time: sec(prev) + 120, amount: -1000000, operationAmount: -1000000, currencyCode: 980, description: 'На ФОП', mcc: 4829, counterIban: OWN, balance: 80000},
   ]},
 };
-const state = {clientsDB: {'ТОВ "Альфа Груп"': {name: 'ТОВ "Альфа Груп"', reg: '12345678'}}};
+const state = {clientsDB: {'ТОВ "Альфа Груп"': {name: 'ТОВ "Альфа Груп"', reg: '12345678'}}, fopCfg: {accs: ['Приват ФОП']}};
+// Шість повних місяців перед поточним (з нульовими) + неповний поточний: середнє
+// money_flow мусить іти за шістьма повними, як у зведенні, а не за п'ятьма.
+const fullYms = [6, 5, 4, 3, 2].map(k => iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - k, 10))).slice(0, 7));
+const zero = m => ({ym: m, full: true, exp: 0, inc: 0, moves: 0, invest: 0, people: 0, cash: 0});
 const snap = (today) => ({
   v: 1, built: new Date().toISOString(), today, app: 'test', moveMode: 'count', dmax: iso(now), base: 'UAH',
-  months: [{ym, full: true, exp: 3000, inc: 0, moves: 10000, invest: 8000, people: 2500, cash: 700}],
+  months: [...fullYms.map(zero), {ym, full: true, exp: 3000, inc: 0, moves: 10000, invest: 8000, people: 2500, cash: 700},
+           {ym: iso(now).slice(0, 7), full: false, exp: 100, inc: 0, moves: 0, invest: 0, people: 0, cash: 0}],
   cats: [
     {k: 'Перекази', byM: {[ym]: 2500}, n: 1, med: 2500, min: 2500, max: 2500,
      top: [{date: iso(prev), amt: 2500, merchant: 'Олена П.'}], subs: [{k: 'Людям', byM: {[ym]: 2500}, n: 1, med: 2500, min: 2500, max: 2500}], tot: 2500},
@@ -57,6 +62,13 @@ const snap = (today) => ({
     m3: {c: 'Між рахунками', s: 'Свої рахунки', k: 'move', a: 0},
     man_1: {c: 'Готівка', s: 'Банкомат', k: 'spend', a: 700,
       raw: {date: iso(prev), dir: 'expense', amount: 700, merchant: 'Готівка на ремонт', account: 'Вручну'}},
+    // Надходження з імпортованої виписки ПриватБанку на рахунок ФОП: платник — клієнт,
+    // якого немає в довіднику. Mononorm його не бачить, тож словник знеособлення мусить
+    // брати його зі знімка.
+    pv_1: {c: 'Дохід', s: 'ФОП', k: 'income', a: 0,
+      raw: {date: iso(prev), dir: 'income', amount: 9000, merchant: 'ТОВ Бета Плюс', account: 'Приват ФОП'}},
+    pv_2: {c: 'Готівка', s: 'Банкомат', k: 'other', a: 0,
+      raw: {date: iso(prev), dir: 'expense', amount: 400, merchant: 'Банкомат Привату', account: 'Приват ФОП'}},
   },
 });
 const mk = (name, s) => {
@@ -89,7 +101,9 @@ const hasnt = (text, s, what) => assert.ok(!text.includes(s), `${what}: зайв
 // money_flow — зі знімка, з окремими рядками руху й інвестицій
 const mf = await call(fresh, 'money_flow');
 has(mf, `${ym}: +0 / −3 000`, 'money_flow: витрати місяця зі знімка');
-has(mf, 'між рахунками', 'money_flow'); has(mf, 'відкладено в інвестиції', 'money_flow');
+has(mf, 'між рахунками', 'money_flow');
+has(mf, 'перекази людям 2 500 (у витратах)', 'money_flow: у режимі count перекази людям позначено як уже враховані');
+has(mf, 'У середньому за 6 повних міс.', 'money_flow: середнє за шістьма повними, як у зведенні'); has(mf, 'відкладено в інвестиції', 'money_flow');
 hasnt(mf, '⚠', 'money_flow свіжий знімок');
 
 // transactions — фільтри категорії, мітки; мітка й примітка в рядку; операція не з Monobank
@@ -102,6 +116,8 @@ const ts = await call(fresh, 'transactions', {category: 'Продукти', sub:
 has(ts, 'Знайдено 1 ', 'transactions sub'); has(ts, 'Сільпо', 'transactions sub');
 const tm = await call(fresh, 'transactions', {query: 'ремонт'});
 has(tm, 'Знайдено 1 ', 'ручна операція зі знімка'); has(tm, 'Готівка', 'ручна операція: категорія');
+
+has(await call(fresh, 'transactions', {query: 'Банкомат Привату'}), 'поза підсумками за налаштуванням', 'вид other позначено');
 
 // spending_by_category — таблиця з ознаками; з category — підкатегорії
 const sc = await call(fresh, 'spending_by_category');
@@ -130,6 +146,8 @@ has(await call(none, 'transactions', {query: 'Сільпо'}), 'Продукти
 // GROSHI_PSEUDO: назва клієнта в примітці прихована
 const tp = await call(fresh, 'transactions', {category: 'Перекази'}, true);
 has(tp, 'позичила', 'pseudo: примітка є'); hasnt(tp, 'Альфа', 'pseudo: клієнт прихований');
+const tpv = await call(fresh, 'transactions', {account: 'Приват'}, true);
+has(tpv, 'Знайдено 2 ', 'pseudo: операції Привату є'); hasnt(tpv, 'Бета', 'pseudo: платник ФОП з Привату прихований');
 
 // у MCP немає коду запису
 for (const f of fs.readdirSync(path.join(root, 'mcp')).filter(f => f.endsWith('.js')))

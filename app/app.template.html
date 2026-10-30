@@ -9458,7 +9458,10 @@ const ADV_CONN_RE = /Не вдалося зʼєднатися/;
    spendAmt), тож витрати місяця тут дорівнюють плитці «Огляду». Суми — у
    гривні, без форматування: валюта показу ділить їх лише під час виводу. */
 function advData(){
-  const empty = { months:[], cats:[], tags:{}, subs:[], tx:{}, dmax:DMAX, moveMode:MOVE_MODE, base:BASE, today:TODAY_ISO };
+  /* today — день ЗАПИСУ, а не запуску (TODAY_ISO рахується раз): апка живе
+     в треї тижнями, і після півночі MCP інакше вважав би щойно записаний
+     знімок застарілим. */
+  const empty = { months:[], cats:[], tags:{}, subs:[], tx:{}, dmax:DMAX, moveMode:MOVE_MODE, base:BASE, today:todayISO() };
   if(!TX.length || !DMAX) return empty;
   const [y, mo, d] = DMAX.split('-').map(Number);
   /* Місяць, у якому дані обірвано посередині, не «повний»: його сума
@@ -9547,8 +9550,12 @@ function advDigest(){
   const D = advData(), dmy = iso => iso.split('-').reverse().join('.');
   const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
   const full = D.months.filter(m => m.full), cur = D.months.find(m => !m.full);
+  /* «(у витратах)» — прямо в рядку: модель, що складає колонки, інакше
+     додала б перекази людям і готівку до витрат удруге. */
+  const inExp = skipMove() ? '' : ' (у витратах)';
   const line = m => `- ${m.ym} (${monthLabel(m.ym)}): витрати ${am(m.exp)}; доходи ${am(m.inc)}; `
-    + `між рахунками ${am(m.moves)}; відкладено в інвестиції ${am(m.invest)}; перекази людям ${am(m.people)}; готівка ${am(m.cash)}`;
+    + `між рахунками ${am(m.moves)}; відкладено в інвестиції ${am(m.invest)}; `
+    + `перекази людям ${am(m.people)}${inExp}; готівка ${am(m.cash)}${inExp}`;
   const out = [`Станом на ${dmy(TODAY_ISO)}. Операції в застосунку — до ${D.dmax ? dmy(D.dmax) : '—'}. Суми в ${sgn(BASE)}.`, ''];
   if(!full.length) out.push('Операцій ще немає.');
   else{
@@ -9698,6 +9705,7 @@ function advDrainEnd(){
   clearTimeout(d.t); ADV.drain = null; advCtl();
 }
 const ADV_TOOLS = { transactions:'операції', money_flow:'доходи й витрати', subscriptions:'підписки',
+  spending_by_category:'категорії по місяцях',
   fop_and_invoices:'ФОП і рахунки', market:'ринок', groshi_status:'стан даних', WebSearch:'пошук у мережі' };
 /* Rust шле «{назва}: {запит}»; сирі назви інструментів власнику нічого не кажуть. */
 function advToolLabel(t){
@@ -10650,9 +10658,9 @@ function moveHint(){
     const n = TX.filter(t => catOf(t)==='Між рахунками').length;
     h.textContent = `${nOps(n)} сховано`;
   } else if(MOVE_MODE==='count'){
-    h.textContent = 'рахуються скрізь';
+    h.textContent = 'перекази людям і готівка рахуються';
   } else {
-    const n = TX.filter(t => MOVE.has(catOf(t))).length;
+    const n = TX.filter(t => MOVE.has(catOf(t)) || isNever(t)).length;
     h.textContent = `${nOps(n)} поза підсумками`;
   }
 }

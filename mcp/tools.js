@@ -649,12 +649,16 @@ T.money_flow = {
     if (s && s.months && s.months.length) {
       /* Знімок: ті самі витрати й доходи, що на «Огляді» апки. Рух між
          своїми рахунками й інвестиції — окремо, бо в підсумки не входять. */
-      const ms = s.months.slice(-months);
+      /* `months` — повних місяців, як у зведенні; неповний поточний іде
+         зверху. Інакше типові 6 захоплювали б неповний і середнє рахувалось
+         би за п'ятьма — і Порадник бачив би два різні «середні». */
+      const ms = s.months.filter(m => m.full).slice(-months).concat(s.months.filter(m => !m.full));
+      const inExp = s.moveMode === 'count' ? ' (у витратах)' : '';
       L.push(`ДОХОДИ Й ВИТРАТИ (як на «Огляді» апки, останні ${ms.length} міс., у гривні):`);
       for (const m of ms)
         L.push(`  ${m.ym}${m.full ? '' : ' (неповний)'}: ${net(m.inc, m.exp)}`
           + ` · між рахунками ${n0(m.moves)} · відкладено в інвестиції ${n0(m.invest)}`
-          + ` · перекази людям ${n0(m.people)} · готівка ${n0(m.cash)}`);
+          + ` · перекази людям ${n0(m.people)}${inExp} · готівка ${n0(m.cash)}${inExp}`);
       L.push('  Рух між своїми рахунками й відкладене в інвестиції не входять ні у витрати, ні в доходи.'
         + (s.moveMode === 'count' ? ' Перекази людям і готівка входять у витрати.'
                                   : ' Перекази людям і готівка за налаштуванням власника у витрати НЕ входять.'));
@@ -740,7 +744,8 @@ T.transactions = {
     const L = [`Знайдено ${rows.length} операцій, підсумок ${sum >= 0 ? '+' : '−'}${n0(Math.abs(sum))} ₴`];
     /* Вид операції потрібен, щоб не складати непорівнюване: «рух» і
        «інвестиції» в апці не є витратами, «поза підсумками» — виключене. */
-    const KN = { move: 'між рахунками, не витрата', invest: 'інвестиції, не витрата', excluded: 'поза підсумками', refund: 'повернення' };
+    const KN = { move: 'між рахунками, не витрата', invest: 'інвестиції, не витрата', excluded: 'поза підсумками',
+      refund: 'повернення', other: 'поза підсумками за налаштуванням' };
     for (const t of rows.slice(0, lim))
       L.push(`  ${t.date}  ${t.dir === 'income' ? '+' : '−'}${n2(t.amount)} ₴  ${t.merchant || t.counterName || ''}`
         + (t.category ? ` · ${t.category}${t.sub && t.sub !== t.category ? ' / ' + t.sub : ''}` : '')
@@ -895,4 +900,4 @@ T.fop_and_invoices = {
 };
 
 
-module.exports = { T, DIR, state, txAll };
+module.exports = { T, DIR, state, txAll, txView };
