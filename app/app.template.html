@@ -130,6 +130,13 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .notebox textarea:focus{outline:0;
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent),0 0 0 3px var(--accent-soft)}
 .notebox .hint{display:block;margin-top:6px;font-size:11.5px;color:var(--text-mute)}
+/* Мітки переказу: власні кнопки-чипи; натиснута — заливка поверхнею,
+   як у .chip, без кольору категорії (колір — лише в бейджі/крапці). */
+.txtags{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:12px 0 0}
+.txtags>span{margin-right:4px;font-size:11px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+.txtags .chip{border:1px solid var(--border)}
+.tx-meta .txtagb{margin-left:6px}
 /* .lnk і .pinchip — у блоці «ЕКРАНИ» (Операції). */
 
 /* ── однодатне поле: та сама сітка, що й у виборі періоду ── */
@@ -4384,7 +4391,8 @@ function renderTx(){
             rfn(t) ? ' <i class="pin" data-tip="повернення коштів">↩</i>' : ''}${
             txNote(t.id) ? ` <i class="pin" data-tip="${esc(txNote(t.id))}">✎</i>` : ''}${
             subOfTx(t) ? ' <i class="pin">↻</i>' : ''}</span>
-          <span class="tx-meta"><span class="tx-when">${isOpen?'▾':'▸'} ${byDate ? clock : (t.date + (clock ? ' ' + clock : ''))}</span><span class="tag">${esc(cat)}</span></span>
+          <span class="tx-meta"><span class="tx-when">${isOpen?'▾':'▸'} ${byDate ? clock : (t.date + (clock ? ' ' + clock : ''))}</span><span class="tag">${esc(cat)}</span>${
+            txTag(t.id) ? `<span class="tag txtagb">${TAGN[txTag(t.id)]}</span>` : ''}</span>
         </span>
         <span class="tx-amt num-md${t.dir==='income'?' inc':''}">${t.dir==='income'?'+':'−'}${num2(t.amount)}${
           sub ? `<em class="ccy"${subTip}>${sub}</em>` : ''}</span>
@@ -4665,6 +4673,23 @@ async function markRefund(id){
 /* Примітка зберігається на виході з поля, а не на кожну літеру: інакше
    кожне натискання перемальовувало б список і забирало каретку. */
 addEventListener('click', e=>{ if(e.target.matches('[data-note]')) e.stopPropagation(); }, true);
+/* Мітка міняється на місці: перемальовування списку згорнуло б картку й
+   скинуло прокрутку, а змінюються лише чипи й бейдж у рядку. */
+addEventListener('click', e=>{
+  const b = e.target.closest && e.target.closest('[data-txtag]');
+  if(!b) return;
+  e.stopPropagation();
+  const id = b.dataset.txtag, k = txTag(id) === b.dataset.k ? '' : b.dataset.k;
+  setTxTag(id, k);
+  document.querySelectorAll(`[data-txtag="${CSS.escape(id)}"]`)
+    .forEach(c => c.setAttribute('aria-pressed', String(c.dataset.k === k)));
+  document.querySelectorAll(`.txrow[data-id="${CSS.escape(id)}"] .tx-meta`).forEach(m => {
+    let g = m.querySelector('.txtagb');
+    if(!k){ if(g) g.remove(); return; }
+    if(!g){ g = document.createElement('span'); g.className = 'tag txtagb'; m.append(g); }
+    g.textContent = TAGN[k];
+  });
+}, true);
 addEventListener('keydown', e=>{ if(e.target.matches('[data-note]')) e.stopPropagation(); }, true);
 addEventListener('focusout', e=>{
   const ta = e.target;
@@ -4873,6 +4898,9 @@ function detailCard(t){
     <label class="notebox"><span>Ваша примітка</span>
       <textarea data-note="${esc(t.id)}" placeholder="за що це було, з ким ділили, чи повертати">${esc(txNote(t.id))}</textarea>
       <span class="hint">Зберігається у браузері разом із рештою налаштувань — банк про неї не знає.</span></label>
+    ${tagOK(t) ? `<div class="txtags" role="group" aria-label="Мета переказу"><span>Мета</span>${
+      TAGS.map(([k, n]) => `<button class="chip txtag" data-txtag="${esc(t.id)}" data-k="${k}"
+        aria-pressed="${txTag(t.id)===k}">${n}</button>`).join('')}</div>` : ''}
     <div class="acts">
       <button class="btn" data-same="${esc(t.merchant)}">Усі ${nOps(same.length)} «${esc(t.merchant)}» · ${money(spent)}</button>
       ${ofSub
@@ -5214,6 +5242,22 @@ const saveSubs = () => { store.set('subsOn',SUBS_ON); store.set('subsOff',[...SU
 let TXNOTE = store.get('txNotes', {});
 const saveTxNotes = () => store.set('txNotes', TXNOTE);
 const txNote = id => TXNOTE[id] || '';
+
+/* ── мітки переказів ──────────────────────────────────────────────
+   Мету переказу людям і зняття готівки з виписки не видно, а саме вона
+   відрізняє борг, що повернеться, від подарунка. Порадник просив цього
+   прямо (відгук 30.10.2026). Фіксований перелік, а не вільний текст:
+   його можна підсумувати по місяцях; подробиці — у примітці. */
+const TAGS = [['debt','борг'],['rent','квартира'],['family','рідним'],['gift','подарунок']];
+const TAGN = Object.fromEntries(TAGS);
+let TXTAG = store.get('txTags', {});
+const saveTxTags = () => store.set('txTags', TXTAG);
+const txTag = id => TXTAG[id] || '';
+const tagOK = t => t.dir==='expense' && ['Перекази','Готівка'].includes(catOf(t));
+function setTxTag(id, k){
+  if(k && TAGN[k]) TXTAG[id] = k; else delete TXTAG[id];
+  saveTxTags();
+}
 function setTxNote(id, txt){
   txt = (txt||'').trim();
   if(txt) TXNOTE[id] = txt; else delete TXNOTE[id];
