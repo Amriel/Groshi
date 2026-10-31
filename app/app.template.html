@@ -1901,7 +1901,7 @@ label.setrow{cursor:pointer}
 /* Картка-стан «Оновлень». Висота фіксована, а вміст міняється на місці: інакше
    перехід «не перевіряли → нова версія → помилка» піднімав би групи нижче.
    Бейдж несе колір лише крапкою (.dot), фон і текст — нейтральні токени. */
-.sethero{display:flex;align-items:center;gap:16px;min-height:128px;padding:18px;
+.sethero{display:flex;align-items:center;gap:16px;min-height:148px;padding:18px;
   background:var(--surface);border-radius:var(--radius)}
 .sethico{width:56px;height:56px;flex:none;border-radius:14px;background:var(--surface-3);
   display:grid;place-items:center;font-size:24px;font-weight:700;color:var(--accent-ink)}
@@ -1912,10 +1912,18 @@ label.setrow{cursor:pointer}
 /* Порожній бейдж займає місце, але не видно: висота картки не залежить від стану. */
 .setbadge[data-empty]{visibility:hidden}
 .sethv{margin-top:4px;font-size:var(--fs-xl);font-weight:700;line-height:1.3;overflow-wrap:anywhere}
-.setdm{margin-top:2px;min-height:1.5em;color:var(--text-dim);font-size:var(--fs-sm);line-height:1.5;
+.setdm{margin-top:2px;min-height:3em;color:var(--text-dim);font-size:var(--fs-sm);line-height:1.5;
   overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .sethero .btn{flex:none;max-width:260px}
-@media (max-width:759px){ .sethero{flex-wrap:wrap} }
+/* Вузький екран: кнопка завжди окремим рядком на всю ширину в КОЖНОМУ стані — інакше довгий
+   підпис «Встановити й перезапустити» переносився б лише в стані «нова версія», і висота
+   картки стрибала б. */
+@media (max-width:759px){ .sethero{flex-wrap:wrap} .sethero .btn{flex:1 1 100%;max-width:none} }
+/* Нотатки релізу з GitHub не обмежені довжиною: місце на два рядки є завжди, видимість —
+   visibility (як у .setbadge), довший текст обрізається, повний — у підказці data-tip. */
+.setnotes{min-height:3em;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  overflow-wrap:anywhere}
+.setnotes[data-empty]{visibility:hidden}
 #updSrcShow{overflow-wrap:anywhere}
 /* Крапка «є оновлення» на шестерні основної навігації: позиціонована абсолютно,
    тож розмір і положення кнопки (їх сторожить nav.mjs) не змінюються. */
@@ -2505,7 +2513,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <div class="setmain">
   <section class="setpane" data-sec="upd" hidden>
     <h2 class="setttl">Оновлення</h2>
-    <p class="setsub">Версія застосунку та джерело оновлень</p>
+    <p class="setsub">Апка дивиться в Релізи GitHub, збірку перевіряє за підписом.</p>
       <!-- desk:upd -->
   </section>
   <section class="setpane" data-sec="bank" hidden>
@@ -11169,9 +11177,17 @@ function updPending(){
   return !!(a && a.version && window.__appVer && a.version !== window.__appVer);
 }
 /* Знайдену версію зберігають і автоперевірка, і ручна; null (відповідь «найновіша») скидає. */
-function updAvailSet(r){
-  if(r && r.version) store.set('updAvail', {version:r.version, file:r.file || null, notes:r.notes || '', at:Date.now()});
+/* Джерело, з яким робили перевірку, береться з поля (або збереженого значення): файл
+   з джерела A не можна віддавати інсталяції з джерела B. */
+function updSrcNow(){
+  const f = el('updSrc');
+  return ((f && f.value) || store.get('updSource', '') || '').trim();
+}
+function updAvailSet(r, src){
+  if(r && r.version) store.set('updAvail', {version:r.version, file:r.file || null, notes:r.notes || '',
+    source: src === undefined ? updSrcNow() : String(src || '').trim(), at:Date.now()});
   else store.del('updAvail');
+  if(typeof updLastUi === 'function') updLastUi();
   updBadgeUi();
   if(typeof updHeroUi === 'function') updHeroUi();
 }
@@ -11470,11 +11486,11 @@ function privacyUi(){
   });
   /* Картка в розділі «Порадник» — друга кнопка того самого дозволу. Без data-privacy: цей атрибут
      рахує сторож «явних дозволів» (їх рівно шість), а обробник тут свій. */
-  /* Перемикач у «Оновленнях» — друга кнопка дозволу updates (також без data-privacy). */
-  const ua = el('updAuto'); if(ua) ua.setAttribute('aria-pressed', String(privacyAllowed('updates')));
   const on = privacyAllowed('advisor'), cs = el('advCloudState'), cb = el('advCloudBtn');
   if(cs) cs.textContent = on ? 'Увімкнено' : 'Вимкнено';
   if(cb){ cb.setAttribute('aria-pressed', String(on)); cb.classList.toggle('pri', !on); /* акцент лише для «Увімкнути» */ cb.textContent = on ? 'Вимкнути' : 'Увімкнути'; }
+  /* Перемикач у «Оновленнях» — друга кнопка дозволу updates (також без data-privacy). */
+  const ua = el('updAuto'); if(ua) ua.setAttribute('aria-pressed', String(privacyAllowed('updates')));
 }
 let privacySaving=false;
 /* Одна функція на кнопку в «Підключеннях» і на картку «Увімкнути» у Порадникові:

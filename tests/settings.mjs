@@ -343,14 +343,20 @@ try {
     assert.equal(await up.evaluate(() => document.querySelector('#tabs [data-tab="settings"] .navdot').getAttribute('aria-hidden')), 'true', 'крапка aria-hidden');
     const heroA = await rectOf(up, '#updHero'), navA = await rectOf(up, '#setNav');
     const gearA = await rectOf(up, '#tabs [data-tab="settings"]');
+    const gcapSel = '.setpane[data-sec="upd"] .setgcap';
+    const gcapA = await rectOf(up, gcapSel);
+    // e) картка, перший підпис групи, колонка й шестерня не рухаються в жодному стані
+    const chk = async m => { same(heroA, await rectOf(up, '#updHero'), m + ': #updHero');
+      same(navA, await rectOf(up, '#setNav'), m + ': #setNav');
+      same(gcapA, await rectOf(up, gcapSel), m + ': перший .setgcap');
+      same(gearA, await rectOf(up, '#tabs [data-tab="settings"]'), m + ': кнопка шестерні'); };
     // b) «найновіша» скидає updAvail, бейдж і крапка зникають
     await up.evaluate(() => { window.__updFixture = {available: false, current: 'test', version: 'test'}; });
     await up.locator('#updCheck').click();
     await up.waitForFunction(() => document.getElementById('updHeroBadge').textContent.trim() === 'Найновіша');
     st = await pend(up);
     assert.deepEqual([st.cnt, st.dot, st.av], [null, false, null], 'b: бейдж, крапка й updAvail скинуті');
-    same(heroA, await rectOf(up, '#updHero'), 'e/b: #updHero'); same(navA, await rectOf(up, '#setNav'), 'e/b: #setNav');
-    same(gearA, await rectOf(up, '#tabs [data-tab="settings"]'), 'крапка не змінює кнопку шестерні (b)');
+    await chk('e/b');
     assert.ok(await up.evaluate(() => /Остання перевірка: (сьогодні|\d)/.test(document.getElementById('updLastTxt').textContent)), 'b: «Остання перевірка» оновлено');
     // c) нова версія → кнопка встановлення → uiConfirm → update_install з файлом
     await up.evaluate(() => { window.__updFixture = {available: true, current: 'test', version: '9.9.9', file: 'x.exe', notes: 'n'}; });
@@ -360,7 +366,7 @@ try {
     assert.equal(await up.locator('#updHeroBtn').textContent(), 'Встановити й перезапустити');
     assert.equal((await pend(up)).cnt, '1', 'c: бейдж повернувся');
     assert.equal(await up.locator('#updNotes').isVisible(), true, 'c: нотатки релізу під карткою');
-    same(heroA, await rectOf(up, '#updHero'), 'e/c: #updHero'); same(navA, await rectOf(up, '#setNav'), 'e/c: #setNav');
+    await chk('e/c');
     await up.locator('#updHeroBtn').click();
     await up.getByRole('button', {name: 'Встановити', exact: true}).click();
     await up.waitForFunction(() => window.__updInstalled);
@@ -368,12 +374,22 @@ try {
     // d) помилка перевірки — крапка warn і текст
     // У застосунку інсталятор закриває апку; фікстура лишає її живою, тож знімаємо стан «Готую…».
     await up.evaluate(() => { UPD.st = 'idle'; updHeroUi(); });
-    await up.evaluate(() => { window.__updError = 'мережа'; });
+    await up.evaluate(() => { window.__updError = 'мережа ' + 'дуже довга помилка '.repeat(11); });
     await up.locator('#updCheck').click();
     await up.waitForSelector('#updHero .dot.warn');
     assert.ok((await up.locator('#updHero').textContent()).includes('мережа'), 'd: текст помилки в картці');
-    same(heroA, await rectOf(up, '#updHero'), 'e/d: #updHero'); same(navA, await rectOf(up, '#setNav'), 'e/d: #setNav');
+    await chk('e/d');
     await up.evaluate(() => { window.__updError = null; });
+    // 3) джерело в полі змінилось після перевірки: встановлення не викликається, перевірка — так
+    await up.evaluate(() => { window.__updFixture = {available: false, current: 'test', version: 'test'}; window.__updInstalled = undefined; window.__updChecks = [];
+      store.set('updAvail', {version: '9.9.9', file: 'x.exe', notes: '', source: 'github:A/B', at: Date.now()}); UPD.st = 'idle'; updBadgeUi(); updHeroUi();
+      document.getElementById('updSrc').value = 'github:C/D'; });
+    await up.locator('#updHeroBtn').click();
+    await up.waitForFunction(() => window.__updChecks.length > 0);
+    assert.equal(await up.evaluate(() => window.__updInstalled), undefined, 'інше джерело: update_install не викликано');
+    assert.equal(await up.evaluate(() => window.__updChecks[0].source), 'github:C/D', 'інше джерело: перевірка з новим джерелом');
+    // та сама перевірка скинула бейдж; повертаємо стан для наступних кроків
+    await up.evaluate(() => { document.getElementById('updSrc').value = ''; });
     // f) перемикач «Перевіряти оновлення» = той самий дозвіл, що в «Приватності»
     assert.equal(await up.locator('[data-privacy]').count(), 6, 'f: рівно 6 [data-privacy] (#updAuto без атрибута)');
     assert.equal(await up.evaluate(() => document.getElementById('updAuto').hasAttribute('data-privacy')), false);
@@ -402,6 +418,28 @@ try {
     assert.deepEqual(uerr, [], 'оновлення: помилки JavaScript');
     assert.deepEqual(await up.evaluate(() => window.__unexpectedCommands), [], 'оновлення: неочікувані команди IPC');
     await ctx.close();
+    // e) те саме на ~480 px (кнопка окремим рядком) і з довгою помилкою: нічого не стрибає
+    {
+      const {ctx: c3, page: p3} = await openDesktop(browser, {width: 480, state: {setSec: 'upd', updAvail: {version: '9.9.9', file: 'x.exe', notes: 'н '.repeat(300), source: ''}}});
+      await p3.evaluate(() => go('settings')); await p3.waitForSelector('#updHero');
+      await p3.waitForFunction(() => window.__appVer === 'test' && !document.querySelector('#setNav .setcnt').hidden);
+      // Нижня панель fixed: її координати міряємо у вікні, решту — від початку документа.
+      const sels = ['#updHero', '#setNav', gcapSel];
+      const gearV = () => p3.evaluate(() => { const r = document.querySelector('#tabs [data-tab="settings"]').getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; });
+      const snap = async () => [...await Promise.all(sels.map(s => rectOf(p3, s))), await gearV()];
+      const base3 = await snap();
+      const step = async (m, fx, err) => {
+        await p3.evaluate(([f, e]) => { window.__updFixture = f; window.__updError = e; }, [fx, err]);
+        await p3.locator('#updCheck').click();
+        await p3.waitForFunction(() => !document.getElementById('updCheck').disabled);
+        (await snap()).forEach((r, i) => same(base3[i], r, `480/${m}: ${sels[i] || 'шестерня'}`));
+      };
+      await step('ok', {available: false, current: 'test', version: 'test'}, null);
+      await step('new', {available: true, current: 'test', version: '9.9.9', file: 'x.exe', notes: 'n'}, null);
+      await step('err', null, 'мережа ' + 'x'.repeat(200));
+      assert.ok((await p3.locator('#updHero').textContent()).includes('мережа'), '480: текст помилки в картці');
+      await c3.close();
+    }
     // g) поточна версія в updAvail — бейджа немає
     {
       const {ctx: c2, page: p2} = await openDesktop(browser, {width: 1400, state: {setSec: 'upd', updAvail: {version: 'test'}}});

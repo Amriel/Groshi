@@ -244,7 +244,7 @@ UPD_HTML = """  <div class="sethero" id="updHero">
     </div>
     <button class="btn" id="updHeroBtn">Перевірити</button>
   </div>
-  <p class="muted setfoot" id="updNotes" hidden></p>
+  <p class="muted setfoot setnotes" id="updNotes" data-empty></p>
   <div class="setbox">
     <div class="setgcap">Автоматично</div>
     <div class="setgrp">
@@ -614,7 +614,7 @@ function updWire(){
 /* Стан картки. st: idle (ще не питали) · busy · ok (найновіша) · err · inst (готуємо інсталятор);
    «нова версія» не зберігається окремо, а виводиться з updPending(): так вона переживає
    перезапуск апки, а застаріла (версія вже стоїть) зникає сама. */
-const UPD = {st:'idle', err:'', ierr:''};
+const UPD = {st:'idle', err:'', ierr:'', busy:false};
 
 function updSrcUi(){
   const v = el('updSrc').value.trim();
@@ -637,8 +637,7 @@ function updHeroUi(){
   const cur = window.__appVer || '', a = store.get('updAvail', null);
   let kind = 'idle', badge = '', dot = '', title = cur ? 'Гроші ' + cur : 'Гроші', meta = 'Остання перевірка: ' + updLastTxt();
   let btn = 'Перевірити', pri = false, off = false;
-  if(UPD.st === 'busy'){ btn = 'Дивлюсь…'; off = true; }
-  else if(UPD.st === 'inst'){ kind = 'new'; btn = 'Готую…'; off = true; }
+  if(UPD.st === 'inst'){ kind = 'new'; btn = 'Готую…'; off = true; }
   else if(UPD.st === 'err'){ kind = 'err'; badge = 'Не вдалося перевірити'; dot = 'warn'; meta = UPD.err; }
   else if(updPending()){
     kind = 'new'; badge = 'Нова версія'; dot = 'info'; title = 'Гроші ' + a.version;
@@ -647,6 +646,8 @@ function updHeroUi(){
   }
   else if(UPD.st === 'ok'){ badge = 'Найновіша'; dot = 'ok'; }
   if(UPD.st === 'inst'){ badge = 'Нова версія'; dot = 'info'; title = 'Гроші ' + (a ? a.version : ''); meta = 'у вас ' + cur; }
+  /* Перевірка йде: картка лишає знайоме (бейдж, версія), міняється лише кнопка. */
+  if(UPD.busy){ btn = 'Дивлюсь…'; off = true; pri = false; }
   const b = el('updHeroBadge');
   b.toggleAttribute('data-empty', !badge);
   b.querySelector('.dot').className = 'dot' + (dot ? ' ' + dot : '');
@@ -656,27 +657,31 @@ function updHeroUi(){
   const hb = el('updHeroBtn');
   hb.textContent = btn; hb.disabled = off; hb.classList.toggle('pri', pri);
   hb.dataset.kind = kind;
-  el('updCheck').disabled = UPD.st === 'busy' || UPD.st === 'inst';
+  el('updCheck').disabled = UPD.busy || UPD.st === 'inst';
   /* Нотатки релізу — дрібно під карткою, лише коли є що читати. */
   const n = el('updNotes'), notes = (kind === 'new' && a && a.notes) ? a.notes : '';
-  n.textContent = notes; n.hidden = !notes;
+  n.textContent = notes; n.toggleAttribute('data-empty', !notes);
+  if(notes) n.dataset.tip = notes; else delete n.dataset.tip;
 }
 
 async function updRun(){
-  if(UPD.st === 'busy' || UPD.st === 'inst') return;
-  UPD.st = 'busy'; UPD.err = UPD.ierr = '';
+  if(UPD.busy || UPD.st === 'inst') return;
+  UPD.busy = true; UPD.ierr = '';
   updHeroUi();
   store.set('updLastCheck', Date.now());
   try{
-    const r = await D.updCheck(el('updSrc').value.trim());
+    const src = el('updSrc').value.trim();
+    const r = await D.updCheck(src);
     /* «Найновіша» скидає updAvail, а знайдена версія зберігається — її читають бейдж
        у колонці й крапка на шестерні. Версія, що вже стоїть, нової не вважається. */
     const fresh = !!r.available && r.version !== window.__appVer;
     UPD.st = fresh ? 'idle' : 'ok';
-    updAvailSet(fresh ? r : null);
+    UPD.err = '';
+    updAvailSet(fresh ? r : null, src);
   }catch(e){
     UPD.st = 'err'; UPD.err = String(e);
   }
+  UPD.busy = false;
   updLastUi(); updHeroUi();
 }
 
@@ -685,7 +690,8 @@ async function updHeroGo(){
   if(!updPending()){ updRun(); return; }
   const a = store.get('updAvail', null);
   /* Збережена версія без файлу (запис зі старого запуску): спершу дізнаємось ім'я збірки. */
-  if(!a.file){ await updRun(); return; }
+  /* Так само, якщо джерело в полі вже інше, ніж було в перевірки: файл і шлях мусять з одного місця. */
+  if(!a.file || (a.source || '') !== updSrcNow()){ await updRun(); return; }
   const ok = await uiConfirm({title:`Встановити ${a.version}?`,
     text:'Гроші закриються, далі все зробить інсталятор — лишіть у ньому галочку запуску, і апка відкриється сама.',
     ok:'Встановити', danger:false});

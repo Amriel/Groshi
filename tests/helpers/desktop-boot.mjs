@@ -167,6 +167,7 @@ export async function openDesktop(browser, {width, height = 900, theme = 'dark',
       // Оновлення: проба задає відповідь через window.__updFixture або помилку через
       // window.__updError (рядок, як віддає Rust); встановлення лише записує аргументи.
       if (command === 'update_check') {
+        (window.__updChecks = window.__updChecks || []).push(args);
         if (window.__updError) throw window.__updError;
         return window.__updFixture || {available: false, current: 'test', version: 'test'};
       }
