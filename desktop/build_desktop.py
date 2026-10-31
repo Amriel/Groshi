@@ -252,46 +252,60 @@ UPD_HTML = """  <div class="card">
   </div>
 """
 # «Застосунок» розрізано: автозапуск/синхронізація/тиша — у «Запуск і
-# синхронізація», тека з даними — окремим блоком у «Дані і бекап»
-# (Task 3 додасть до нього власні елементи за #dirBlock).
-RUN_HTML = """  <div class="card">
-    <div class="cardhead"><h2>Застосунок</h2></div>
-    <div class="fieldrow">
-      <label class="muted optlabel">
-        <input type="checkbox" id="autoStart"> Запускати разом із Windows</label>
+# синхронізація» (рядки без картки «Застосунок»), тека з даними — окремим
+# блоком у «Дані і бекап». autoSyncInfo — опис рядка «Оновлювати самому»
+# (клас mfval потрібен для крапки збою .mfval.bad::before).
+RUN_HTML = """  <div class="setbox">
+    <div class="setgcap">Запуск</div>
+    <div class="setgrp">
+      <label class="setrow">
+        <div class="setrt"><b class="setrn" id="rnAutoStart">Запускати з Windows</b>
+          <div class="setrd">Апка стартує разом із системою й сидить у треї.</div></div>
+        <input type="checkbox" id="autoStart" class="sw" role="switch" aria-labelledby="rnAutoStart">
+      </label>
     </div>
-    <div class="mfields setgap">
-      <label class="mf w160"><span>Оновлювати самому</span>
-        <select id="autoSync"></select></label>
-      <label class="mf w160"><span>Брокер IBKR</span>
-        <select id="autoIbkr"></select></label>
-      <label class="mf"><span>&nbsp;</span>
-        <span class="muted mfval" id="autoSyncInfo"></span></label>
-    </div>
-    <div class="mfields setgap-s">
-      <label class="mf w130"><span>Тиша з (година)</span>
-        <input id="quietFrom" type="number" min="0" max="23" step="1"></label>
-      <label class="mf w130"><span>до (година)</span>
-        <input id="quietTo" type="number" min="0" max="23" step="1"></label>
-      <label class="mf"><span>&nbsp;</span>
-        <span class="muted mfval xs">уночі банк не смикаємо; однакові години — без паузи</span></label>
+    <div class="setgcap">Синхронізація</div>
+    <div class="setgrp">
+      <div class="setrow">
+        <div class="setrt"><b class="setrn">Оновлювати самому</b>
+          <div class="setrd mfval" id="autoSyncInfo"></div></div>
+        <div class="setctl"><select id="autoSync"></select></div>
+      </div>
+      <div class="setrow">
+        <div class="setrt"><b class="setrn">Брокер IBKR</b></div>
+        <div class="setctl"><select id="autoIbkr"></select></div>
+      </div>
+      <div class="setrow">
+        <div class="setrt"><b class="setrn">Нічна тиша з … до …</b>
+          <div class="setrd">Уночі банк не смикаємо; однакові години — без паузи.</div></div>
+        <div class="setctl">з <input id="quietFrom" class="setnum" type="number" min="0" max="23" step="1" aria-label="Тиша з години">
+          до <input id="quietTo" class="setnum" type="number" min="0" max="23" step="1" aria-label="Тиша до години"> год</div>
+      </div>
     </div>
   </div>
 """
-DIR_HTML = """  <div class="card" id="dirBlock">
-    <div class="cardhead"><h2>Тека з даними</h2></div>
-    <div class="fieldrow">
-      <button class="btn" id="openDir">Показати теку з даними</button>
-      <button class="btn" id="dirPick">Змінити теку</button>
-      <button class="btn" id="dirReset">Стандартна</button>
+DIR_HTML = """  <div class="setbox" id="dirBlock">
+    <div class="setgcap">Тека з даними</div>
+    <div class="setgrp">
+      <div class="setrow">
+        <div class="setrt"><b class="setrn">Де лежать дані</b>
+          <div class="setrd" id="dirPath"></div></div>
+        <div class="setctl"><button class="btn" id="openDir">Показати теку з даними</button></div>
+      </div>
+      <div class="setrow">
+        <div class="setrt"><b class="setrn">Змінити теку</b></div>
+        <div class="setctl">
+          <button class="btn" id="dirPick">Змінити теку</button>
+          <button class="btn" id="dirReset">Стандартна</button>
+        </div>
+      </div>
     </div>
-    <p class="muted setfine" id="dirPath"></p>
-    <div id="dirFiles" class="setgap"></div>
-    <p class="muted setfine">При зміні теки дані <b>переносяться</b>,
+    <p class="muted setfoot">При зміні теки дані <b>переносяться</b>,
       а не копіюються — двох однакових копій не лишається. Тека переживає перевстановлення апки;
       якщо покласти її в OneDrive, Google Drive чи Dropbox, дані синхронізуються між комп'ютерами.
       Тільки не тримайте апку відкритою одночасно на двох машинах: хмара не вміє зливати зміни
       й лишить ту версію, яка збереглась останньою.</p>
+    <div id="dirFiles" class="setbox"></div>
   </div>
 
 """
@@ -835,12 +849,13 @@ async function dirShow(){
     + (cur === def ? ' <span class="muted">· стандартна</span>' : '')
     + (store.get('migrationError','') ? `<p class="warnbox">${esc(store.get('migrationError',''))}</p>` : '');
   el('dirReset').hidden = cur === def;
+  /* Той самий вигляд рядків, що й у налаштуваннях: підпис групи, рядки .setrow. */
   el('dirFiles').innerHTML =
-    `<div class="muted setcap">Що саме там лежить</div>`
-    + DIR_FILES.map(([f, d])=>`
-        <div class="row dirrow"><span class="nm"><code>${esc(f)}</code></span>
-          <span class="cnt">${esc(d)}</span></div>`).join('')
-    + `<p class="muted setfine">
+    `<div class="setgcap">Що саме там лежить</div>`
+    + `<div class="setgrp">` + DIR_FILES.map(([f, d])=>`
+        <div class="setrow dirrow"><span class="setrn"><code>${esc(f)}</code></span>
+          <span class="setrd">${esc(d)}</span></div>`).join('') + `</div>`
+    + `<p class="muted setfoot">
          Токена серед них немає — він у Диспетчері облікових даних Windows.
          Скопіювати теку = зробити повний бекап; повернути на місце — і все на місці.</p>`;
 }

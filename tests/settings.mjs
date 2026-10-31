@@ -21,6 +21,52 @@ const IDS = ['rMatch','rAdd','excl','moveMode','workCats','baseCcy','privacyOpti
   'reset','quality','advSetNote'];
 const BROWSER_SECS = ['bank','inv','rules','notif','loc','priv','data','adv'];
 
+
+// ── Перемикачі й рядки (Task 3) ────────────────────────────────────
+// Перемикач — той самий input[type=checkbox] (id, .checked, onchange не змінились)
+// + клас .sw і role=switch; дозволи приватності — button.sw[data-privacy].
+const SW_PANE = {divNotifyCk: 'notif', newsUk: 'loc', bkAuto: 'data', autoStart: 'run'};
+// Координати від початку документа: клік скролить сторінку, і viewport-рамка помилково «зсувається».
+const docBox = loc => loc.evaluate(e => { const r = e.getBoundingClientRect();
+  return {x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height}; });
+async function checkSwitches(pg, ids, label) {
+  for (const id of ids) {
+    await pg.evaluate(s => go2set(s), SW_PANE[id]);
+    const info = await pg.evaluate(i => { const e = document.getElementById(i);
+      return {sw: e.classList.contains('sw'), role: e.getAttribute('role'), type: e.type,
+        name: e.getAttribute('aria-labelledby') && document.getElementById(e.getAttribute('aria-labelledby')).textContent.trim()}; }, id);
+    assert.deepEqual([info.sw, info.role, info.type], [true, 'switch', 'checkbox'], `${label}: #${id} — перемикач`);
+    assert.ok(info.name, `${label}: #${id} має доступну назву`);
+    const loc = pg.locator('#' + id);
+    const b0 = await docBox(loc);
+    const was = await loc.isChecked();
+    await loc.click();
+    assert.equal(await loc.isChecked(), !was, `${label}: клік змінює #${id}`);
+    assert.deepEqual(await docBox(loc), b0, `${label}: перемикач #${id} не змінює розмір/положення`);
+    assert.deepEqual([b0.width, b0.height], [44, 26], `${label}: #${id} 44×26`);
+    await loc.click();
+    assert.equal(await loc.isChecked(), was, `${label}: повторний клік повертає #${id}`);
+  }
+}
+// Рядки й групи не тонуються: фон рядка прозорий або дорівнює фону групи.
+async function checkRowsFlat(pg, sec, label) {
+  await pg.evaluate(s => go2set(s), sec);
+  const r = await pg.evaluate(() => {
+    const vis = e => e.offsetParent !== null;
+    const rows = [...document.querySelectorAll('.setpane:not([hidden]) .setrow')].filter(vis);
+    const grps = [...document.querySelectorAll('.setpane:not([hidden]) .setgrp')].filter(vis);
+    return {n: rows.length, g: grps.length,
+      gbg: [...new Set(grps.map(g => getComputedStyle(g).backgroundColor))],
+      rbg: [...new Set(rows.map(x => getComputedStyle(x).backgroundColor))],
+      stripe: rows.concat(grps).filter(x => { const c = getComputedStyle(x);
+        return parseFloat(c.borderLeftWidth) > 0 || /inset/.test(c.boxShadow); }).length};
+  });
+  assert.ok(r.n > 0 && r.g > 0, `${label}/${sec}: є групи й рядки`);
+  assert.equal(r.gbg.length, 1, `${label}/${sec}: усі групи одного кольору`);
+  for (const c of r.rbg) assert.ok(c === 'rgba(0, 0, 0, 0)' || c === r.gbg[0], `${label}/${sec}: рядок без тонування (${c} проти ${r.gbg[0]})`);
+  assert.equal(r.stripe, 0, `${label}/${sec}: без смуг збоку`);
+}
+
 try {
   // Браузерна збірка: каркас і міграція стану. Десктоп — окремий блок нижче.
   const context = await browser.newContext({viewport:{width:1400,height:900}});
@@ -122,6 +168,47 @@ try {
   assert.equal(await page.evaluate(() => updPending()), false);
   assert.equal(await page.locator('#setNav .setcnt:visible').count(), 0, 'бейдж сховано');
 
+  // 7) перемикачі, рядки, дозволи приватності (браузер)
+  await checkSwitches(page, ['divNotifyCk','newsUk','bkAuto'], 'браузер');
+  await page.evaluate(() => go2set('loc'));
+  await page.locator('#newsUk').click();
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('newsUk'))), false, 'newsUk пишеться у сховище');
+  await page.locator('#newsUk').click();
+  await page.evaluate(() => go2set('data'));
+  await page.locator('#bkAuto').click();
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('backupAuto'))), false, 'backupAuto пишеться у сховище');
+  await page.locator('#bkAuto').click();
+  await page.evaluate(() => go2set('priv'));
+  assert.equal(await page.locator('[data-privacy]').count(), 6, 'рівно 6 [data-privacy]');
+  assert.deepEqual(await page.$$eval('[data-privacy]', b => b.map(x => [x.tagName, x.classList.contains('sw'), x.getAttribute('role'), !!x.getAttribute('aria-label'), x.textContent.trim()])),
+    Array(6).fill(['BUTTON', true, 'switch', true, '']), 'дозволи — button.sw[role=switch] з назвою без тексту');
+  {
+    const q = page.locator('[data-privacy="quotes"]');
+    const b0 = await docBox(q);
+    const was = await q.getAttribute('aria-pressed');
+    await q.click();
+    assert.notEqual(await q.getAttribute('aria-pressed'), was, 'клік перемикає aria-pressed');
+    assert.deepEqual(await docBox(q), b0, 'дозвіл не змінює розмір');
+    await q.click();
+    assert.equal(await q.getAttribute('aria-pressed'), was);
+  }
+  for (const id of ['moveMode', 'baseCcy'])
+    assert.equal(await page.locator('#' + id).evaluate(e => !!e.closest('.csel') && e.closest('.setrow') !== null), true, `#${id} — .csel усередині рядка`);
+  for (const t of ['dark', 'light']) {
+    await page.evaluate(x => { document.documentElement.dataset.theme = x; }, t);
+    for (const sec of ['notif', 'loc', 'priv', 'data', 'rules']) await checkRowsFlat(page, sec, 'браузер ' + t);
+    for (const sec of ['priv', 'data', 'notif']) {
+      await page.evaluate(x => go2set(x), sec);
+      await page.locator('.setpane:not([hidden])').screenshot({path: path.join(output, `settings-${sec}-${t}.png`)});
+    }
+  }
+  await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; go2set('rules'); });
+  // Попередження з абзаців не загубились.
+  assert.equal(await page.evaluate(() => {
+    const t = id => document.getElementById(id).closest('.setpane').textContent;
+    return [['bkNow','8 останніх копій'], ['pinBtn','не шифрування'], ['pinBtn','pinHash'], ['moveMode','лише перекази між власними рахунками']]
+      .filter(([i, w]) => !t(i).includes(w)).length; }), 0, 'попередження збережено в панелях');
+
   assert.deepEqual(errors, [], 'помилки JavaScript або консолі');
 
   // ── Десктоп (1400×900): вставки лежать у своїх панелях ──────────────
@@ -190,6 +277,25 @@ try {
       assert.equal(await dp.evaluate(() => SETSEC), sec, `${name}: панель ${sec}`);
       assert.ok(await dp.locator('#' + id).isVisible(), `${name}: #${id} видно`);
     }
+
+    // Перемикачі й рядки в десктопі. autoStart: стаб IPC, щоб клік не лишив «неочікуваної команди».
+    await dp.evaluate(() => { window.__DESK__.autostartOn = () => {}; window.__DESK__.autostartOff = () => {}; });
+    await checkSwitches(dp, ['divNotifyCk','newsUk','bkAuto','autoStart'], 'десктоп');
+    assert.equal(await dp.locator('[data-privacy]').count(), 6, 'десктоп: рівно 6 [data-privacy]');
+    for (const t of ['dark', 'light']) {
+      await dp.evaluate(x => { document.documentElement.dataset.theme = x; }, t);
+      for (const sec of ['run', 'data', 'priv']) await checkRowsFlat(dp, sec, 'десктоп ' + t);
+      for (const sec of ['run', 'data', 'priv']) {
+        await dp.evaluate(x => go2set(x), sec);
+        await dp.locator('.setpane:not([hidden])').screenshot({path: path.join(output, `settings-desk-${sec}-${t}.png`)});
+      }
+    }
+    await dp.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+    // Картки «Застосунок» немає, лишилися групи; autoSyncInfo — опис рядка, тека — у #dirBlock.
+    assert.equal(await dp.evaluate(() => /Застосунок/.test([...document.querySelectorAll('.setpane[data-sec="run"] h2:not(.setttl)')].map(x => x.textContent).join())), false, 'run: без картки «Застосунок»');
+    assert.equal(await dp.evaluate(() => document.getElementById('autoSyncInfo').closest('.setrow') !== null), true, 'autoSyncInfo — опис рядка');
+    assert.equal(await dp.evaluate(() => ['autoSync','autoIbkr'].every(i => document.getElementById(i).closest('.csel'))), true, 'autoSync/autoIbkr — .csel');
+    assert.equal(await dp.evaluate(() => document.getElementById('dirBlock').querySelectorAll('.setrow').length >= 2), true, '#dirBlock складається з рядків');
 
     // Значок «Запуск»: фон не збігається з поверхнею колонки/сторінки в обох темах
     // і тримає ≥ 3:1 під білим штрихом.
