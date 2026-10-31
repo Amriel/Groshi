@@ -67,6 +67,88 @@ async function checkRowsFlat(pg, sec, label) {
   assert.equal(r.stripe, 0, `${label}/${sec}: без смуг збоку`);
 }
 
+// ── Пошук і вузький екран (Task 5) ─────────────────────────────────
+const shownSecs = pg => pg.$$eval('#setNav .setit', b => b.filter(x => x.offsetParent !== null && !x.hidden).map(x => x.dataset.sec));
+async function checkSearch(pg, label, all) {
+  await pg.evaluate(() => go2set('rules'));
+  assert.equal(await pg.locator('#setQ').getAttribute('type'), null, `${label}: без type=search`);
+  assert.equal(await pg.locator('#setQ').getAttribute('placeholder'), 'Пошук налаштувань', `${label}: плейсхолдер`);
+  assert.ok(await pg.locator('#setQ').getAttribute('aria-label'), `${label}: aria-label`);
+  assert.equal(await pg.locator('.setside h1').textContent(), 'Налаштування', `${label}: заголовок колонки`);
+  const geo = () => pg.evaluate(() => ['setNav', 'setQ'].map(i => { const r = document.getElementById(i).getBoundingClientRect(); return [r.x, r.y + scrollY, r.width]; }));
+  const g0 = await geo();
+  const type = async q => { await pg.locator('#setQ').fill(q); };
+  await type('БЕКАП');
+  assert.deepEqual(await shownSecs(pg), ['data'], `${label}: «БЕКАП» → лише data`);
+  assert.equal(await pg.locator('#setNone').isVisible(), false);
+  await pg.screenshot({path: path.join(output, 'settings-search-1400.png')});
+  await type('шифрування');
+  assert.deepEqual(await shownSecs(pg), ['priv'], `${label}: «шифрування» → лише priv`);
+  await type('zzzz');
+  assert.deepEqual(await shownSecs(pg), [], `${label}: «zzzz» → пунктів немає`);
+  assert.equal((await pg.locator('#setNone').textContent()).trim(), 'Нічого не знайдено');
+  assert.equal(await pg.locator('#setNone').isVisible(), true);
+  assert.equal(await pg.locator('#setNav .setnavg:visible').count(), 0, `${label}: порожні групи сховано`);
+  await type("комп'ютер"); const a = await shownSecs(pg);
+  await type('комп\u2019ютер'); const b = await shownSecs(pg);
+  assert.deepEqual(a, b, `${label}: апостроф ' і \u2019 однакові`);
+  assert.ok(a.length > 0, `${label}: «комп'ютер» щось знаходить`);
+  assert.deepEqual(await geo(), g0, `${label}: пошук не зсуває колонку й поле`);
+  await type('зй'); await pg.locator('#setQ').press('Escape');
+  assert.equal(await pg.locator('#setQ').inputValue(), '', `${label}: Escape чистить`);
+  assert.deepEqual(await shownSecs(pg), all, `${label}: порожній запит → усі`);
+  assert.deepEqual(await geo(), g0, `${label}: після очищення колонка на місці`);
+  // фільтр переживає render()
+  await type('бекап'); await pg.evaluate(() => render());
+  assert.deepEqual(await shownSecs(pg), ['data'], `${label}: render() не скидає фільтр`);
+  await type('');
+  // перший видимий пункт групи не має роздільника зверху
+  await type('шифрування');
+  assert.equal(await pg.evaluate(() => getComputedStyle(document.querySelector('#setNav .setit:not([hidden])'), '::before').content), 'none', `${label}: без роздільника над першим видимим`);
+  await type('');
+}
+async function checkNarrow(pg, label) {
+  const flat = () => pg.evaluate(() => ({
+    nav: document.getElementById('setNav').offsetParent !== null,
+    panes: [...document.querySelectorAll('#tab-settings .setpane')].filter(p => p.offsetParent !== null).map(p => p.dataset.sec),
+    back: !!document.getElementById('setBack') && document.getElementById('setBack').offsetParent !== null,
+    sw: document.documentElement.scrollWidth <= innerWidth, sy: scrollY}));
+  await pg.evaluate(() => go('overview'));
+  await pg.evaluate(() => scrollTo(0, 0));
+  // телефон: налаштування відкриваються з меню «Ще»
+  await pg.click('#tabs [data-tab="settings"]'); await pg.waitForTimeout(300);
+  await pg.click('#modal .pickrow[data-v="settings"]'); await pg.waitForTimeout(400);
+  let f = await flat();
+  assert.deepEqual([f.nav, f.panes, f.back], [true, [], false], `${label}: спершу лише список`);
+  assert.ok(f.sw, `${label}: без горизонтального скролу (список)`);
+  await pg.screenshot({path: path.join(output, 'settings-narrow-list-390.png')});
+  await pg.evaluate(() => scrollTo(0, 300));
+  await pg.locator('#setNav .setit[data-sec="loc"]').click();
+  f = await flat();
+  assert.deepEqual([f.nav, f.panes, f.back], [false, ['loc'], true], `${label}: клік → панель loc і #setBack`);
+  assert.ok(f.sw && f.sy < 5, `${label}: панель зверху, без горизонтального скролу (${f.sy})`);
+  assert.equal(await pg.locator('#setBack').textContent(), '\u2039 Налаштування');
+  await pg.screenshot({path: path.join(output, 'settings-narrow-pane-390.png')});
+  await pg.evaluate(() => scrollTo(0, 200));
+  await pg.locator('#setBack').click();
+  f = await flat();
+  assert.deepEqual([f.nav, f.panes, f.back], [true, [], false], `${label}: «‹ Налаштування» → список`);
+  assert.ok(f.sy < 5, `${label}: список зверху (${f.sy})`);
+  await pg.locator('#setQ').fill('бекап');
+  assert.deepEqual(await shownSecs(pg), ['data'], `${label}: пошук на вузькому`);
+  await pg.locator('#setQ').fill('');
+  // глибоке посилання одразу відкриває панель
+  await pg.evaluate(() => go('overview'));
+  await pg.evaluate(() => go2set('adv'));
+  f = await flat();
+  assert.deepEqual([f.nav, f.panes, f.back], [false, ['adv'], true], `${label}: go2set('adv') → одразу панель`);
+  assert.ok(f.sw, `${label}: adv без горизонтального скролу`);
+  // звичайний вхід знову показує список
+  await pg.evaluate(() => { go('overview'); go('settings'); });
+  f = await flat();
+  assert.deepEqual([f.nav, f.panes], [true, []], `${label}: звичайний вхід → список`);
+}
+
 try {
   // Браузерна збірка: каркас і міграція стану. Десктоп — окремий блок нижче.
   const context = await browser.newContext({viewport:{width:1400,height:900}});
@@ -120,7 +202,7 @@ try {
 
   // 3б) структура: кожна панель у .setmain, id із даних/бекапу — у своїх панелях, чужі не бачать
   assert.equal(await page.evaluate(() => [...document.querySelectorAll('.setpane')].filter(p => p.parentElement.className !== 'setmain').length), 0, 'браузер: кожна .setpane у .setmain');
-  assert.equal(await page.evaluate(() => document.querySelectorAll('.setwrap > :not(.setnav):not(.setmain)').length), 0, 'браузер: у .setwrap лише nav і main');
+  assert.equal(await page.evaluate(() => document.querySelectorAll('.setwrap > :not(.setside):not(.setmain)').length), 0, 'браузер: у .setwrap лише .setside і .setmain');
   for (const [k, ids] of Object.entries({bank: ['pvImport'], data: ['bkNow','expCsv','quality'], rules: ['workCats'], priv: ['privacyOptions']})) {
     assert.deepEqual(await page.evaluate(([k, ids]) => ids.filter(i => document.getElementById(i).closest('.setpane')?.dataset.sec !== k), [k, ids]), [], `браузер: id ${k} у своїй панелі`);
   }
@@ -151,7 +233,7 @@ try {
     await page.evaluate(() => go2set('rules'));
     await page.evaluate(() => scrollTo(0, 200));
     await page.waitForFunction(() => scrollY > 100);
-    const navTop = () => page.evaluate(() => document.getElementById('setNav').getBoundingClientRect().y);
+    const navTop = () => page.evaluate(() => document.querySelector('.setside').getBoundingClientRect().y);
     const y0 = await navTop();
     await page.locator('#setNav .setit[data-sec="loc"]').click();
     const y1 = await navTop();
@@ -209,6 +291,27 @@ try {
     return [['bkNow','8 останніх копій'], ['pinBtn','не шифрування'], ['pinBtn','pinHash'], ['moveMode','лише перекази між власними рахунками']]
       .filter(([i, w]) => !t(i).includes(w)).length; }), 0, 'попередження збережено в панелях');
 
+  // ── Пошук і вузький екран (браузер) ────────────────────────────────
+  await openWith('src');
+  await checkSearch(page, 'браузер/1400', BROWSER_SECS);
+  await page.setViewportSize({width: 390, height: 844});
+  await checkNarrow(page, 'браузер/390');
+  for (const w of [390, 768]) {
+    await page.setViewportSize({width: w, height: 900});
+    for (const k of BROWSER_SECS) {
+      await page.evaluate(s => go2set(s), k);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${w}: ${k} без горизонтального скролу`);
+    }
+    await page.evaluate(() => { go('overview'); go('settings'); });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${w}: список без горизонтального скролу`);
+  }
+  // 760–859: вже одна колонка (дві колонки — від 860)
+  await page.setViewportSize({width: 800, height: 900});
+  await page.evaluate(() => go2set('loc'));
+  assert.deepEqual(await page.evaluate(() => [document.getElementById('setNav').offsetParent !== null, document.querySelectorAll('#tab-settings .setpane:not([hidden])').length, document.getElementById('setBack').offsetParent !== null]), [false, 1, true], '800: одна колонка');
+  await page.setViewportSize({width: 1400, height: 900});
+  assert.deepEqual(await page.evaluate(() => [document.getElementById('setNav').offsetParent !== null, document.getElementById('setBack').offsetParent !== null]), [true, false], '1400: дві колонки, кнопки «назад» немає');
+
   assert.deepEqual(errors, [], 'помилки JavaScript або консолі');
 
   // ── Десктоп (1400×900): вставки лежать у своїх панелях ──────────────
@@ -240,7 +343,7 @@ try {
       assert.deepEqual(await dp.evaluate(ids => ids.filter(i => document.getElementById(i).closest('.setpane')?.dataset.sec !== SETSEC), ids), [], `${k}: усі id усередині своєї панелі`);
     }
     assert.equal(await dp.evaluate(() => [...document.querySelectorAll('.setpane')].filter(p => p.parentElement.className !== 'setmain').length), 0, 'десктоп: кожна .setpane у .setmain');
-    assert.equal(await dp.evaluate(() => document.querySelectorAll('.setwrap > :not(.setnav):not(.setmain)').length), 0, 'десктоп: у .setwrap лише nav і main');
+    assert.equal(await dp.evaluate(() => document.querySelectorAll('.setwrap > :not(.setside):not(.setmain)').length), 0, 'десктоп: у .setwrap лише .setside і .setmain');
     await dp.evaluate(() => go2set('loc'));
     assert.equal(await dp.locator('#bkNow').isVisible(), false, 'десктоп: #bkNow не видно в чужій панелі');
     // Тека даних — всередині #dirBlock у панелі data, а автозапуск — у run.
@@ -421,7 +524,7 @@ try {
     // e) те саме на ~480 px (кнопка окремим рядком) і з довгою помилкою: нічого не стрибає
     {
       const {ctx: c3, page: p3} = await openDesktop(browser, {width: 480, state: {setSec: 'upd', updAvail: {version: '9.9.9', file: 'x.exe', notes: 'н '.repeat(300), source: ''}}});
-      await p3.evaluate(() => go('settings')); await p3.waitForSelector('#updHero');
+      await p3.evaluate(() => go2set('upd')); await p3.waitForSelector('#updHero');
       await p3.waitForFunction(() => window.__appVer === 'test' && !document.querySelector('#setNav .setcnt').hidden);
       // Нижня панель fixed: її координати міряємо у вікні, решту — від початку документа.
       const sels = ['#updHero', '#setNav', gcapSel];
@@ -450,9 +553,23 @@ try {
       assert.notEqual(await badge(p2), 'Нова версія', 'g: картка не «нова версія»');
       await c2.close();
     }
+    // Пошук і вузький екран (десктоп)
+    {
+      const {ctx: c4, page: p4, errors: e4} = await openDesktop(browser, {width: 1400});
+      await p4.evaluate(() => go('settings')); await p4.waitForSelector('#tab-settings:not([hidden])');
+      await checkSearch(p4, 'десктоп/1400', ['upd','bank','inv','rules','notif','loc','priv','run','data','adv']);
+      assert.deepEqual(e4, [], 'десктоп/1400 пошук: помилки');
+      await c4.close();
+    }
+    {
+      const {ctx: c5, page: p5, errors: e5} = await openDesktop(browser, {width: 390, height: 844});
+      await checkNarrow(p5, 'десктоп/390');
+      assert.deepEqual(e5, [], 'десктоп/390: помилки');
+      await c5.close();
+    }
   }
   await page.screenshot({path: path.join(output, 'settings-nav.png')});
-  console.log('settings: 8 пунктів у браузері, 10 у десктопі з вставками у своїх панелях, міграція setSec, глибокі посилання, значок run — OK');
+  console.log('settings: пошук, вузький екран, 8 пунктів у браузері, 10 у десктопі з вставками у своїх панелях, міграція setSec, глибокі посилання, значок run — OK');
   await context.close();
 } finally {
   await browser.close();

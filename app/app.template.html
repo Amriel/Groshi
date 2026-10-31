@@ -1761,20 +1761,34 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
    екрані. Колір є лише у квадратику іконки (його ставить JS з SETSECS):
    ні смуг збоку, ні тонування пунктів. */
 .setwrap{display:grid;grid-template-columns:300px minmax(0,1fr);gap:32px;align-items:start}
+/* Ліва колонка = заголовок + пошук + пункти. Ширина колонки задана сіткою (300 px),
+   тож фільтр, що ховає пункти, змінює лише висоту нижче поля — саме поле й
+   заголовок стоять на місці. */
+.setside{display:flex;flex-direction:column;min-width:0}
 .setnav{display:flex;flex-direction:column;gap:12px}
+.setheading{font-size:26px;font-weight:700;margin:0 6px 16px}
+.setsearch{position:relative;margin-bottom:14px}
+.setsearch svg{position:absolute;left:12px;top:50%;width:16px;height:16px;margin-top:-8px;
+  stroke:var(--text-mute);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.setsearch input{width:100%;height:38px;padding:0 12px 0 36px;border-radius:12px}
+.setnone{margin:6px 14px}
+.setnone[hidden]{display:none}
+.setback{display:none}
 /* Колонка липка: прокручується вікно, і після гортання довгої панелі
    («Категорії і правила») клік по короткій («Валюта і мова») зменшує висоту
    документа — прокрутка стискається, і нелипка колонка стрибала б разом
    зі сторінкою. Липка стоїть на місці у вікні; top = верхній відступ .wrap (28 px), інакше
    при повному стисканні сторінки колонка падала б із липкої позиції в природну (стрибок 16 px). Обмеження висоти — щоб на
    низькому вікні всі пункти лишались досяжними. */
-@media (min-width:760px){
-  .setnav{position:sticky;top:28px;max-height:calc(100vh - 56px);overflow-y:auto}
+@media (min-width:860px){
+  .setside{position:sticky;top:28px;max-height:calc(100vh - 56px);overflow-y:auto}
 }
 .setnavg{background:var(--surface);border-radius:14px;overflow:hidden}
 .setit{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:10px 12px;
   text-align:left;position:relative}
-.setnavg .setit+.setit::before{content:'';position:absolute;left:52px;right:0;top:0;height:1px;background:var(--border)}
+.setit[hidden]{display:none}
+/* Роздільник лише між видимими пунктами: коли пошук ховає першого, другий не має лінії зверху. */
+.setnavg .setit:not([hidden]) ~ .setit:not([hidden])::before{content:'';position:absolute;left:52px;right:0;top:0;height:1px;background:var(--border)}
 .setit:hover{background:var(--surface-2)}
 .setit[aria-current="page"]{background:var(--surface-3)}
 .setit:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
@@ -1790,10 +1804,16 @@ nav.tabs button .ic-more,nav.tabs button .nl.nl-more{display:none}
 .setpane[hidden]{display:none}
 .setttl{font-size:var(--fs-2xl);font-weight:700;margin:0}
 .setsub{color:var(--text-dim);margin:-8px 0 6px}
-/* Вузький екран (панель замість списку) доробляє окреме завдання; поки що
-   колонка просто лягає над панеллю, горизонтального скролу немає. */
-@media (max-width:759px){
+/* Вужче за 860 px — схема «список → розділ»: показано або колонку, або панель
+   (data-open ставить setSecApply з SETOPEN). Перехід без анімації ширини, щоб
+   сусіди не їздили. Вибраний пункт у списку не підсвічуємо: на цьому екрані
+   ще нічого не вибрано. */
+@media (max-width:859px){
   .setwrap{grid-template-columns:minmax(0,1fr);gap:16px}
+  .setwrap[data-open="1"] .setside,.setwrap:not([data-open="1"]) .setmain{display:none}
+  .setback{display:inline-flex;align-self:flex-start;margin-bottom:12px}
+  .setit[aria-current="page"]{background:transparent}
+  .setit[aria-current="page"]:hover{background:var(--surface-2)}
 }
 #rHead{cursor:pointer}
 /* Вступний абзац картки й рядок стану під діями. min-height у стану:
@@ -1828,7 +1848,7 @@ label.setrow{cursor:pointer}
 .setctl .btn{max-width:260px;overflow:hidden;text-overflow:ellipsis}
 .setfoot{margin:0 14px;font-size:var(--fs-sm);line-height:1.5}
 .setfoot+.setfoot{margin-top:-4px}
-@media (max-width:759px){
+@media (max-width:859px){
   .setrow{flex-wrap:wrap}
   .setctl{flex-wrap:wrap}
 }
@@ -1918,7 +1938,7 @@ label.setrow{cursor:pointer}
 /* Вузький екран: кнопка завжди окремим рядком на всю ширину в КОЖНОМУ стані — інакше довгий
    підпис «Встановити й перезапустити» переносився б лише в стані «нова версія», і висота
    картки стрибала б. */
-@media (max-width:759px){ .sethero{flex-wrap:wrap} .sethero .btn{flex:1 1 100%;max-width:none} }
+@media (max-width:859px){ .sethero{flex-wrap:wrap} .sethero .btn{flex:1 1 100%;max-width:none} }
 /* Нотатки релізу з GitHub не обмежені довжиною: місце на два рядки є завжди, видимість —
    visibility (як у .setbadge), довший текст обрізається, повний — у підказці data-tip. */
 .setnotes{min-height:3em;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
@@ -2509,8 +2529,17 @@ svg.sprite{position:absolute;width:0;height:0}
        Видимість — на рівні панелі, окремі картки data-sec більше не несуть.
        Маркери desk:* — місця, куди desktop/build_desktop.py вставляє десктопні картки. -->
   <div class="setwrap">
-    <nav class="setnav" id="setNav" aria-label="Розділи налаштувань"></nav>
+    <div class="setside">
+      <h1 class="setheading">Налаштування</h1>
+      <div class="setsearch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input id="setQ" placeholder="Пошук налаштувань" aria-label="Пошук налаштувань" autocomplete="off" spellcheck="false">
+      </div>
+      <nav class="setnav" id="setNav" aria-label="Розділи налаштувань"></nav>
+      <p class="muted setnone" id="setNone" hidden>Нічого не знайдено</p>
+    </div>
     <div class="setmain">
+      <button class="btn ghost sm setback" id="setBack">‹ Налаштування</button>
   <section class="setpane" data-sec="upd" hidden>
     <h2 class="setttl">Оновлення</h2>
     <p class="setsub">Апка дивиться в Релізи GitHub, збірку перевіряє за підписом.</p>
@@ -9568,7 +9597,7 @@ function render(){
   if(S.tab==='inv') renderInv();
   if(S.tab==='subs') renderSubs();
   if(S.tab==='advisor') advRender();
-  advSetShow(S.tab==='settings' && SETSEC==='adv');
+  advSetShow(S.tab==='settings' && SETSEC==='adv' && (!SETNARROW.matches || SETOPEN));
   if(S.tab==='settings'){ setSecApply(); renderRules(); renderExcl(); renderQuality();
     const cats=[...new Set(TX.map(catOf))].sort();
     el('catlist').innerHTML = cats.map(c=>`<option>${esc(c)}</option>`).join('');
@@ -10837,7 +10866,12 @@ async function moreMenu(){
   else if(v==='scrn') scrnToggle();
   else go(v);
 }
-function go(tab){ S.tab=tab; render(); scrollTo({top:0,behavior:'smooth'}); }
+function go(tab){
+  /* Звичайний вхід у налаштування (вкладка, «Ще») на вузькому екрані — завжди список. */
+  if(tab === 'settings' && !SETKEEP) SETOPEN = false;
+  SETKEEP = false;
+  S.tab=tab; render(); scrollTo({top:0,behavior:'smooth'});
+}
 
 /* ═══════════════════════ WIRING ═══════════════════════ */
 (function initPeriod(){
@@ -11218,6 +11252,17 @@ function setSecNorm(k){
   return vis.includes(k) ? k : vis[0];
 }
 let SETSEC = store.get('setSec', 'bank');
+/* Вузький екран: true — показано панель, false — список. Не зберігається: кожен
+   звичайний вхід у «Налаштування» починається зі списку, лише go2set() веде
+   одразу в розділ. */
+let SETOPEN = false, SETKEEP = false;
+const SETNARROW = matchMedia('(max-width:859px)');
+function setOpen(on){
+  SETOPEN = on;
+  render();
+  /* Інакше після кліку з прокрученого списку панель відкрилась би посередині. */
+  scrollTo(0, 0);
+}
 function setNavBuild(vis){
   const nav = el('setNav'); if(!nav) return;
   let h = '', g = null;
@@ -11234,7 +11279,12 @@ function setNavBuild(vis){
      style у розмітці немає, а додати розділ можна одним рядком масиву. */
   nav.querySelectorAll('.setico').forEach(i => { i.style.background = 'var('+i.dataset.c+')'; });
   nav.querySelectorAll('.setit').forEach(b => {
-    b.onclick = () => { SETSEC = b.dataset.sec; store.set('setSec', SETSEC); render(); };
+    b.onclick = () => {
+      SETSEC = b.dataset.sec; store.set('setSec', SETSEC);
+      setOpen(true);
+      /* Список зник (display:none) разом із фокусом — переносимо його на «назад». */
+      if(SETNARROW.matches) el('setBack').focus({preventScroll:true});
+    };
   });
   nav.dataset.keys = vis.map(s => s.k).join(',');
 }
@@ -11251,6 +11301,8 @@ function setSecApply(){
     else b.removeAttribute('aria-current');
   });
   updBadgeUi();
+  setSearch(el('setQ').value);
+  el('setNav').closest('.setwrap').dataset.open = SETOPEN ? '1' : '0';
   document.querySelectorAll('#tab-settings .setpane').forEach(p => { p.hidden = p.dataset.sec !== SETSEC; });
   /* Картки Порадника працюють лише в застосунку; у браузері замість них — нотатка. */
   const desk = isDesk();
@@ -11260,7 +11312,45 @@ function setSecApply(){
   const sn = el('srcNote'); if(sn) sn.hidden = desk;
   const iv = el('invNote'); if(iv) iv.hidden = desk;
 }
-function go2set(sec){ SETSEC = setSecNorm(sec); store.set('setSec', SETSEC); go('settings'); }
+function go2set(sec){ SETSEC = setSecNorm(sec); store.set('setSec', SETSEC); SETOPEN = true; SETKEEP = true; go('settings'); }
+
+/* ── Пошук по пунктах колонки ─────────────────────────────────────
+   Індекс пункту = назва + назви/описи рядків, примітки під групами (.setfoot — там, напр., «не шифрування») і заголовки карток його панелі.
+   Будується при першому вводі й перебудовується, лише коли змінився склад
+   колонки (десктопні вставки з'являються після завантаження). Апостроф ’/ʼ
+   зводимо до ', інакше «комп’ютер» з клавіатури не знайшов би «комп'ютер». */
+let SETIDX = null;
+const setNorm = t => String(t || '').toLowerCase().replace(/[\u2019\u02bc]/g, "'");
+function setIndex(){
+  const key = el('setNav').dataset.keys;
+  if(SETIDX && SETIDX.key === key) return SETIDX.m;
+  const m = {};
+  SETSECS.forEach(s => {
+    const pane = document.querySelector('#tab-settings .setpane[data-sec="'+s.k+'"]');
+    m[s.k] = setNorm(s.n + ' ' + (pane ? [...pane.querySelectorAll('.setttl,.setrn,.setrd,.setfoot,.cardhead h2')]
+      .map(e => e.textContent).join(' ') : ''));
+  });
+  SETIDX = {key, m};
+  return m;
+}
+function setSearch(q){
+  const nav = el('setNav'), qq = setNorm(q).trim();
+  const idx = qq ? setIndex() : null;
+  let n = 0;
+  nav.querySelectorAll('.setit').forEach(b => {
+    const ok = !idx || idx[b.dataset.sec].includes(qq);
+    b.hidden = !ok; if(ok) n++;
+  });
+  nav.querySelectorAll('.setnavg').forEach(g => { g.hidden = !g.querySelector('.setit:not([hidden])'); });
+  el('setNone').hidden = n > 0;
+}
+el('setQ').oninput = e => setSearch(e.target.value);
+/* Escape чистить запит; поле не type=search, власного хрестика немає. */
+el('setQ').onkeydown = e => { if(e.key === 'Escape' && e.target.value){ e.target.value = ''; setSearch(''); e.stopPropagation(); } };
+el('setBack').onclick = () => {
+  setOpen(false);
+  const b = document.querySelector('#setNav .setit[aria-current="page"]'); if(b) b.focus({preventScroll:true});
+};
 
 /* ── бекап ─────────────────────────────────────────────────────────
    Живе в застосунку: браузерний файл не має доступу до диска. */
