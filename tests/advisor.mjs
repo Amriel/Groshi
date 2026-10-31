@@ -369,7 +369,7 @@ try {
     await page.evaluate(() => document.getElementById('advKeySet').click());
     assert.equal(await page.evaluate(() => document.getElementById('modal').hidden), true, 'вимкнена кнопка відкрила вікно ключа');
     assert.deepEqual(await page.evaluate(() => window.__keys), [], 'advisorKeySet викликано при вимкненому Порадникові');
-    // «Увімкнути» пише той самий ключ, що й «Налаштування → Підключення»
+    // «Увімкнути» пише той самий ключ, що й «Налаштування → Приватність і замок»
     await page.click('#advOn');
     await page.waitForSelector('#advIn', {state: 'visible'});
     assert.equal(await page.evaluate(() => privacyAllowed('advisor')), true, 'дозвіл не записано');

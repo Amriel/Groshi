@@ -317,14 +317,15 @@ DIR_HTML = """  <div class="setbox" id="dirBlock">
         <div class="setctl"><button class="btn" id="openDir">Показати теку з даними</button></div>
       </div>
       <div class="setrow">
-        <div class="setrt"><b class="setrn">Змінити теку</b></div>
+        <div class="setrt"><b class="setrn">Місце зберігання</b>
+          <div class="setrd">Дані можна перенести в іншу теку.</div></div>
         <div class="setctl">
           <button class="btn" id="dirPick">Змінити теку</button>
           <button class="btn" id="dirReset">Стандартна</button>
         </div>
       </div>
     </div>
-    <p class="muted setfoot">При зміні теки дані <b>переносяться</b>,
+    <p class="muted setfoot">Під час зміни теки дані <b>переносяться</b>,
       а не копіюються — двох однакових копій не лишається. Тека переживає перевстановлення апки;
       якщо покласти її в OneDrive, Google Drive чи Dropbox, дані синхронізуються між комп'ютерами.
       Тільки не тримайте апку відкритою одночасно на двох машинах: хмара не вміє зливати зміни

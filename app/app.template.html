@@ -2657,7 +2657,7 @@ svg.sprite{position:absolute;width:0;height:0}
       <div class="setrow">
         <div class="setrt"><b class="setrn">Рух позиції від ±…%</b>
           <div class="setrd">Системне повідомлення про різкий рух позиції за день.
-            0 — вимкнено. Watchlist-цілі сповіщаються завжди.</div></div>
+            0 — вимкнено. Цілі зі списку спостереження сповіщають завжди.</div></div>
         <div class="setctl">±<input id="alertPct" class="setnum" type="number" min="0" step="0.5" aria-label="Рух позиції, відсотків">%</div>
       </div>
       <label class="setrow">
@@ -2753,13 +2753,13 @@ svg.sprite{position:absolute;width:0;height:0}
     <div class="setgcap">Бекап</div>
     <div class="setgrp">
       <div class="setrow">
-        <div class="setrt"><b class="setrn">Копія даних апки</b>
+        <div class="setrt"><b class="setrn">Резервна копія</b>
           <div class="setrd" id="bkHint"></div></div>
         <div class="setctl"><button class="btn pri" id="bkNow">Зробити бекап зараз</button></div>
       </div>
       <div class="setrow">
         <div class="setrt"><b class="setrn">Тека для копій</b>
-          <div class="setrd">Найкраще — на іншому диску або в хмарній папці.</div></div>
+          <div class="setrd">Куди складати бекапи: бажано інший диск або хмарна папка.</div></div>
         <div class="setctl"><button class="btn" id="bkDir">Обрати теку</button></div>
       </div>
       <label class="setrow">
@@ -2770,8 +2770,7 @@ svg.sprite{position:absolute;width:0;height:0}
     </div>
     <p class="muted setfoot">Банк віддає лише 31 добу історії — все старше,
       разом із категоріями, правилами, примітками і знімками крипти, живе тільки у файлах апки.
-      Бекап — копія цих файлів у вибрану теку; найкраще обрати теку на іншому диску або в
-      хмарній папці. Тримається 8 останніх копій, старші прибираються самі.</p>
+      Бекап — копія цих файлів у вибрану теку. Тримається 8 останніх копій, старші прибираються самі.</p>
     <p class="muted setfoot setmsg" id="bkMsg"></p>
   </div>
   <div class="setbox">
@@ -2784,7 +2783,7 @@ svg.sprite{position:absolute;width:0;height:0}
       </div>
       <div class="setrow">
         <div class="setrt"><b class="setrn">Повні записи операцій</b>
-          <div class="setrd">За вибраний період, як їх зберігає апка.</div></div>
+          <div class="setrd">За вибраний період, усе, що апка зберігає про кожну операцію.</div></div>
         <div class="setctl"><button class="btn" id="expJson">Експорт JSON</button></div>
       </div>
     </div>
@@ -2793,7 +2792,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <div class="setgcap">Скинути</div>
     <div class="setgrp">
       <div class="setrow">
-        <div class="setrt"><b class="setrn">Скинути налаштування</b>
+        <div class="setrt"><b class="setrn">Налаштування за замовчуванням</b>
           <div class="setrd">Правила, бюджети, виключення й режим переказів. Самі операції не чіпаються.</div></div>
         <div class="setctl"><button class="btn" id="reset">Скинути налаштування</button></div>
       </div>
@@ -3680,7 +3679,7 @@ function renderKpis(rows, prev){
       Якщо операції імпортовані зі стороннього знімка, у ньому могли бути
       лише списання: сума без знака, а зарахування туди не потрапляють.
       За всю історію як вхідні розпізнано ${incAll}.<br><br>
-      Щоб надходження зʼявились, підключіть банк напряму: «Налаштування → Підключення».
+      Щоб надходження зʼявились, підключіть банк напряму: «Налаштування → Банки».
       Там кожна операція приходить зі знаком, тож дохід і витрата розділяються точно.
       <span class="phonly"></span>
       ${incAll ? `<button class="btn" id="whyIncome">Показати ці ${nOps(incAll)}</button>` : ''}
@@ -11510,9 +11509,9 @@ async function wizard(){
   if(step1 === null){ store.set('wizDone', true); return; }
 
   if(desk && !(window.__BOOT__ && window.__BOOT__.hasToken)){
-    const go1 = await uiAsk({ title:'Крок 1 · Банк', input:false, ok:'Відкрити «Підключення»', cancel:'Пізніше',
+    const go1 = await uiAsk({ title:'Крок 1 · Банк', input:false, ok:'Відкрити «Банки»', cancel:'Пізніше',
       text:'Monobank віддає операції за особистим токеном.\n'
-        + 'Візьміть його на api.monobank.ua (кнопка «Отримати токен») і вставте у «Налаштування → Підключення».\n\n'
+        + 'Візьміть його на api.monobank.ua (кнопка «Отримати токен») і вставте у «Налаштування → Банки».\n\n'
         + 'Токен лягає в Диспетчер облікових даних Windows — не в файл і не в апку.' });
     if(go1 !== null){ go2set('bank'); store.set('wizDone', true); return; }
   }
@@ -11527,9 +11526,9 @@ async function wizard(){
     text:'На Огляді є картка «Податки ФОП»: квартали, ЄП і ВЗ, дедлайни, книга доходів для бухгалтера.\n'
       + 'Вона зʼявляється сама, якщо є рахунок зі словом «ФОП» у назві, і налаштовується під вашу групу.\n\n'
       + 'Не ФОП — просто лишіть її вимкненою, вона не заважатиме.\n\n'
-      + 'Решта: «?» показує гарячі клавіші, «Налаштування → Апка і дані» — бекапи, код на вхід і решта налаштувань.' });
+      + 'Решта: «?» показує гарячі клавіші, «Налаштування → Дані і бекап» — бекапи, «Налаштування → Приватність і замок» — код на вхід.' });
   store.set('wizDone', true);
-  if(step3 !== null) appToast('Готово. Почніть з «Налаштування → Підключення»');
+  if(step3 !== null) appToast('Готово. Почніть з «Налаштування → Банки»');
 }
 setTimeout(wizard, 1400);
 
@@ -11583,7 +11582,7 @@ function privacyUi(){
   const ua = el('updAuto'); if(ua) ua.setAttribute('aria-pressed', String(privacyAllowed('updates')));
 }
 let privacySaving=false;
-/* Одна функція на кнопку в «Підключеннях» і на картку «Увімкнути» у Порадникові:
+/* Одна функція на перемикачі в «Приватності і замку» і на картку «Увімкнути» у Порадникові:
    так обидва місця пишуть той самий ключ тим самим шляхом і не розходяться. */
 async function privacyToggle(key){
   if(privacySaving)return;
