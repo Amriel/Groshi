@@ -1915,9 +1915,11 @@ label.setrow{cursor:pointer}
 .privbtn{flex:0 0 125px}
 /* Десктоп: тека з даними й оновлення. Назва файлу не ріжеться «…»: на вузькому
    екрані опис переноситься під неї. */
-.dirrow{flex-wrap:wrap;gap:4px 12px}
+.dirrow{flex-wrap:wrap;gap:0 12px;min-height:0;padding:4px 14px;align-items:baseline;font-size:var(--fs-sm)}
+/* Перелік файлів — довідка, а не налаштування: у повну висоту .setrow він виштовхував
+   «Бекап / Експорт / Скинути» нижче першого екрана. */
 .dirrow .setrn{flex:none;max-width:100%}
-.dirrow .setrd{flex:1 1 220px;margin-top:0}
+.dirrow .setrd{flex:1 1 220px;margin-top:0;font-size:var(--fs-xs)}
 /* Картка-стан «Оновлень». Висота фіксована, а вміст міняється на місці: інакше
    перехід «не перевіряли → нова версія → помилка» піднімав би групи нижче.
    Бейдж несе колір лише крапкою (.dot), фон і текст — нейтральні токени. */
@@ -5250,7 +5252,7 @@ function renderQuality(){
           Доказу немає: ні пари-списання, ні власного IBAN, ні вашого імені — лише текст опису.
           Перевірте їх. Якщо це справді дохід ззовні — змініть категорію, і сума почне рахуватись.
           Якщо це переказ між своїми рахунками, а пари немає — позначте всі свої рахунки
-          в «Налаштування → Monobank» і оновіть.
+          в «Налаштування → Банки» і оновіть.
           <button class="btn" id="showLone">Показати ці ${lone.length}</button>
         </div>` : ''));
     const sl = el('showLone');
@@ -10868,6 +10870,11 @@ async function moreMenu(){
 function go(tab){
   /* Звичайний вхід у налаштування (вкладка, «Ще») на вузькому екрані — завжди список. */
   if(tab === 'settings' && !SETKEEP) SETOPEN = false;
+  /* Власник заходить у налаштування передусім по оновлення: звичайний вхід (не
+     глибоке посилання) з очікуваною новою версією відкриває «Оновлення». */
+  if(tab === 'settings' && !SETKEEP && updPending() && setSecsVisible().some(x => x.k === 'upd')){
+    SETSEC = 'upd'; store.set('setSec', SETSEC); SETOPEN = true;
+  }
   SETKEEP = false;
   S.tab=tab; render(); scrollTo({top:0,behavior:'smooth'});
 }
@@ -11259,9 +11266,13 @@ const SETNARROW = matchMedia('(max-width:859px)');
 function setOpen(on){
   SETOPEN = on;
   render();
-  /* Інакше після кліку з прокрученого списку панель відкрилась би посередині. */
+  /* Прокрутка нагору — при будь-якому перемиканні розділу, і на широкому екрані теж:
+     навмисно, щоб довга панель відкривалась зі свого початку (колонка розділів
+     липка, тож вона лишається на місці). */
   scrollTo(0, 0);
 }
+/* Перетин порогу 860px міняє, що показано (колонка/панель, advSetShow): перераховуємо. */
+SETNARROW.addEventListener('change', () => { if(S.tab==='settings') render(); });
 function setNavBuild(vis){
   const nav = el('setNav'); if(!nav) return;
   let h = '', g = null;

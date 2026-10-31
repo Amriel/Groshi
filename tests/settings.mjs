@@ -553,6 +553,25 @@ try {
       assert.notEqual(await badge(p2), 'Нова версія', 'g: картка не «нова версія»');
       await c2.close();
     }
+    // Звичайний вхід у «Налаштування» з очікуваною новою версією відкриває «Оновлення»;
+    // без неї лишається збережений розділ.
+    for (const [upd, exp] of [[{version: '9.9.9', notes: ''}, 'upd'], [null, 'loc']]) {
+      const {ctx: c3, page: p3} = await openDesktop(browser, {width: 1400, state: upd ? {setSec: 'loc', updAvail: upd} : {setSec: 'loc'}});
+      await p3.waitForFunction(() => window.__appVer);
+      await p3.evaluate(() => go('settings'));
+      assert.equal(await p3.evaluate(() => SETSEC), exp, `вхід у налаштування: ${upd ? 'є' : 'немає'} оновлення → ${exp}`);
+      await c3.close();
+    }
+    // «Дані і бекап»: список файлів компактний — «Бекап» видно на першому екрані.
+    {
+      const {ctx: c6, page: p6} = await openDesktop(browser, {width: 1400, height: 900, state: {setSec: 'data'}});
+      await p6.evaluate(() => go('settings')); await p6.waitForSelector('#dirFiles .dirrow');
+      await p6.evaluate(() => scrollTo(0, 0));
+      const top = await p6.evaluate(() => document.querySelector('#bkCard .setgcap').getBoundingClientRect().top);
+      const vh = await p6.evaluate(() => innerHeight);
+      assert.ok(top < vh, `data: підпис групи «Бекап» на першому екрані (top ${Math.round(top)} < ${vh})`);
+      await c6.close();
+    }
     // Пошук і вузький екран (десктоп)
     {
       const {ctx: c4, page: p4, errors: e4} = await openDesktop(browser, {width: 1400});
