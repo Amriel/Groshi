@@ -1851,6 +1851,7 @@ label.setrow{cursor:pointer}
 :root:root .sw.sw:checked,:root:root .sw.sw[aria-pressed="true"]{background:var(--accent);box-shadow:none}
 :root:root .sw.sw:checked::after,:root:root .sw.sw[aria-pressed="true"]::after{
   background:var(--accent-contrast);transform:translateX(18px)}
+:root:root .sw.sw:focus-visible:checked,:root:root .sw.sw[aria-pressed="true"]:focus-visible{box-shadow:none}
 :root:root .sw.sw:disabled{opacity:.45;pointer-events:none}
 .setsteps{margin:0 0 12px;padding-left:20px;line-height:1.55}
 .setsteps li+li{margin-top:2px}
@@ -1897,7 +1898,32 @@ label.setrow{cursor:pointer}
 .dirrow{flex-wrap:wrap;gap:4px 12px}
 .dirrow .setrn{flex:none;max-width:100%}
 .dirrow .setrd{flex:1 1 220px;margin-top:0}
-#updBox .mfound{margin-top:0}
+/* Картка-стан «Оновлень». Висота фіксована, а вміст міняється на місці: інакше
+   перехід «не перевіряли → нова версія → помилка» піднімав би групи нижче.
+   Бейдж несе колір лише крапкою (.dot), фон і текст — нейтральні токени. */
+.sethero{display:flex;align-items:center;gap:16px;min-height:128px;padding:18px;
+  background:var(--surface);border-radius:var(--radius)}
+.sethico{width:56px;height:56px;flex:none;border-radius:14px;background:var(--surface-3);
+  display:grid;place-items:center;font-size:24px;font-weight:700;color:var(--accent-ink)}
+.sethw{flex:1 1 200px;min-width:0}
+.setbadge{display:inline-flex;align-items:center;gap:7px;height:22px;padding:0 10px;border-radius:var(--radius-pill);
+  background:var(--surface-3);color:var(--text);font-size:var(--fs-xs);font-weight:600}
+.setbadge .dot{width:8px;height:8px}
+/* Порожній бейдж займає місце, але не видно: висота картки не залежить від стану. */
+.setbadge[data-empty]{visibility:hidden}
+.sethv{margin-top:4px;font-size:var(--fs-xl);font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.setdm{margin-top:2px;min-height:1.5em;color:var(--text-dim);font-size:var(--fs-sm);line-height:1.5;
+  overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.sethero .btn{flex:none;max-width:260px}
+@media (max-width:759px){ .sethero{flex-wrap:wrap} }
+#updSrcShow{overflow-wrap:anywhere}
+/* Крапка «є оновлення» на шестерні основної навігації: позиціонована абсолютно,
+   тож розмір і положення кнопки (їх сторожить nav.mjs) не змінюються. */
+.navdot{position:absolute;left:27px;top:8px;width:8px;height:8px;border-radius:50%;
+  background:var(--accent-ink);pointer-events:none}
+.shell.collapsed .navdot{left:calc(50% + 5px)}
+/* Нижня панель: іконка по центру кнопки, крапка біля її правого верхнього кута. */
+@media (max-width:759px){ .navdot{left:calc(50% + 5px);top:5px} }
 
 /* ── Екран блокування ──
    Над усім (модалка 300, списки 400, календар 410): поки він є, під
@@ -1964,7 +1990,7 @@ svg.sprite{position:absolute;width:0;height:0}
     <!-- На широкому екрані кнопка відкриває налаштування (шестерня), на вузькому — меню прихованих
          розділів («Ще», три крапки): два підписи й дві іконки перемикає медіазапит, без JS-перемальовування.
          aria-label/data-tip на вузькому підміняє navSettingsLabel(). -->
-    <button data-tab="settings" aria-label="Налаштування" data-tip="Налаштування" data-key="8"><svg class="ic ic-gear" width="20" height="20"><use href="#i-gear"/></svg><svg class="ic ic-more" width="20" height="20"><use href="#i-more"/></svg><span class="nl nl-gear">Налаштування</span><span class="nl nl-more">Ще</span></button>
+    <button data-tab="settings" aria-label="Налаштування" data-tip="Налаштування" data-key="8"><svg class="ic ic-gear" width="20" height="20"><use href="#i-gear"/></svg><svg class="ic ic-more" width="20" height="20"><use href="#i-more"/></svg><span class="nl nl-gear">Налаштування</span><span class="nl nl-more">Ще</span><span class="navdot" aria-hidden="true" hidden></span></button>
   </nav>
   <div class="side-foot">
     <button class="iconbtn" id="phoneBtn" aria-label="Перегляд на телефоні" data-tip="Перегляд на телефоні" data-key="P" hidden><svg class="ic" width="18" height="18"><use href="#i-phone"/></svg></button>
@@ -2700,7 +2726,8 @@ svg.sprite{position:absolute;width:0;height:0}
         <div class="setctl"><button class="btn" id="bkDir">Обрати теку</button></div>
       </div>
       <label class="setrow">
-        <div class="setrt"><b class="setrn" id="rnBk">Щотижня автоматично</b></div>
+        <div class="setrt"><b class="setrn" id="rnBk">Щотижня автоматично</b>
+          <div class="setrd">Апка сама робить копію даних раз на тиждень.</div></div>
         <input type="checkbox" id="bkAuto" class="sw" role="switch" aria-labelledby="rnBk">
       </label>
     </div>
@@ -11075,11 +11102,13 @@ setTimeout(async ()=>{
   store.set('updLastCheck', Date.now());
   try{
     const f = await D.updCheck(null);
-    if(f && f.version && f.available !== false){
-      const cur = await D.version();
-      if(f.version !== cur)
-        appToast(`Доступна версія ${f.version} — встановіть у «Налаштування → Апка і дані → Оновлення»`);
-    }
+    const cur = await D.version();
+    window.__appVer = cur;
+    if(f && f.version && f.available !== false && f.version !== cur){
+      updAvailSet(f);
+      /* appToast без кнопки дії, тому лише текст-вказівник. */
+      appToast(`Доступна версія ${f.version} — Налаштування → Оновлення`);
+    }else updAvailSet(null);
   }catch(e){ /* тихо: перевіримо завтра */ }
 }, 9000);
 
@@ -11132,8 +11161,26 @@ const SETICO = {
   data:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3 3 7 3s7-1.3 7-3"/>',
   adv:'<path d="M4 5h16v11H9l-5 4z"/>',
 };
-/* Заглушка: справжню перевірку «є нове оновлення» додає розділ «Оновлення». */
-function updPending(){ return false; }
+/* Одне джерело правди про «є нова версія» — store.updAvail ({version, file, notes, at}).
+   Поточну версію кешує updWire у window.__appVer; доки вона невідома, бейджа немає:
+   застаріле значення з минулого запуску не повинно блимнути до відповіді app_version. */
+function updPending(){
+  const a = store.get('updAvail', null);
+  return !!(a && a.version && window.__appVer && a.version !== window.__appVer);
+}
+/* Знайдену версію зберігають і автоперевірка, і ручна; null (відповідь «найновіша») скидає. */
+function updAvailSet(r){
+  if(r && r.version) store.set('updAvail', {version:r.version, file:r.file || null, notes:r.notes || '', at:Date.now()});
+  else store.del('updAvail');
+  updBadgeUi();
+  if(typeof updHeroUi === 'function') updHeroUi();
+}
+/* «1» у колонці налаштувань і крапка на шестерні — на місці, без перебудови. */
+function updBadgeUi(){
+  const on = updPending();
+  const cnt = document.querySelector('#setNav .setcnt'); if(cnt) cnt.hidden = !on;
+  const dot = document.querySelector('#tabs [data-tab="settings"] .navdot'); if(dot) dot.hidden = !on;
+}
 function setPaneHasContent(k){
   const pane = document.querySelector('#tab-settings .setpane[data-sec="'+k+'"]');
   /* Рахуємо лише показане: прихована примітка (#invNote у десктопі) з id не
@@ -11187,7 +11234,7 @@ function setSecApply(){
     if(b.dataset.sec === SETSEC) b.setAttribute('aria-current', 'page');
     else b.removeAttribute('aria-current');
   });
-  const cnt = nav.querySelector('.setcnt'); if(cnt) cnt.hidden = !updPending();
+  updBadgeUi();
   document.querySelectorAll('#tab-settings .setpane').forEach(p => { p.hidden = p.dataset.sec !== SETSEC; });
   /* Картки Порадника працюють лише в застосунку; у браузері замість них — нотатка. */
   const desk = isDesk();
@@ -11414,8 +11461,8 @@ const PRIVACY_OPTIONS = [
    дає aria-label, бо тексту «Увімкнути/Вимкнути» в кнопці більше немає. */
 el('privacyOptions').innerHTML = PRIVACY_OPTIONS.map(([key,name,detail])=>
   `<div class="setrow">
-    <div class="setrt"><b class="setrn">${name}</b><div class="setrd">${detail}</div></div>
-    <button class="sw" role="switch" data-privacy="${key}" aria-pressed="false" aria-label="${name}"></button></div>`).join('');
+    <div class="setrt"><b class="setrn">${name}</b><div class="setrd" id="rd-priv-${key}">${detail}</div></div>
+    <button class="sw" role="switch" data-privacy="${key}" aria-pressed="false" aria-label="${name}" aria-describedby="rd-priv-${key}"></button></div>`).join('');
 function privacyUi(){
   document.querySelectorAll('[data-privacy]').forEach(button=>{
     const on = privacyAllowed(button.dataset.privacy);
@@ -11423,6 +11470,8 @@ function privacyUi(){
   });
   /* Картка в розділі «Порадник» — друга кнопка того самого дозволу. Без data-privacy: цей атрибут
      рахує сторож «явних дозволів» (їх рівно шість), а обробник тут свій. */
+  /* Перемикач у «Оновленнях» — друга кнопка дозволу updates (також без data-privacy). */
+  const ua = el('updAuto'); if(ua) ua.setAttribute('aria-pressed', String(privacyAllowed('updates')));
   const on = privacyAllowed('advisor'), cs = el('advCloudState'), cb = el('advCloudBtn');
   if(cs) cs.textContent = on ? 'Увімкнено' : 'Вимкнено';
   if(cb){ cb.setAttribute('aria-pressed', String(on)); cb.classList.toggle('pri', !on); /* акцент лише для «Увімкнути» */ cb.textContent = on ? 'Вимкнути' : 'Увімкнути'; }
@@ -11437,6 +11486,7 @@ async function privacyToggle(key){
   document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=true);
   if(el('advOn'))el('advOn').disabled=true;
   if(el('advCloudBtn'))el('advCloudBtn').disabled=true;
+  if(el('updAuto'))el('updAuto').disabled=true;
   try{
     // Rust має бачити дозвіл до наступного запиту, а не після відкладеного flush.
     const D=window.__DESK__;
@@ -11452,10 +11502,21 @@ async function privacyToggle(key){
   }catch(e){el('privacyStatus').textContent='Не вдалося зберегти дозвіл. Спробуйте ще раз.';}
   finally{privacySaving=false;document.querySelectorAll('[data-privacy]').forEach(b=>b.disabled=false);
     if(el('advOn'))el('advOn').disabled=false;
-    if(el('advCloudBtn'))el('advCloudBtn').disabled=false;}
+    if(el('advCloudBtn'))el('advCloudBtn').disabled=false;
+    if(el('updAuto'))el('updAuto').disabled=false;}
 }
 document.querySelectorAll('[data-privacy]').forEach(button=>button.onclick=()=>privacyToggle(button.dataset.privacy));
+if(el('updAuto')) el('updAuto').onclick = ()=>privacyToggle('updates');
 privacyUi();
+/* Перемикач у рядку називається назвою рядка, а читається ще й його описом: без
+   aria-describedby зчитувач озвучував би «перемикач, увімкнено» без пояснення. Рядки з
+   готовим aria-describedby (дозволи) пропускаємо; решті даємо id за id перемикача. */
+document.querySelectorAll('.setrow .sw:not([aria-describedby])').forEach(sw=>{
+  const d = sw.closest('.setrow').querySelector('.setrd');
+  if(!d || !sw.id) return;
+  if(!d.id) d.id = 'rd-' + sw.id;
+  sw.setAttribute('aria-describedby', d.id);
+});
 
 el('alertPct').value = store.get('invAlertPct', 5);
 el('alertPct').onchange = e=> store.set('invAlertPct', parseFloat(e.target.value)||0);

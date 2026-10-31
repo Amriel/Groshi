@@ -164,6 +164,13 @@ export async function openDesktop(browser, {width, height = 900, theme = 'dark',
       if (['data_dir', 'data_default'].includes(command)) return 'synthetic-data';
       if (command === 'app_version') return 'test';
       if (command === 'update_source') return '';
+      // Оновлення: проба задає відповідь через window.__updFixture або помилку через
+      // window.__updError (рядок, як віддає Rust); встановлення лише записує аргументи.
+      if (command === 'update_check') {
+        if (window.__updError) throw window.__updError;
+        return window.__updFixture || {available: false, current: 'test', version: 'test'};
+      }
+      if (command === 'update_install') { window.__updInstalled = args; return; }
       window.__unexpectedCommands.push(command);
       throw Error('Неочікувана команда фікстури: ' + command);
     }}, event: {listen: async () => () => {}}};

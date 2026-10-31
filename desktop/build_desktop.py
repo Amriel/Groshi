@@ -235,20 +235,44 @@ MONO_HTML = """  <div class="card">
       останній місяць по всіх рахунках, далі глибина; зупинити можна будь-коли, завантажене лишиться.</p>
   </div>
 """
-UPD_HTML = """  <div class="card">
-    <div class="cardhead"><h2>Оновлення</h2><span class="hint" id="updVer"></span></div>
-    <p class="muted setlead">Апка дивиться в Релізи GitHub — там лежать
-      збірки. Замість репозиторію можна вказати теку (локальну чи мережеву) або адресу
-      з <code>latest.json</code>: тоді оновлення працюватиме й без інтернету.</p>
-    <div class="mfields">
-      <label class="mf grow"><span>Репозиторій, тека або адреса</span>
-        <input id="updSrc" placeholder="github:Amriel/Groshi" autocomplete="off"></label>
-      <label class="mf"><span>&nbsp;</span>
-        <button class="btn" id="updPick">Обрати теку</button></label>
-      <label class="mf"><span>&nbsp;</span>
-        <button class="btn pri" id="updCheck">Перевірити</button></label>
+UPD_HTML = """  <div class="sethero" id="updHero">
+    <div class="sethico" aria-hidden="true">₴</div>
+    <div class="sethw">
+      <span class="setbadge" id="updHeroBadge" data-empty><span class="dot" aria-hidden="true"></span><span id="updHeroBadgeT"></span></span>
+      <div class="sethv" id="updHeroTitle">Гроші</div>
+      <div class="setdm" id="updHeroMeta" role="status"></div>
     </div>
-    <div id="updBox" class="setgap"></div>
+    <button class="btn" id="updHeroBtn">Перевірити</button>
+  </div>
+  <p class="muted setfoot" id="updNotes" hidden></p>
+  <div class="setbox">
+    <div class="setgcap">Автоматично</div>
+    <div class="setgrp">
+      <div class="setrow">
+        <div class="setrt"><b class="setrn" id="rnUpdAuto">Перевіряти оновлення</b>
+          <div class="setrd" id="rdUpdAuto">Раз на добу. Якщо є нова версія, у налаштуваннях з’явиться бейдж.</div></div>
+        <button class="sw" id="updAuto" role="switch" aria-pressed="false" aria-labelledby="rnUpdAuto" aria-describedby="rdUpdAuto"></button>
+      </div>
+    </div>
+    <div class="setgcap">Вручну</div>
+    <div class="setgrp">
+      <div class="setrow">
+        <div class="setrt"><b class="setrn">Перевірити зараз</b>
+          <div class="setrd" id="updLastTxt"></div></div>
+        <div class="setctl"><button class="btn" id="updCheck">Перевірити</button></div>
+      </div>
+      <div class="setrow">
+        <div class="setrt"><b class="setrn">Звідки брати оновлення</b>
+          <div class="setrd"><code id="updSrcShow"></code> · репозиторій GitHub, тека (локальна чи мережева) або адреса з <code>latest.json</code></div></div>
+        <div class="setctl"><button class="btn" id="updSrcEdit" aria-expanded="false" aria-controls="updSrcBox">Змінити</button></div>
+      </div>
+      <div class="setrow" id="updSrcBox" hidden>
+        <div class="setrt"><label class="setrn" for="updSrc">Репозиторій, тека або адреса</label></div>
+        <div class="setctl"><input id="updSrc" class="updsrc" placeholder="github:Amriel/Groshi" autocomplete="off">
+          <button class="btn" id="updPick">Обрати теку</button></div>
+      </div>
+    </div>
+    <p class="muted setfoot">Дані, підписки й токени лишаються на місці — оновлюється тільки програма.</p>
   </div>
 """
 # «Застосунок» розрізано: автозапуск/синхронізація/тиша — у «Запуск і
@@ -548,7 +572,8 @@ function monoWire(){
    Адреса джерела не надає права запускати непідписану програму. */
 function updWire(){
   if(!el('updCheck')) return;
-  D.version().then(v=>{ el('updVer').textContent = 'версія ' + v; });
+  /* Версію кешуємо: updPending() порівнює з нею знайдену версію і мовчить, доки вона невідома. */
+  D.version().then(v=>{ window.__appVer = v; updBadgeUi(); updHeroUi(); }).catch(()=>{});
   /* До переходу на GitHub джерелом за замовчуванням була тека на диску,
      і в кого апка вже працювала, вона лежить у налаштуваннях. Без цього
      блоку вона мовчки перебивала б нове джерело, і апка й далі шукала б
@@ -564,57 +589,110 @@ function updWire(){
       store.del('updSource'); saved = null;
     }
   }
-  if(saved) el('updSrc').value = saved;
-  else D.updSource().then(s=>{ if(!el('updSrc').value) el('updSrc').value = s || ''; });
+  if(saved){ el('updSrc').value = saved; updSrcUi(); }
+  else D.updSource().then(s=>{ if(!el('updSrc').value) el('updSrc').value = s || ''; updSrcUi(); });
+  updSrcUi();
 
-  el('updSrc').onchange = ()=> store.set('updSource', el('updSrc').value.trim());
+  el('updSrc').onchange = ()=>{ store.set('updSource', el('updSrc').value.trim()); updSrcUi(); };
   el('updPick').onclick = async ()=>{
     const d = await D.pickDirT('Тека з оновленнями');
-    if(d){ el('updSrc').value = d; store.set('updSource', d); }
-    else pjToast && 0;
+    if(d){ el('updSrc').value = d; store.set('updSource', d); updSrcUi(); }
+  };
+  /* Поле джерела згорнуте: у рядку лише поточне значення, «Змінити» розкриває його на місці. */
+  el('updSrcEdit').onclick = ()=>{
+    const box = el('updSrcBox'), open = box.hidden;
+    box.hidden = !open;
+    el('updSrcEdit').setAttribute('aria-expanded', String(open));
+    el('updSrcEdit').textContent = open ? 'Готово' : 'Змінити';
+    if(open) el('updSrc').focus();
   };
   el('updCheck').onclick = ()=>updRun();
+  el('updHeroBtn').onclick = ()=>updHeroGo();
+  updLastUi(); updHeroUi();
+}
+
+/* Стан картки. st: idle (ще не питали) · busy · ok (найновіша) · err · inst (готуємо інсталятор);
+   «нова версія» не зберігається окремо, а виводиться з updPending(): так вона переживає
+   перезапуск апки, а застаріла (версія вже стоїть) зникає сама. */
+const UPD = {st:'idle', err:'', ierr:''};
+
+function updSrcUi(){
+  const v = el('updSrc').value.trim();
+  el('updSrcShow').textContent = v || 'github:Amriel/Groshi';
+}
+function updLastTxt(){
+  const t = store.get('updLastCheck', 0);
+  if(!t) return 'ніколи';
+  const d = new Date(t), p = n=>String(n).padStart(2,'0'), now = new Date();
+  const hm = p(d.getHours()) + ':' + p(d.getMinutes());
+  return d.toDateString() === now.toDateString() ? 'сьогодні о ' + hm
+    : p(d.getDate()) + '.' + p(d.getMonth()+1) + ' о ' + hm;
+}
+function updLastUi(){ el('updLastTxt').textContent = 'Остання перевірка: ' + updLastTxt(); }
+
+/* Перемальовує картку НА МІСЦІ (лише textContent/className наявних вузлів): висота
+   фіксована в CSS, а innerHTML усієї картки скинув би фокус кнопки. */
+function updHeroUi(){
+  if(!el('updHero')) return;
+  const cur = window.__appVer || '', a = store.get('updAvail', null);
+  let kind = 'idle', badge = '', dot = '', title = cur ? 'Гроші ' + cur : 'Гроші', meta = 'Остання перевірка: ' + updLastTxt();
+  let btn = 'Перевірити', pri = false, off = false;
+  if(UPD.st === 'busy'){ btn = 'Дивлюсь…'; off = true; }
+  else if(UPD.st === 'inst'){ kind = 'new'; btn = 'Готую…'; off = true; }
+  else if(UPD.st === 'err'){ kind = 'err'; badge = 'Не вдалося перевірити'; dot = 'warn'; meta = UPD.err; }
+  else if(updPending()){
+    kind = 'new'; badge = 'Нова версія'; dot = 'info'; title = 'Гроші ' + a.version;
+    meta = 'у вас ' + cur; btn = 'Встановити й перезапустити'; pri = true;
+    if(UPD.ierr){ badge = 'Не вдалося встановити'; dot = 'warn'; meta = UPD.ierr; }
+  }
+  else if(UPD.st === 'ok'){ badge = 'Найновіша'; dot = 'ok'; }
+  if(UPD.st === 'inst'){ badge = 'Нова версія'; dot = 'info'; title = 'Гроші ' + (a ? a.version : ''); meta = 'у вас ' + cur; }
+  const b = el('updHeroBadge');
+  b.toggleAttribute('data-empty', !badge);
+  b.querySelector('.dot').className = 'dot' + (dot ? ' ' + dot : '');
+  el('updHeroBadgeT').textContent = badge;
+  el('updHeroTitle').textContent = title;
+  el('updHeroMeta').textContent = meta;
+  const hb = el('updHeroBtn');
+  hb.textContent = btn; hb.disabled = off; hb.classList.toggle('pri', pri);
+  hb.dataset.kind = kind;
+  el('updCheck').disabled = UPD.st === 'busy' || UPD.st === 'inst';
+  /* Нотатки релізу — дрібно під карткою, лише коли є що читати. */
+  const n = el('updNotes'), notes = (kind === 'new' && a && a.notes) ? a.notes : '';
+  n.textContent = notes; n.hidden = !notes;
 }
 
 async function updRun(){
-  const box = el('updBox'), src = el('updSrc').value.trim();
-  box.innerHTML = '<span class="muted">Дивлюсь…</span>';
+  if(UPD.st === 'busy' || UPD.st === 'inst') return;
+  UPD.st = 'busy'; UPD.err = UPD.ierr = '';
+  updHeroUi();
+  store.set('updLastCheck', Date.now());
   try{
-    const r = await D.updCheck(src);
-    /* Результат — плоска вставка .mfound зі словника «Підписок»; стан —
-       крапка біля заголовка, а «Встановити» — компактна .btn.sm.pri, щоб
-       не переростала рядок заголовка вставки. */
-    if(!r.available){
-      box.innerHTML = `<div class="mfound"><div class="mfhead">
-        <b class="stat"><span class="dot ok" aria-hidden="true"></span>Уже найновіша</b><span class="muted">у вас ${esc(r.current)}, у джерелі ${esc(r.version)}</span>
-      </div></div>`;
-      return;
-    }
-    box.innerHTML = `<div class="mfound">
-      <div class="mfhead"><b class="stat"><span class="dot info" aria-hidden="true"></span>Є оновлення ${esc(r.version)}</b>
-        <span class="muted">зараз ${esc(r.current)} · ${esc(r.file)}</span>
-        <button class="btn sm pri" id="updGo">Встановити</button></div>
-      ${r.notes ? `<p class="muted mfnote">${esc(r.notes)}</p>` : ''}
-      <p class="muted mfnote">
-        Апка закриється, запуститься інсталятор. Дані, підписки й токен лишаться на місці —
-        оновлюється тільки програма.</p></div>`;
-    el('updGo').onclick = async ()=>{
-      const ok = await uiConfirm({title:`Встановити ${r.version}?`,
-        text:'Гроші закриються, далі все зробить інсталятор — лишіть у ньому галочку запуску, і апка відкриється сама.',
-        ok:'Встановити', danger:false});
-      if(!ok) return;
-      el('updGo').disabled = true;
-      el('updGo').textContent = 'Готую…';
-      try{ await D.updInstall(src, r.file); }
-      catch(e){ el('updGo').disabled = false; el('updGo').textContent = 'Встановити';
-                /* Помилка — крапка й звичайний текст: дрібний --warn на
-                   --surface-2 світлої теми не тримає 4,5:1. */
-                box.insertAdjacentHTML('beforeend',
-                  `<p class="muted mfnote stat"><span class="dot warn" aria-hidden="true"></span>${esc(String(e))}</p>`); }
-    };
+    const r = await D.updCheck(el('updSrc').value.trim());
+    /* «Найновіша» скидає updAvail, а знайдена версія зберігається — її читають бейдж
+       у колонці й крапка на шестерні. Версія, що вже стоїть, нової не вважається. */
+    const fresh = !!r.available && r.version !== window.__appVer;
+    UPD.st = fresh ? 'idle' : 'ok';
+    updAvailSet(fresh ? r : null);
   }catch(e){
-    box.innerHTML = `<span class="muted stat"><span class="dot warn" aria-hidden="true"></span>${esc(String(e))}</span>`;
+    UPD.st = 'err'; UPD.err = String(e);
   }
+  updLastUi(); updHeroUi();
+}
+
+/* Кнопка картки: у стані «нова версія» встановлює, в інших перевіряє. */
+async function updHeroGo(){
+  if(!updPending()){ updRun(); return; }
+  const a = store.get('updAvail', null);
+  /* Збережена версія без файлу (запис зі старого запуску): спершу дізнаємось ім'я збірки. */
+  if(!a.file){ await updRun(); return; }
+  const ok = await uiConfirm({title:`Встановити ${a.version}?`,
+    text:'Гроші закриються, далі все зробить інсталятор — лишіть у ньому галочку запуску, і апка відкриється сама.',
+    ok:'Встановити', danger:false});
+  if(!ok) return;
+  UPD.st = 'inst'; UPD.ierr = ''; updHeroUi();
+  try{ await D.updInstall(el('updSrc').value.trim(), a.file); }
+  catch(e){ UPD.st = 'idle'; UPD.ierr = String(e); updHeroUi(); }
 }
 
 /* Скільки це триватиме — питання номер один. Раніше апка мовчки бралась
