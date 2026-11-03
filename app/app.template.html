@@ -6803,6 +6803,92 @@ async function clientAsk(key){
   store.set('clientsDB', CLIENTS); bizUi();
 }
 
+/* Автоматична підготовка підпису: обрізання порожніх полів (autocrop),
+   видалення білого фону (якщо скановано чи сфотографовано з паперу),
+   масштабування до чіткої роздільності та зміцнення тонких субпіксельних ліній,
+   щоб на друкованому А4 підпис виглядав природним контрастним розчерком. */
+function prepSignature(dataUri){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        if(!w || !h) return resolve(dataUri);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+        const d = ctx.getImageData(0, 0, w, h).data;
+        let minX = w, maxX = 0, minY = h, maxY = 0, hasInk = false, isOpaqueBg = true;
+        for(let y = 0; y < h; y++){
+          for(let x = 0; x < w; x++){
+            const idx = (y * w + x) * 4;
+            const r = d[idx], g = d[idx+1], b = d[idx+2], a = d[idx+3];
+            if(a < 240) isOpaqueBg = false;
+            const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+            if(a > 25 && luma < 235){
+              hasInk = true;
+              if(x < minX) minX = x;
+              if(x > maxX) maxX = x;
+              if(y < minY) minY = y;
+              if(y > maxY) maxY = y;
+            }
+          }
+        }
+        if(!hasInk) return resolve(dataUri);
+        const pad = Math.max(6, Math.round(Math.max(w, h) * 0.01));
+        minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+        maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+        const bw = maxX - minX + 1, bh = maxY - minY + 1;
+        const maxTargetH = 180, maxTargetW = 440;
+        const scale = Math.min(1, maxTargetH / bh, maxTargetW / bw);
+        const tw = Math.max(1, Math.round(bw * scale)), th = Math.max(1, Math.round(bh * scale));
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = tw; outCanvas.height = th;
+        const outCtx = outCanvas.getContext('2d', { willReadFrequently: true });
+        outCtx.drawImage(c, minX, minY, bw, bh, 0, 0, tw, th);
+        const outData = outCtx.getImageData(0, 0, tw, th);
+        const od = outData.data;
+        if(isOpaqueBg){
+          for(let i = 0; i < od.length; i += 4){
+            const luma = 0.299 * od[i] + 0.587 * od[i+1] + 0.114 * od[i+2];
+            if(luma > 240) od[i+3] = 0;
+            else if(luma > 200) od[i+3] = Math.round((240 - luma) / 40 * 255);
+          }
+        }
+        const dilatedA = new Uint8ClampedArray(tw * th);
+        for(let y = 0; y < th; y++){
+          for(let x = 0; x < tw; x++){
+            let maxA = od[(y * tw + x) * 4 + 3];
+            for(let dy = -1; dy <= 1; dy++){
+              const ny = y + dy; if(ny < 0 || ny >= th) continue;
+              for(let dx = -1; dx <= 1; dx++){
+                const nx = x + dx; if(nx < 0 || nx >= tw) continue;
+                const a = od[(ny * tw + nx) * 4 + 3];
+                if(a > maxA) maxA = a;
+              }
+            }
+            dilatedA[y * tw + x] = maxA;
+          }
+        }
+        for(let i = 0; i < dilatedA.length; i++){
+          const a = dilatedA[i], idx = i * 4;
+          if(a > 20){
+            od[idx+3] = Math.min(255, Math.round(Math.pow(a / 255, 0.7) * 255));
+            od[idx] = Math.min(od[idx], 25);
+            od[idx+1] = Math.min(od[idx+1], 25);
+            od[idx+2] = Math.min(od[idx+2], 30);
+          } else od[idx+3] = 0;
+        }
+        outCtx.putImageData(outData, 0, 0);
+        resolve(outCanvas.toDataURL('image/png'));
+      }catch(e){ resolve(dataUri); }
+    };
+    img.onerror = ()=>resolve(dataUri);
+    img.src = dataUri;
+  });
+}
+
 /* картка «Рахунки для клієнтів»: профілі, підпис із превʼю, клієнти */
 function bizUi(){
   const host = el('bizProfList'); if(!host) return;
@@ -6895,7 +6981,7 @@ function invoiceHtml(p, o){
   .words{margin:12px 0 2px}
   .small{color:#555;font-size:11px}
   .sig{margin-top:28px}
-  .sig img{height:64px;display:block;margin-bottom:-14px}
+  .sig img{max-height:72px;max-width:220px;width:auto;height:auto;display:block;margin-bottom:-16px;margin-left:8px}
   .sigline{border-bottom:1px solid #111;width:260px;margin:8px 0 4px}
   @media print{ body{padding:24px 8mm} @page{size:A4;margin:12mm} }
 </style></head><body>
@@ -11170,12 +11256,25 @@ el('bizSignFile').onchange = e=>{
   if(!f) return;
   if(f.size > 800*1024){ el('bizMsg').textContent = 'Файл завеликий — до 800 КБ. Обріжте/стисніть підпис.'; return; }
   const rd = new FileReader();
-  rd.onload = ()=>{ const image = safeImage(rd.result);
-    if(!image){ el('bizMsg').textContent = 'Потрібне зображення PNG, JPEG або WebP.'; return; }
-    BIZSIGN = image; store.set('bizSign', BIZSIGN); bizUi();
-    el('bizMsg').textContent = 'Підпис збережено — додаватиметься на кожен рахунок автоматично.'; };
+  rd.onload = async ()=>{
+    const raw = safeImage(rd.result);
+    if(!raw){ el('bizMsg').textContent = 'Потрібне зображення PNG, JPEG або WebP.'; return; }
+    const image = safeImage(await prepSignature(raw)) || raw;
+    BIZSIGN = image; store.set('bizSign', BIZSIGN); store.set('bizSignPrep', 1); bizUi();
+    el('bizMsg').textContent = 'Підпис збережено — додаватиметься на кожен рахунок автоматично.';
+  };
   rd.readAsDataURL(f);
 };
+if(BIZSIGN && store.get('bizSignPrep') !== 1){
+  store.set('bizSignPrep', 1);
+  prepSignature(BIZSIGN).then(cleaned=>{
+    if(cleaned && safeImage(cleaned) && cleaned !== BIZSIGN){
+      BIZSIGN = safeImage(cleaned);
+      store.set('bizSign', BIZSIGN);
+      bizUi();
+    }
+  });
+}
 bizUi();
 
 /* ── розділи налаштувань ───────────────────────────────────────────
