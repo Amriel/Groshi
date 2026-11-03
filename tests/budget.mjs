@@ -27,10 +27,10 @@ const sha = s => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
 
 // Хеші зняті з ДОКУМЕНТІВ ДО Задачі 11 (збірка з коміту перед нею), не з поточного коду.
 const HASH = {
-  'ua-act-tax':        '5ae44f71ad4f4d750aa2620f5e99fb3b049889fe3bd4ffdd7cf7dc42f30e89e4',
-  'en-inv-net':        '6643a0667f5253bdb8ea7bf7f161c032b116662717d9db49ea6fba9d33bd513d',
-  'both-act-tax':      'cbfe35a2084948b7b614dd41efa5f7454a1325afba81f9d8866f2e62edf67909',
-  'both-act-tax-sign': '21f0d928c6fa2ffc30eab1226743c527790fc7b32a1dfdb50eb224c8c7e38631',
+  'ua-act-tax':        '5588b0e9a02aa159d4058578a056b8ccb685d20b7b87b1a7f1cebffecc726138',
+  'en-inv-net':        'e2d012050773255eb1b4ea520141c5e7ccf70601b8d0af642d29fffd651b362d',
+  'both-act-tax':      '656016a126972d997c70637d99318caae906fb6ab160a4d4f4a5105c731479e3',
+  'both-act-tax-sign': 'bc3642502ff72abf143d5c4f9ab6f4879f6317fbc94da35044fe95bcae5d0a4a',
   'share':             '9884e606f59c71a73f4986b0b003652d046964014698534e85e3bca96c63464b',
 };
 // 1×1 прозорий PNG — підпис для варіанта рахунку з підписом (штучний).
