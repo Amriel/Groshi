@@ -6,10 +6,14 @@ use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 pub const MAX_IMPORT: u64 = 20_000_000;
-pub const DATA_FILES: [&str; 12] = [
+/// Усе, що застосунок пише в теку даних. Файл поза цим списком мовчки випадає
+/// з резервних копій і з перенесення на інший компʼютер (Windows → macOS),
+/// тож новий файл у `Store` обовʼязково додавати й сюди.
+pub const DATA_FILES: [&str; 14] = [
     "state.json", "mono_raw.json", "legacy.json", "ibkr_raw.json",
     "binance_raw.json", "quotes.json", "logos.json", "cry_hist.json",
     "nbu_rates.json", "inv_cache.json", "networth.json", "fx.json",
+    "advisor_chats.json", "advice_cache.json",
 ];
 const BACKUP_MARKER: &str = ".groshi-backup";
 const BACKUP_VERSION: &[u8] = b"Groshi backup v1\n";
@@ -571,7 +575,8 @@ mod tests {
     fn all_data_files_move_and_only_verified_sources_are_removed() {
         let temp = Temp::new();
         let source = temp.dir("source"); let target = temp.dir("target");
-        assert_eq!(DATA_FILES.len(), 12);
+        assert_eq!(DATA_FILES.len(), 14);
+        assert!(DATA_FILES.contains(&"advisor_chats.json") && DATA_FILES.contains(&"advice_cache.json"));
         for name in DATA_FILES { fs::write(source.join(name), format!("synthetic {name}")).unwrap(); }
         copy_migration(&source, &target, "move").unwrap();
         for name in DATA_FILES { assert!(same_bytes(&source.join(name), &target.join(name)).unwrap()); }
@@ -581,6 +586,24 @@ mod tests {
         assert!(!source.join("fx.json").exists());
         assert!(target.join("inv_cache.json").exists());
         assert!(target.join("networth.json").exists());
+    }
+
+    #[test]
+    fn backup_made_before_chat_files_were_listed_is_still_owned() {
+        // До 1.37 у переліку було 12 файлів: така копія мусить лишатися
+        // «власною», інакше її не оновить і не почистить prune_backups.
+        let temp = Temp::new();
+        let root = temp.dir("backups");
+        let old = prepare_backup(&root, "backup-2026-01-01").unwrap();
+        for name in &DATA_FILES[..12] { fs::write(old.join(name), b"{}").unwrap(); }
+        assert!(owned_backup(&root, &old));
+        // Нова копія тієї ж дати підхоплює й файли Радника.
+        let source = temp.dir("data");
+        for name in DATA_FILES { fs::write(source.join(name), b"{}").unwrap(); }
+        let (target, files, _) = write_backup(&source, &root, "backup-2026-01-01").unwrap();
+        assert_eq!(files, 14);
+        assert!(target.join("advisor_chats.json").is_file() && target.join("advice_cache.json").is_file());
+        assert!(owned_backup(&root, &target));
     }
 
     #[test]

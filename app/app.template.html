@@ -2467,7 +2467,7 @@ svg.sprite{position:absolute;width:0;height:0}
   <div class="card" id="advDesk" hidden>
     <h2>Порадник доступний лише в десктопній версії</h2>
     <p class="muted subhint">Він працює через Claude Code на цьому комп'ютері, а браузерна версія
-      не має доступу до програм системи. Відкрийте застосунок «Гроші» для Windows.</p>
+      не має доступу до програм системи. Відкрийте десктопний застосунок «Гроші».</p>
   </div>
   <div class="card" id="advWait" hidden><p class="muted">Перевіряю, чи встановлено Claude Code…</p></div>
   <div class="card" id="advSetup" hidden>
@@ -3132,6 +3132,15 @@ const safeImage = value => typeof value === 'string' && value.length <= 3000000
   && /^data:image\/(?:png|jpeg|webp|gif|x-icon);base64,[a-z0-9+/=\s]+$/i.test(value) ? value : null;
 const privacyAllowed = key => store.get('privacyServices', {})?.[key] === true;
 const el  = (id) => document.getElementById(id);
+
+/* Платформу визначаємо один раз: у WKWebView на macOS userAgent містить
+   «Macintosh», а navigator.platform лишається «MacIntel» навіть на Apple Silicon.
+   Від неї залежать лише підписи й модифікатор гарячих клавіш — логіка однакова. */
+const IS_MAC = /Mac/.test(navigator.platform || navigator.userAgent || '');
+// На Mac «Ctrl» у підказках — це ⌘, а в обробниках Cmd приходить як metaKey.
+const modKey = () => IS_MAC ? '⌘' : 'Ctrl+';
+// Де десктопний застосунок кладе ключі: у кожної ОС власне сховище.
+const keyStoreName = () => IS_MAC ? 'у Keychain macOS' : 'у Диспетчері облікових даних Windows';
 
 /* ── чия категорія головніша ──────────────────────────────────────
    1. те, що людина поставила ЦІЙ операції руками (TXCAT);
@@ -7015,8 +7024,8 @@ async function invoiceFlow(p){
   pjSave();
   const m = el('pjMsg'); if(m){ m.hidden = false;
     m.textContent = (window.__DESK__ && __DESK__.tauri)
-      ? `${r.no}.html ліг у «Завантаження» і відкрився — Ctrl+P → «Зберегти як PDF».`
-      : `${r.no}.html збережено — відкрийте його і Ctrl+P → «Зберегти як PDF».`;
+      ? `${r.no}.html ліг у «Завантаження» і відкрився — ${modKey()}P → «Зберегти як PDF».`
+      : `${r.no}.html збережено — відкрийте його і ${modKey()}P → «Зберегти як PDF».`;
     setTimeout(()=>{ m.hidden = true; }, 12000); }
   bizUi();
 }
@@ -7366,7 +7375,7 @@ function uiAsk(o){
         if(useArea && e.target === area) return;
         /* У списку рядків Enter поводиться як у списку, а не як «Гаразд»:
            у кінці — новий рядок, посередині — перехід на наступний.
-           Зберігає Ctrl+Enter або кнопка: інакше перший же Enter після
+           Зберігає Ctrl/⌘+Enter або кнопка: інакше перший же Enter після
            назви закривав вікно і рядок лишався недописаним. */
         if(o.rows && rAdd && e.target.closest && e.target.closest('.mrlist')){
           e.preventDefault(); e.stopPropagation();
@@ -8106,7 +8115,7 @@ function renderInv(){
     /* Групи позицій тепер окремі картки, тож порожній стан теж кладемо
        в картку — інакше пояснення висіло б голим рядком між секціями. */
     const msg = `<div class="card"><p class="muted invempty">${
-      !desk ? 'Підключення брокерів живе в десктопній версії — там є сховище ключів Windows і прямий доступ до API. Браузерна версія показує лише витрати.'
+      !desk ? 'Підключення брокерів живе в десктопній версії — там є сховище ключів ОС і прямий доступ до API. Браузерна версія показує лише витрати.'
       : hasKeys ? 'Ключі збережено — натисніть «Оновити», і апка стягне перший знімок портфеля.'
       : 'Підключіть Interactive Brokers або Binance у «Налаштуваннях». Обидва підключення тільки читають: торгувати чи вивести гроші ними неможливо.'}</p>`
       + (desk && !hasKeys ? `<button class="btn pri" data-invgo>Відкрити налаштування</button>` : '') + '</div>';
@@ -10495,7 +10504,7 @@ async function advKeyRefresh(){
 async function advKeyAsk(){
   const D = advDesk(); if(!D) return;
   const p = uiAsk({ title:'Ключ API Anthropic', label:'Ключ',
-    text:'Ключ зберігається у Диспетчері облікових даних Windows і більше не показується.', ok:'Зберегти' });
+    text:`Ключ зберігається ${keyStoreName()} і більше не показується.`, ok:'Зберегти' });
   el('modalI').type = 'password';
   let v = await p;
   el('modalI').type = 'text'; el('modalI').value = '';
@@ -10959,7 +10968,7 @@ el('themeBtn').onclick = ()=>{
   document.documentElement.dataset.theme = next; store.set('theme',next); render();
 };
 /* Без збереженого вибору слідуємо системі; явний вибір (кнопка, T) перебиває її.
-   Раніше стояв жорсткий 'dark': людина зі світлою Windows першим екраном
+   Раніше стояв жорсткий 'dark': людина зі світлою системною темою першим екраном
    бачила темну апку й мусила шукати кнопку. Стеження за ОС нічого не
    пише в store — інакше перша ж зміна теми системи «зафіксувала» б вибір,
    якого людина не робила, і стеження вимкнулося б саме. */
@@ -11525,7 +11534,7 @@ async function wizard(){
     const go1 = await uiAsk({ title:'Крок 1 · Банк', input:false, ok:'Відкрити «Банки»', cancel:'Пізніше',
       text:'Monobank віддає операції за особистим токеном.\n'
         + 'Візьміть його на api.monobank.ua (кнопка «Отримати токен») і вставте у «Налаштування → Банки».\n\n'
-        + 'Токен лягає в Диспетчер облікових даних Windows — не в файл і не в апку.' });
+        + `Токен лягає ${keyStoreName()} — не в файл і не в апку.` });
     if(go1 !== null){ go2set('bank'); store.set('wizDone', true); return; }
   }
 

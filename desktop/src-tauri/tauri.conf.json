@@ -39,12 +39,16 @@
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/icon.icns"
     ],
     "publisher": "Oleksandr",
     "copyright": "",
     "shortDescription": "Облік витрат на даних Monobank",
     "longDescription": "Гроші — облік витрат, підписок і кошторисів проєктів. Дані тягнуться напряму з Monobank і лежать на вашому диску.",
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    },
     "windows": {
       "nsis": {
         "installMode": "currentUser",

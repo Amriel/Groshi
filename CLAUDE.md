@@ -75,9 +75,10 @@ node mcp/selftest.js
 `quotes.rs` (Yahoo), `nbu.rs` (курси НБУ); `store.rs` — JSON на диску через
 тимчасовий файл; `advisor.rs` — запуск `claude` для вкладки «Порадник»; `advisor_mcp.rs` — власний MCP-цикл
 (≤ 8 кроків) для local/API; `advisor_local.rs` — LM Studio (лише localhost);
-`advisor_api.rs` — API Anthropic (ключ у Диспетчері облікових даних); `update.rs` — оновлення з перевіркою Ed25519-підпису
+`advisor_api.rs` — API Anthropic (ключ у системному сховищі ключів); `update.rs` — оновлення з перевіркою Ed25519-підпису
 (`update-key.pub`); `native_csp.rs` + `safety.rs` — CSP і захисні перевірки.
-Токени — лише в Диспетчері облікових даних Windows.
+Токени — лише в системному сховищі ключів: Диспетчер облікових даних Windows
+або Keychain macOS (`keyring` з фічами `windows-native` + `apple-native`).
 
 **MCP** (`mcp/groshi-mcp.js` — лише stdio-протокол, `mcp/tools.js` — 12
 інструментів) — сервер лише для читання даних апки, без мережевого коду й без
@@ -93,7 +94,7 @@ node mcp/selftest.js
 лишатися порожніми. Проби використовують лише штучні дані.
 
 **CI** (`.github/workflows/build.yml`): privacy + unittest → `npm test` на
-Linux → `cargo test` і `desktop-csp.mjs` на Windows → підписаний інсталятор
+Linux → `cargo test` і `desktop-csp.mjs` на Windows і macOS (arm64) → підписані `.exe` і `.dmg`
 лише для теґів `v*` / ручного запуску. Версія — у
 `desktop/src-tauri/tauri.conf.json`.
 

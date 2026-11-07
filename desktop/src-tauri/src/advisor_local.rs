@@ -338,7 +338,7 @@ pub fn find_lms(path: &str, home: Option<&std::path::Path>) -> Option<std::path:
 
 fn find_lms_env() -> Result<std::path::PathBuf, String> {
     let home = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")).map(std::path::PathBuf::from);
-    find_lms(&std::env::var("PATH").unwrap_or_default(), home.as_deref()).ok_or_else(|| "LM Studio не знайдено".to_string())
+    find_lms(&crate::advisor::search_path(), home.as_deref()).ok_or_else(|| "LM Studio не знайдено".to_string())
 }
 
 #[tauri::command]
@@ -354,6 +354,8 @@ pub async fn advisor_lms_models() -> Result<Vec<LmsModel>, String> {
 pub async fn advisor_lms_server_start() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(|| {
         let lms = find_lms_env()?;
+        // Без process_group (на відміну від claude/node): `lms server start` демонізується навмисно, і сервер
+        // LM Studio має пережити цей виклик, у тому числі таймаут `kill_tree`.
         crate::advisor::run_capture(&lms, &["server", "start"], Duration::from_secs(60)).map(|_| ())
     }).await.map_err(|e| e.to_string())?
 }

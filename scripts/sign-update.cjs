@@ -7,8 +7,10 @@ const crypto = require('node:crypto');
 // Ключ надходить лише через середовище процесу: аргументи командного
 // рядка й повідомлення CI можуть зберігатися у журналах.
 function signInstaller(installer, publicKeyPath) {
-  if (!installer || path.extname(installer).toLowerCase() !== '.exe') {
-    throw new Error('Потрібен шлях до інсталятора .exe');
+  // .dmg — образ для macOS: застосунок перевіряє той самий Ed25519-підпис
+  // перед відкриттям, тож довіра до обох форматів однакова.
+  if (!installer || !['.exe', '.dmg'].includes(path.extname(installer).toLowerCase())) {
+    throw new Error('Потрібен шлях до інсталятора .exe або образу .dmg');
   }
   const encoded = process.env.GROSHI_SIGNING_KEY;
   if (!encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
@@ -60,7 +62,7 @@ if (require.main === module) {
   try {
     const args = process.argv.slice(2);
     if (!(args.length === 1 || (args.length === 3 && args[1] === '--public-key'))) {
-      throw new Error('Використання: node scripts/sign-update.cjs <installer.exe> [--public-key <update-key.pub>]');
+      throw new Error('Використання: node scripts/sign-update.cjs <installer.exe|image.dmg> [--public-key <update-key.pub>]');
     }
     const output = signInstaller(args[0], args[2]);
     console.log(`Підпис створено: ${output}`);

@@ -132,8 +132,8 @@ fn token_clear() -> Result<(), String> {
 
 // ─────────────────────────────── брокери: тільки читання
 //
-// Ключі живуть там само, де токен банку: Диспетчер облікових даних
-// Windows. У файли не потрапляють ніколи. Пара значень (токен+queryId в
+// Ключі живуть там само, де токен банку: системне сховище ключів
+// (Диспетчер облікових даних Windows / Keychain macOS). У файли не потрапляють ніколи. Пара значень (токен+queryId в
 // IBKR, ключ+секрет у Binance) зберігається одним записом через \n —
 // два записи в keyring означали б два шанси розсинхронізуватись.
 
@@ -1119,8 +1119,11 @@ async fn update_check(app: State<'_, App>, source: Option<String>) -> Result<upd
     update::check(&src).await
 }
 
-/// Копіюємо інсталятор у тимчасову теку, запускаємо й виходимо: NSIS не
-/// може переписати файли застосунку, поки той тримає їх відкритими.
+/// Windows: копіюємо інсталятор у тимчасову теку, запускаємо й виходимо — NSIS
+/// не може переписати файли застосунку, поки той тримає їх відкритими.
+/// macOS: після перевірки підпису відкриваємо .dmg системою й виходимо; людина
+/// перетягує нову версію в Applications (Finder не замінить запущений .app,
+/// тому застосунок має закритись).
 #[tauri::command]
 async fn update_install(
     app: tauri::AppHandle,
@@ -1138,10 +1141,13 @@ async fn update_install(
     std::process::Command::new(&path)
         .spawn()
         .map_err(|e| format!("не вдалося запустити інсталятор: {e}"))?;
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    tauri_plugin_opener::open_path(&path, None::<&str>)
+        .map_err(|e| format!("не вдалося відкрити образ оновлення: {e}"))?;
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     let _ = &path;
 
-    // Дати інсталятору піднятись, і аж тоді звільнити файли.
+    // Дати інсталятору (на macOS — Finder з образом) піднятись, і аж тоді звільнити файли.
     tokio::time::sleep(std::time::Duration::from_millis(900)).await;
     app.exit(0);
     Ok(())
@@ -1303,7 +1309,9 @@ fn main() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("Гроші")
                 .menu(&menu)
-                .show_menu_on_left_click(false)
+                // У рядку меню macOS подвійного кліку по іконці немає (DoubleClick
+                // не приходить), тож без цього лівий клік був би мертвим.
+                .show_menu_on_left_click(cfg!(target_os = "macos"))
                 .on_menu_event(|app, ev| match ev.id().as_ref() {
                     "show" => {
                         if let Some(w) = app.get_webview_window("main") {
@@ -1435,6 +1443,17 @@ fn main() {
                 use tauri::Manager;
                 if let Some(st) = app.try_state::<App>() { advisor::kill_running(&st.adv); }
             }
+            // Хрестик лише ховає вікно, тож клік по іконці в Dock має повернути його:
+            // інакше на macOS застосунок «запущений», але без жодного вікна.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = ev {
+                use tauri::Manager;
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.unminimize();
+                    let _ = w.set_focus();
+                }
+            }
         });
 }
 
@@ -1489,6 +1508,55 @@ mod migration_tests {
         for name in safety::DATA_FILES { assert!(dir.join(name).exists()); assert!(!fixture.source.join(name).exists()); }
         let value: Value = serde_json::from_slice(&std::fs::read(pointer(&fixture.base)).unwrap()).unwrap();
         assert!(value.get("pending").is_none());
+    }
+
+    /// Синтетична «база з Windows»: валідний JSON із кирилицею й CRLF між токенами,
+    /// різний для кожного файлу, щоб переплутані імена не пройшли непоміченими.
+    fn windows_style_files() -> Vec<(&'static str, Vec<u8>)> {
+        safety::DATA_FILES.iter().enumerate().map(|(i, name)| {
+            let text = format!("{{\r\n  \"файл\": \"{name}\",\r\n  \"нотатка\": \"їжак, щука, Київ\",\r\n  \"n\": {i}\r\n}}\r\n");
+            (*name, text.into_bytes())
+        }).collect()
+    }
+
+    #[test]
+    fn database_moved_between_computers_is_adopted_with_every_file_intact() {
+        // Сценарій «adopt»: людина перенесла теку даних на Mac і вказала її в
+        // покажчику; жоден із 14 файлів (зокрема історія Радника) не губиться.
+        let fixture = Fixture::new();
+        let files = windows_style_files();
+        assert_eq!(files.len(), 14);
+        for (name, bytes) in &files { std::fs::write(fixture.source.join(name), bytes).unwrap(); }
+        write_pointer(&fixture.base, &json!({"dir": fixture.source.to_string_lossy()})).unwrap();
+        let (dir, error) = resolve_dir(&fixture.base).unwrap();
+        assert_eq!(dir, fixture.source);
+        assert!(error.is_none());
+        let store = Store::new(dir);
+        for (name, bytes) in &files {
+            let expected: Value = serde_json::from_slice(bytes).unwrap();
+            assert_eq!(store.read(name), expected, "{name}");
+            assert_eq!(store.read(name)["файл"], *name);
+        }
+    }
+
+    #[test]
+    fn database_moved_to_new_directory_is_copied_byte_for_byte() {
+        // Сценарій «move»: відкладене перенесення в нову теку копіює всі 14 файлів
+        // без змін, а старі копії прибираються лише після звірки байтів.
+        let fixture = Fixture::new();
+        let files = windows_style_files();
+        for (name, bytes) in &files { std::fs::write(fixture.source.join(name), bytes).unwrap(); }
+        fixture.schedule();
+        let (dir, error) = resolve_dir(&fixture.base).unwrap();
+        assert_eq!(dir, fixture.target);
+        assert!(error.is_none());
+        for (name, bytes) in &files {
+            assert_eq!(&std::fs::read(dir.join(name)).unwrap(), bytes, "{name}");
+            assert!(!fixture.source.join(name).exists(), "{name}");
+        }
+        let store = Store::new(dir);
+        assert_eq!(store.read("advisor_chats.json")["n"], 12);
+        assert_eq!(store.read("advice_cache.json")["n"], 13);
     }
 
     #[test]

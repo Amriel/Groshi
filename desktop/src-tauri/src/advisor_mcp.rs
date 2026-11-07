@@ -9,7 +9,7 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
-use crate::advisor::{kill_tree, no_window};
+use crate::advisor::{kill_tree, no_window, own_group, with_search_path};
 
 /// Скільки чекаємо відповідь на один запит; після цього — Err, а не вічне зависання циклу.
 const REPLY_TIMEOUT: Duration = Duration::from_secs(30);
@@ -39,6 +39,9 @@ impl Mcp {
         // Явно в обох напрямках: успадковане з середовища GROSHI_PSEUDO не має вмикати режим саме.
         if pseudo { c.env("GROSHI_PSEUDO", "1"); } else { c.env_remove("GROSHI_PSEUDO"); }
         no_window(&mut c);
+        // Власна група: `kill_tree` (Drop) на unix прибиває групу, а не лише node. PATH той самий, що шукав node.
+        with_search_path(&mut c);
+        own_group(&mut c);
         let mut child = c.spawn().map_err(|e| format!("Не вдалося запустити MCP: {e}"))?;
         let stdin = child.stdin.take().ok_or("MCP: немає stdin")?;
         let stdout = child.stdout.take().ok_or("MCP: немає stdout")?;
@@ -119,7 +122,7 @@ impl Mcp {
 
 impl Drop for Mcp {
     fn drop(&mut self) {
-        // На Windows node міг би пережити простий kill — тому дерево.
+        // node міг би пережити простий kill (Windows: taskkill /T, unix: сигнал групі) — тому дерево.
         kill_tree(&mut self.child);
     }
 }
