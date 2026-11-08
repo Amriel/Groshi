@@ -125,6 +125,52 @@ pub(crate) fn no_window(c: &mut Command) {
     let _ = c;
 }
 
+/// Дочірній процес стає лідером власної групи (unix): `kill_tree` тоді зачепить і `node` MCP, який `claude` породжує.
+/// Без цього `child.kill()` прибив би лише `claude`, а node лишився б сиротою. На Windows дерево знищує `taskkill /T`.
+pub(crate) fn own_group(c: &mut Command) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        c.process_group(0);
+    }
+    #[cfg(not(unix))]
+    let _ = c;
+}
+
+/// Каталоги, яких бракує урізаному PATH застосунку, запущеного з Finder чи LaunchAgent
+/// (`/usr/bin:/bin:/usr/sbin:/sbin`): Homebrew і місця, куди кладуть `claude`/`node` типові інсталятори.
+fn extra_dirs(home: Option<&Path>) -> Vec<PathBuf> {
+    let mut v = vec![PathBuf::from("/opt/homebrew/bin"), PathBuf::from("/usr/local/bin")];
+    if let Some(h) = home {
+        for d in [".local/bin", ".claude/local", ".npm-global/bin", ".volta/bin", ".bun/bin"] { v.push(h.join(d)); }
+    }
+    v
+}
+
+/// `path` з дописаними `extra_dirs` (без дублів, наявні записи зберігають свій порядок і пріоритет).
+/// Не вдалось зібрати (запис із роздільником усередині) — повертаємо `path` як є.
+pub(crate) fn extend_path(path: &str, home: Option<&Path>) -> String {
+    let mut dirs: Vec<PathBuf> = std::env::split_paths(path).collect();
+    for d in extra_dirs(home) {
+        if !dirs.contains(&d) { dirs.push(d); }
+    }
+    std::env::join_paths(dirs).ok().and_then(|o| o.into_string().ok()).unwrap_or_else(|| path.to_string())
+}
+
+/// PATH для пошуку `claude`/`node`/`winget`/`lms` і для їхніх дочірніх процесів. На Windows — PATH процесу
+/// без змін; на unix — розширений (див. `extend_path`).
+pub(crate) fn search_path() -> String {
+    let path = std::env::var("PATH").unwrap_or_default();
+    if cfg!(windows) { return path; }
+    extend_path(&path, std::env::var_os("HOME").map(PathBuf::from).as_deref())
+}
+
+/// Дочірньому процесу — той самий розширений PATH: `claude` запускає `node` з mcp.json, а npm-версія
+/// `claude` сама є скриптом `#!/usr/bin/env node`. На Windows нічого не чіпаємо (там PATH успадковується як є).
+pub(crate) fn with_search_path(c: &mut Command) {
+    if !cfg!(windows) { c.env("PATH", search_path()); }
+}
+
 /// Аргументи `claude`. Питання передається через stdin, не аргументом (довжина й лапки).
 pub fn cc_args(cfg_path: &str, sys_path: &str, session: Option<&str>, model: Option<&str>, effort: Option<&str>) -> Vec<String> {
     let mut a: Vec<String> = [
@@ -298,13 +344,18 @@ pub fn pick_newest(cands: &[(PathBuf, Option<Ver>)]) -> Option<PathBuf> {
     best.map(|b| b.0.clone())
 }
 
-/// Звідки копія, без повного шляху в UI: "winget" | "npm" | "desktop" | "path".
+/// Звідки копія, без повного шляху в UI: "winget" | "npm" | "native" | "brew" | "desktop" | "path".
 pub fn cc_source(p: &Path) -> &'static str {
     let s = p.to_string_lossy().to_lowercase().replace('\\', "/");
     // WinGet portable кладе в PATH символьне посилання Links\claude.exe: це та сама WinGet-копія.
     if s.contains("/winget/packages/anthropic.claudecode_") || s.contains("/winget/links/") { "winget" }
     else if s.contains("/claude/claude-code/") { "desktop" }
     else if s.ends_with("/npm/claude.cmd") { "npm" }
+    // npm -g на macOS: симлінк у bin/ веде в lib/node_modules; перевіряємо до Homebrew, бо префікс той самий.
+    else if s.contains("/lib/node_modules/@anthropic-ai/claude-code/") { "npm" }
+    // Нативний інсталятор: ~/.local/bin/claude -> ~/.local/share/claude/versions/<версія>; оновлює `claude update`.
+    else if s.contains("/.local/share/claude/") || s.ends_with("/.local/bin/claude") { "native" }
+    else if s.starts_with("/opt/homebrew/") || s.contains("/cellar/") || s.contains("/caskroom/") { "brew" }
     else { "path" }
 }
 
@@ -343,6 +394,27 @@ fn claude_candidates(path: &str, local_appdata: Option<&Path>, appdata: Option<&
     v
 }
 
+/// macOS/Linux: типові місця `claude` поза PATH (Finder-запуск їх не бачить). Лише наявні файли; симлінки
+/// розкриті (`resolve_link`), щоб нативний `~/.local/bin/claude` і PATH-запис злились в одну копію.
+/// Версія нативної копії видна з імені файлу в `.../versions/<версія>`.
+fn unix_claude_candidates(home: Option<&Path>) -> Vec<(PathBuf, Option<Ver>)> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+    if let Some(h) = home { paths.push(h.join(".local").join("bin").join("claude")); }
+    paths.push(PathBuf::from("/opt/homebrew/bin/claude"));
+    paths.push(PathBuf::from("/usr/local/bin/claude"));
+    if let Some(h) = home { paths.push(h.join(".npm-global").join("bin").join("claude")); }
+    let mut v = Vec::new();
+    for p in paths {
+        if !p.is_file() { continue; }
+        let r = resolve_link(&p);
+        let ver = if r.to_string_lossy().replace('\\', "/").contains("/.local/share/claude/versions/") {
+            r.file_name().and_then(|n| parse_dir_version(&n.to_string_lossy()))
+        } else { None };
+        v.push((r, ver));
+    }
+    v
+}
+
 /// Шлях без символьних посилань і без префікса `\\?\` (його додає canonicalize на Windows). Не вдалось — як є.
 pub fn resolve_link(p: &Path) -> PathBuf {
     match std::fs::canonicalize(p) {
@@ -364,10 +436,11 @@ pub fn dedup_cands(c: &mut Vec<(PathBuf, Option<Ver>)>) {
     c.retain(|x| seen.insert(x.0.to_string_lossy().to_lowercase()));
 }
 
-/// Копія, яку можна оновити з апки: winget > npm > PATH, без Claude Desktop — незалежно від того, яка копія
+/// Копія, яку можна оновити з апки: winget > native > npm > PATH, без Claude Desktop — незалежно від того, яка копія
 /// найновіша й обрана для запуску. Інакше за пари «WinGet 2.1.268 + Desktop 2.1.299» WinGet-копію не оновлювали б ніколи.
 pub fn pick_updatable(c: &[(PathBuf, Option<Ver>)]) -> Option<usize> {
-    let rank = |p: &Path| match cc_source(p) { "winget" => Some(0), "npm" => Some(1), "path" => Some(2), _ => None };
+    // brew тут немає навмисно: назву формули/cask не перевірено, вгадувати `brew upgrade X` не можна.
+    let rank = |p: &Path| match cc_source(p) { "winget" => Some(0), "native" => Some(1), "npm" => Some(2), "path" => Some(3), _ => None };
     let mut best: Option<(usize, i32)> = None;
     for (i, x) in c.iter().enumerate() {
         if let Some(r) = rank(&x.0) { if best.map_or(true, |b| r < b.1) { best = Some((i, r)); } }
@@ -377,7 +450,7 @@ pub fn pick_updatable(c: &[(PathBuf, Option<Ver>)]) -> Option<usize> {
 
 /// `winget` у PATH, інакше псевдонім застосунку з WindowsApps (у PATH трею його часто немає).
 fn winget_program() -> String {
-    if find_in_path(&std::env::var("PATH").unwrap_or_default(), "winget").is_some() { return "winget".into(); }
+    if find_in_path(&search_path(), "winget").is_some() { return "winget".into(); }
     if let Some(la) = std::env::var_os("LOCALAPPDATA") {
         let p = PathBuf::from(la).join("Microsoft").join("WindowsApps").join("winget.exe");
         if p.is_file() { return p.to_string_lossy().to_string(); }
@@ -394,10 +467,13 @@ static FOUND: Mutex<Option<Found>> = Mutex::new(None);
 
 fn found_env() -> Option<Found> {
     if let Some(f) = FOUND.lock().ok().and_then(|g| g.clone()) { return Some(f); }
-    let path = std::env::var("PATH").unwrap_or_default();
+    let path = search_path();
     let la = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
     let ad = std::env::var_os("APPDATA").map(PathBuf::from);
     let mut c = claude_candidates(&path, la.as_deref(), ad.as_deref());
+    if !cfg!(windows) {
+        c.extend(unix_claude_candidates(std::env::var_os("HOME").map(PathBuf::from).as_deref()));
+    }
     // Один і той самий файл може лежати і в PATH, і в теці WinGet: `--version` двічі не запускаємо.
     dedup_cands(&mut c);
     for x in c.iter_mut() {
@@ -420,7 +496,7 @@ fn reset_found() { if let Ok(mut g) = FOUND.lock() { *g = None; } }
 
 /// `node` у PATH: його ж шукає і вбудований MCP-клієнт (advisor_mcp).
 pub(crate) fn find_node() -> Option<PathBuf> {
-    find_in_path(&std::env::var("PATH").unwrap_or_default(), "node")
+    find_in_path(&search_path(), "node")
 }
 
 fn node_found() -> bool {
@@ -428,12 +504,14 @@ fn node_found() -> bool {
 }
 
 /// Вміст mcp.json: наш MCP під іменем `groshi` (звідси префікс `mcp__groshi__`).
-pub fn mcp_config(resource_dir: &Path, data_dir: &Path) -> Value {
+/// `node` — абсолютний шлях знайденого node: `claude` запускає MCP зі свого PATH, який у застосунку з Finder урізаний.
+/// Без нього лишається `"node"` (пошук за PATH).
+pub fn mcp_config(resource_dir: &Path, data_dir: &Path, node: Option<&Path>) -> Value {
     // Tauri віддає шлях з префіксом `\\?\`; у конфігу він зайвий.
     let js = resource_dir.join("mcp").join("groshi-mcp.js");
     let js = js.to_string_lossy().trim_start_matches(r"\\?\").to_string();
     json!({"mcpServers": {"groshi": {
-        "command": "node",
+        "command": node.map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "node".to_string()),
         "args": [js],
         "env": {"GROSHI_DIR": data_dir.to_string_lossy(), "GROSHI_PSEUDO": "1"}
     }}})
@@ -473,6 +551,8 @@ pub(crate) fn run_output(path: &Path, args: &[&str], limit: std::time::Duration)
     let mut cmd = Command::new(path);
     cmd.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     no_window(&mut cmd);
+    with_search_path(&mut cmd);
+    // Без own_group: `lms server start` демонізується й має пережити таймаут/kill_tree так само, як нині.
     let mut child = cmd.spawn().map_err(|e| e.to_string())?;
     fn drain<R: Read + Send + 'static>(mut r: R) -> (Arc<Mutex<Vec<u8>>>, Arc<AtomicBool>) {
         let buf = Arc::new(Mutex::new(Vec::new()));
@@ -522,10 +602,78 @@ pub fn parse_cc_auth(json_text: &str) -> Result<Value, String> {
 /// Шлях іде в лапках вручну (raw_arg): звичайний аргумент Rust бере в лапки лише шлях із пробілами, і `&`
 /// чи `^` дійшли б до cmd.exe голими (розбили б команду); `%` cmd розкриває навіть у лапках, тож відхиляємо
 /// і його, і саму лапку.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn cc_login_line(claude: &Path) -> Result<String, String> {
     let p = claude.to_string_lossy();
     if p.contains('"') || p.contains('%') { return Err("Шлях до Claude Code містить недопустимі символи".into()); }
     Ok(format!("/c start \"Вхід у Claude Code\" \"{p}\" auth login"))
+}
+
+const BREW_UPDATE_MSG: &str = "Цю копію оновлює Homebrew: brew upgrade";
+
+/// Шлях у одинарних лапках для zsh: усередині них усі символи буквальні, тож `$`, зворотний апостроф і `\`
+/// безпечні. Сама одинарна лапка закрила б рядок, а керуючі символи (переведення рядка, NUL) розбили б скрипт —
+/// відхиляємо, як `cc_login_line` відхиляє `"` і `%` для cmd.
+fn sh_quote(p: &Path) -> Result<String, String> {
+    let s = p.to_string_lossy();
+    if s.chars().any(|c| c == '\'' || c.is_control()) { return Err("Шлях до Claude Code містить недопустимі символи".into()); }
+    Ok(format!("'{s}'"))
+}
+
+/// Скрипт `.command` для macOS: Terminal відкриває його у видимому вікні, де йде інтерактивний вхід.
+/// `exec` замінює shell на `claude`, тож вікно живе рівно стільки, скільки вхід.
+#[cfg_attr(windows, allow(dead_code))]
+pub fn cc_login_script(claude: &Path) -> Result<String, String> {
+    Ok(format!("#!/bin/zsh\nexec {} auth login\n", sh_quote(claude)?))
+}
+
+/// Те саме для оновлення: `claude update` для нативної, npm- і PATH-копій. Homebrew-копію з застосунку не оновлюємо
+/// (назву формули/cask не перевірено, вгадувати `brew upgrade X` не можна), Claude Desktop оновлює той застосунок.
+#[cfg_attr(windows, allow(dead_code))]
+pub fn cc_update_script(claude: &Path, source: &str) -> Result<String, String> {
+    match source {
+        "native" | "npm" | "path" => Ok(format!("#!/bin/zsh\nexec {} update\n", sh_quote(claude)?)),
+        "brew" => Err(BREW_UPDATE_MSG.into()),
+        "desktop" => Err("Цю копію оновлює застосунок Claude Desktop".into()),
+        "winget" => Err("winget є лише у Windows".into()),
+        _ => Err("Невідоме джерело Claude Code".into()),
+    }
+}
+
+/// Windows: видиме вікно консолі через `cmd /c start`. Рядок уже зібраний і перевірений (`cc_login_line`/`cc_update_line`).
+#[cfg(windows)]
+fn open_visible(line: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = Command::new("cmd");
+    cmd.raw_arg(line);
+    no_window(&mut cmd);
+    // Не чекаємо: вхід інтерактивний, людина завершує його у вікні консолі.
+    cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// macOS: скрипт у тимчасовий `.command` (0700, створюється атомарно й лише новим файлом) і `open -a Terminal`.
+/// Файл лишається: Terminal читає його вже після повернення `open`.
+#[cfg(target_os = "macos")]
+fn open_visible(script: &str) -> Result<(), String> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let p = std::env::temp_dir().join(format!("groshi-claude-{}-{nanos}.command", std::process::id()));
+    let mut f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o700).open(&p).map_err(|e| e.to_string())?;
+    f.write_all(script.as_bytes()).map_err(|e| e.to_string())?;
+    drop(f);
+    let st = Command::new("open").arg("-a").arg("Terminal").arg(&p).status().map_err(|e| e.to_string())?;
+    if st.success() { Ok(()) } else { Err("Не вдалося відкрити Terminal".into()) }
+}
+
+/// Інші unix: немає загальновідомого способу відкрити видимий термінал.
+#[cfg(not(any(windows, target_os = "macos")))]
+fn open_visible(_script: &str) -> Result<(), String> {
+    Err("Вхід і оновлення Claude Code з застосунку підтримуються лише у Windows і macOS".into())
+}
+
+/// Що саме передати `open_visible` на цій ОС: рядок для `cmd /c start` (Windows) або скрипт `.command`.
+fn visible_payload(win_line: impl FnOnce() -> Result<String, String>, script: impl FnOnce() -> Result<String, String>) -> Result<String, String> {
+    if cfg!(windows) { win_line() } else { script() }
 }
 
 #[tauri::command]
@@ -581,6 +729,8 @@ fn cc_models_blocking(claude: &Path, wd: &Path) -> Result<Vec<Value>, String> {
               "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands"])
         .current_dir(wd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
     no_window(&mut cmd);
+    with_search_path(&mut cmd);
+    own_group(&mut cmd);
     let mut child = cmd.spawn().map_err(|e| format!("Не вдалося запустити Claude Code: {e}"))?;
     let mut stdin = child.stdin.take();
     let stdout = child.stdout.take();
@@ -622,32 +772,23 @@ pub async fn advisor_cc_login(app: State<'_, App>) -> Result<(), String> {
     // Пошук claude обходить теки диска: не на потоці команд.
     tauri::async_runtime::spawn_blocking(|| {
         let claude = find_claude_env().ok_or("Claude Code не знайдено")?;
-        let line = cc_login_line(&claude)?;
-        let mut cmd = Command::new("cmd");
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.raw_arg(&line);
-        }
-        #[cfg(not(windows))]
-        cmd.args(line.split_whitespace());
-        no_window(&mut cmd);
-        // Не чекаємо: вхід інтерактивний, людина завершує його у вікні консолі.
-        cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+        open_visible(&visible_payload(|| cc_login_line(&claude), || cc_login_script(&claude))?)
     }).await.map_err(|e| e.to_string())?
 }
 
 /// Рядок для `cmd /c start` з оновленням: WinGet-копію оновлює `winget`, npm- і PATH-копію — сам `claude update`.
 /// Копію Claude Desktop оновлює той застосунок, тож тут відмова. Шлях перевіряється так само, як у `cc_login_line`.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn cc_update_line(claude: &Path, source: &str) -> Result<String, String> {
     match source {
         "winget" => Ok("/c start \"Оновлення Claude Code\" winget upgrade --id Anthropic.ClaudeCode -e".to_string()),
-        "npm" | "path" => {
+        "npm" | "path" | "native" => {
             let p = claude.to_string_lossy();
             if p.contains('"') || p.contains('%') { return Err("Шлях до Claude Code містить недопустимі символи".into()); }
             Ok(format!("/c start \"Оновлення Claude Code\" \"{p}\" update"))
         }
         "desktop" => Err("Цю копію оновлює застосунок Claude Desktop".into()),
+        "brew" => Err(BREW_UPDATE_MSG.into()),
         _ => Err("Невідоме джерело Claude Code".into()),
     }
 }
@@ -658,19 +799,13 @@ pub fn cc_update_line(claude: &Path, source: &str) -> Result<String, String> {
 pub async fn advisor_cc_update() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(|| {
         let f = found_env().ok_or("Claude Code не знайдено")?;
-        let (up, us, _) = f.upd.clone().ok_or("Цю копію оновлює застосунок Claude Desktop")?;
-        let line = cc_update_line(&up, us)?;
+        let Some((up, us, _)) = f.upd.clone() else {
+            let msg = if f.source == "brew" { BREW_UPDATE_MSG } else { "Цю копію оновлює застосунок Claude Desktop" };
+            return Err(msg.into());
+        };
+        let payload = visible_payload(|| cc_update_line(&up, us), || cc_update_script(&up, us))?;
         reset_found();
-        let mut cmd = Command::new("cmd");
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.raw_arg(&line);
-        }
-        #[cfg(not(windows))]
-        cmd.args(line.split_whitespace());
-        no_window(&mut cmd);
-        cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+        open_visible(&payload)
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -681,7 +816,7 @@ pub fn autoupdate_cmd(source: &str, claude: &Path) -> Option<(String, Vec<String
         "winget" => Some(("winget".into(), ["upgrade", "--id", "Anthropic.ClaudeCode", "-e", "--silent",
             "--disable-interactivity", "--accept-source-agreements", "--accept-package-agreements"]
             .iter().map(|x| x.to_string()).collect())),
-        "npm" | "path" => Some((claude.to_string_lossy().to_string(), vec!["update".into()])),
+        "npm" | "path" | "native" => Some((claude.to_string_lossy().to_string(), vec!["update".into()])),
         _ => None,
     }
 }
@@ -736,6 +871,14 @@ pub(crate) fn kill_tree(child: &mut Child) {
         no_window(&mut c);
         let _ = c.output();
     }
+    #[cfg(unix)]
+    {
+        // Групі (`own_group`), а не лише лідеру: інакше node-процес MCP лишиться сиротою. Для дитини без своєї
+        // групи (`run_output`) `-pid` не існує — kill дає ESRCH, і далі працює звичайний `child.kill()`.
+        let mut c = Command::new("kill");
+        c.args(["-TERM", "--", &format!("-{}", child.id())]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        let _ = c.status();
+    }
     let _ = child.kill();
     let _ = child.wait();
 }
@@ -751,7 +894,7 @@ pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) ->
     if let Some(e) = &req.effort { if !valid_effort(e) { return Err("Некоректний рівень effort".into()); } }
 
     let claude = find_claude_env().ok_or("Claude Code не знайдено")?;
-    if !node_found() { return Err("Node.js не знайдено".into()); }
+    let node = find_node().ok_or("Node.js не знайдено")?;
     let res = handle.path().resource_dir().map_err(|e| e.to_string())?;
     let data = app.st.dir.clone();
     // Порожня робоча тека: навіть якби якийсь інструмент просочився, тут нічого читати.
@@ -764,7 +907,7 @@ pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) ->
     let mut slot = adv.slot.lock().unwrap_or_else(|e| e.into_inner());
     if slot.is_some() { return Err("Порадник ще відповідає".into()); }
 
-    let cfg_json = serde_json::to_vec_pretty(&mcp_config(&res, &data)).map_err(|e| e.to_string())?;
+    let cfg_json = serde_json::to_vec_pretty(&mcp_config(&res, &data, if cfg!(windows) { None } else { Some(node.as_path()) })).map_err(|e| e.to_string())?;
     std::fs::write(&cfg, cfg_json).map_err(|e| e.to_string())?;
     std::fs::write(&sys, &req.system).map_err(|e| e.to_string())?;
     let args = cc_args(&cfg.to_string_lossy(), &sys.to_string_lossy(), req.session.as_deref(), req.model.as_deref(), req.effort.as_deref());
@@ -773,6 +916,8 @@ pub fn advisor_cc_ask(handle: tauri::AppHandle, app: State<App>, req: AskReq) ->
     cmd.args(&args).current_dir(&wd)
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
     no_window(&mut cmd);
+    with_search_path(&mut cmd);
+    own_group(&mut cmd);
     let mut child = cmd.spawn().map_err(|e| format!("Не вдалося запустити Claude Code: {e}"))?;
     let stdin = child.stdin.take();
     let stdout = child.stdout.take();
@@ -1092,8 +1237,104 @@ mod tests {
     }
 
     #[test]
+    fn mcp_config_uses_given_node() {
+        let c = mcp_config(Path::new("/Profile/res"), Path::new("/Profile/data"), None);
+        assert_eq!(c["mcpServers"]["groshi"]["command"], "node");
+        let c = mcp_config(Path::new("/Profile/res"), Path::new("/Profile/data"), Some(Path::new("/opt/homebrew/bin/node")));
+        assert_eq!(c["mcpServers"]["groshi"]["command"], "/opt/homebrew/bin/node");
+    }
+
+    #[test]
+    fn extend_path_appends_without_duplicates() {
+        let join = |v: &[&str]| std::env::join_paths(v.iter().map(PathBuf::from)).unwrap().into_string().unwrap();
+        let home = Path::new("/Profile");
+        let base = join(&["/usr/bin", "/opt/homebrew/bin", "/bin"]);
+        let got: Vec<PathBuf> = std::env::split_paths(&extend_path(&base, Some(home))).collect();
+        let want: Vec<PathBuf> = ["/usr/bin", "/opt/homebrew/bin", "/bin", "/usr/local/bin", "/Profile/.local/bin",
+            "/Profile/.claude/local", "/Profile/.npm-global/bin", "/Profile/.volta/bin", "/Profile/.bun/bin"]
+            .iter().map(PathBuf::from).collect();
+        assert_eq!(got, want);
+        // Повторне розширення нічого не додає.
+        assert_eq!(extend_path(&extend_path(&base, Some(home)), Some(home)), extend_path(&base, Some(home)));
+        // Без HOME лише системні Homebrew-теки; порожній PATH теж працює.
+        let n: Vec<PathBuf> = std::env::split_paths(&extend_path("", None)).filter(|p| !p.as_os_str().is_empty()).collect();
+        assert_eq!(n, vec![PathBuf::from("/opt/homebrew/bin"), PathBuf::from("/usr/local/bin")]);
+    }
+
+    #[test]
+    fn unix_candidates_find_native_install() {
+        let t = std::env::temp_dir().join(format!("groshi-adv-unix-{}", std::process::id()));
+        let bin = t.join(".local").join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("claude"), b"x").unwrap();
+        let got = unix_claude_candidates(Some(&t));
+        assert!(got.iter().any(|c| c.0.ends_with("claude") && c.0.to_string_lossy().contains(".local")), "{got:?}");
+        assert!(unix_claude_candidates(None).iter().all(|c| !c.0.to_string_lossy().contains("groshi-adv-unix")));
+        let _ = std::fs::remove_dir_all(&t);
+    }
+
+    #[test]
+    fn cc_source_macos_paths() {
+        assert_eq!(cc_source(Path::new("/Profile/.local/bin/claude")), "native");
+        assert_eq!(cc_source(Path::new("/Profile/.local/share/claude/versions/2.1.5")), "native");
+        assert_eq!(cc_source(Path::new("/opt/homebrew/bin/claude")), "brew");
+        assert_eq!(cc_source(Path::new("/opt/homebrew/Caskroom/claude-code/2.1.5/claude")), "brew");
+        assert_eq!(cc_source(Path::new("/usr/local/Cellar/claude-code/2.1.5/bin/claude")), "brew");
+        // npm -g з Homebrew-node лежить під /opt/homebrew, але це npm-копія.
+        assert_eq!(cc_source(Path::new("/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/cli.js")), "npm");
+        assert_eq!(cc_source(Path::new("/Profile/.npm-global/bin/claude")), "path");
+        assert_eq!(cc_source(Path::new("/usr/local/bin/claude")), "path");
+    }
+
+    #[test]
+    fn macos_updatable_native_over_path_never_brew() {
+        let n = PathBuf::from("/Profile/.local/share/claude/versions/2.1.5");
+        let b = PathBuf::from("/opt/homebrew/bin/claude");
+        let p = PathBuf::from("/usr/local/bin/claude");
+        assert_eq!(pick_updatable(&[(b.clone(), None), (p.clone(), None), (n.clone(), None)]), Some(2));
+        assert_eq!(pick_updatable(&[(b.clone(), None), (p, None)]), Some(1));
+        assert_eq!(pick_updatable(&[(b, None)]), None);
+    }
+
+    #[test]
+    fn autoupdate_native_yes_brew_no() {
+        let (p, a) = autoupdate_cmd("native", Path::new("/Profile/.local/share/claude/versions/2.1.5")).unwrap();
+        assert_eq!((p.as_str(), a), ("/Profile/.local/share/claude/versions/2.1.5", vec!["update".to_string()]));
+        assert!(autoupdate_cmd("brew", Path::new("/opt/homebrew/bin/claude")).is_none());
+    }
+
+    #[test]
+    fn brew_update_is_refused_everywhere() {
+        let e = cc_update_script(Path::new("/opt/homebrew/bin/claude"), "brew").unwrap_err();
+        assert_eq!(e, "Цю копію оновлює Homebrew: brew upgrade");
+        assert_eq!(cc_update_line(Path::new("/opt/homebrew/bin/claude"), "brew").unwrap_err(), e);
+    }
+
+    #[test]
+    fn login_script_quotes_path() {
+        let s = cc_login_script(Path::new("/Profile/Tools & Co/$HOME `x`/claude")).unwrap();
+        assert_eq!(s, "#!/bin/zsh\nexec '/Profile/Tools & Co/$HOME `x`/claude' auth login\n");
+        assert!(cc_login_script(Path::new("/Profile/it's/claude")).is_err());
+        assert!(cc_login_script(Path::new("/Profile/a\nb/claude")).is_err());
+        assert!(cc_login_script(Path::new("/Profile/a\rb/claude")).is_err());
+        assert!(cc_login_script(Path::new("/Profile/a\0b/claude")).is_err());
+    }
+
+    #[test]
+    fn update_script_by_source() {
+        let p = Path::new("/Profile/.local/bin/claude");
+        for src in ["native", "npm", "path"] {
+            assert_eq!(cc_update_script(p, src).unwrap(), "#!/bin/zsh\nexec '/Profile/.local/bin/claude' update\n");
+        }
+        assert!(cc_update_script(p, "desktop").unwrap_err().contains("Claude Desktop"));
+        assert!(cc_update_script(p, "winget").is_err());
+        assert!(cc_update_script(p, "nope").is_err());
+        assert!(cc_update_script(Path::new("/Profile/it's/claude"), "native").is_err());
+    }
+
+    #[test]
     fn mcp_config_shape() {
-        let c = mcp_config(Path::new(r"C:\res"), Path::new(r"C:\data"));
+        let c = mcp_config(Path::new(r"C:\res"), Path::new(r"C:\data"), None);
         assert_eq!(c["mcpServers"]["groshi"]["env"]["GROSHI_PSEUDO"], "1");
         assert_eq!(c["mcpServers"]["groshi"]["env"]["GROSHI_DIR"], r"C:\data");
         assert!(c["mcpServers"]["groshi"]["args"][0].as_str().unwrap().ends_with("groshi-mcp.js"));

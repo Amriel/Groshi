@@ -27,6 +27,57 @@ pub fn current() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+/// Для якої ОС шукаємо інсталятор. Вибір винесено в параметр, а не в `cfg!`
+/// усередині кожної функції: так логіку обох гілок перевіряють тести на
+/// будь-якій ОС (CI ганяє їх і на Windows, і на macOS), а `cfg!` лише
+/// один раз обирає значення для справжнього запуску.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Platform {
+    Windows,
+    MacOs,
+}
+
+impl Platform {
+    pub fn current() -> Self {
+        if cfg!(target_os = "macos") {
+            Platform::MacOs
+        } else {
+            Platform::Windows
+        }
+    }
+
+    /// Розширення інсталятора: NSIS-exe на Windows, образ диска на macOS.
+    fn ext(self) -> &'static str {
+        match self {
+            Platform::Windows => ".exe",
+            Platform::MacOs => ".dmg",
+        }
+    }
+
+    /// Поле маніфеста: macOS має власний файл, щоб один latest.json
+    /// обслуговував обидві платформи, а клієнти Windows читали лише `file`.
+    fn manifest_key(self) -> &'static str {
+        match self {
+            Platform::Windows => "file",
+            Platform::MacOs => "file_macos",
+        }
+    }
+
+    fn missing_in_manifest(self) -> &'static str {
+        match self {
+            Platform::Windows => "У маніфесті немає інсталятора",
+            Platform::MacOs => "У маніфесті немає інсталятора для macOS",
+        }
+    }
+
+    fn bad_name(self) -> &'static str {
+        match self {
+            Platform::Windows => "Недопустиме імʼя інсталятора; потрібен окремий файл .exe",
+            Platform::MacOs => "Недопустиме імʼя інсталятора; потрібен окремий файл .dmg",
+        }
+    }
+}
+
 /// Порівняння версій за числами, а не рядком: "1.10.0" більша за "1.9.0",
 /// хоча як текст — менша.
 pub fn newer(a: &str, b: &str) -> bool {
@@ -47,9 +98,16 @@ pub fn newer(a: &str, b: &str) -> bool {
 }
 
 /// Витягнути версію з імені файлу: Groshi_Setup_1.2.0.exe, Гроші_1.2.0_x64-setup.exe
-fn ver_from_name(name: &str) -> Option<String> {
+///
+/// На macOS — Groshi_1.2.0_aarch64.dmg. Архітектуру вимагаємо в імені: збірка
+/// лише для Apple Silicon, образ під інший процесор не можна ставити.
+fn ver_from_name_for(platform: Platform, name: &str) -> Option<String> {
     let low = name.to_lowercase();
-    if !low.ends_with(".exe") || !low.contains("setup") {
+    let wanted = match platform {
+        Platform::Windows => low.ends_with(".exe") && low.contains("setup"),
+        Platform::MacOs => low.ends_with(".dmg") && low.contains("aarch64"),
+    };
+    if !wanted {
         return None;
     }
     let mut best: Option<String> = None;
@@ -75,7 +133,7 @@ fn ver_from_name(name: &str) -> Option<String> {
     best
 }
 
-fn from_manifest(txt: &[u8], source: &str) -> Result<Found, String> {
+fn from_manifest_for(platform: Platform, txt: &[u8], source: &str) -> Result<Found, String> {
     let v: serde_json::Value =
         serde_json::from_slice(txt).map_err(|_| "latest.json не читається")?;
     let version = v
@@ -85,22 +143,22 @@ fn from_manifest(txt: &[u8], source: &str) -> Result<Found, String> {
         .ok_or("У маніфесті немає версії")?
         .to_string();
     let file = v
-        .get("file")
+        .get(platform.manifest_key())
         .and_then(|x| x.as_str())
-        .ok_or("У маніфесті немає інсталятора")?;
+        .ok_or(platform.missing_in_manifest())?;
     let file = if source.starts_with("https://") {
         let url = if file.starts_with("https://") {
             https_url(file)?
         } else {
-            safe_name(file)?;
+            safe_name_for(platform, file)?;
             https_url(source)?
                 .join(file)
                 .map_err(|_| "Некоректна адреса інсталятора")?
         };
-        url_name(&url)?;
+        url_name_for(platform, &url)?;
         url.to_string()
     } else {
-        safe_name(file)?;
+        safe_name_for(platform, file)?;
         file.to_string()
     };
     let cur = current();
@@ -122,11 +180,11 @@ fn from_manifest(txt: &[u8], source: &str) -> Result<Found, String> {
 
 // Двокрапка у Windows відкриває альтернативний потік, а зворотна скісна
 // може втекти з теки навіть тоді, коли перевірка написана на іншій ОС.
-fn safe_name(name: &str) -> Result<(), String> {
+fn safe_name_for(platform: Platform, name: &str) -> Result<(), String> {
     let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
     if name.is_empty()
         || name.len() > 240
-        || !name.to_ascii_lowercase().ends_with(".exe")
+        || !name.to_ascii_lowercase().ends_with(platform.ext())
         || name.starts_with('.')
         || name.ends_with([' ', '.'])
         || name
@@ -137,7 +195,7 @@ fn safe_name(name: &str) -> Result<(), String> {
             && (stem.starts_with("COM") || stem.starts_with("LPT"))
             && stem.as_bytes()[3].is_ascii_digit())
     {
-        return Err("Недопустиме імʼя інсталятора; потрібен окремий файл .exe".into());
+        return Err(platform.bad_name().into());
     }
     Ok(())
 }
@@ -250,7 +308,7 @@ fn manifest_url(source: &str) -> Result<reqwest::Url, String> {
     Ok(url)
 }
 
-fn url_name(url: &reqwest::Url) -> Result<String, String> {
+fn url_name_for(platform: Platform, url: &reqwest::Url) -> Result<String, String> {
     let encoded = url
         .path_segments()
         .and_then(|mut s| s.next_back())
@@ -259,21 +317,25 @@ fn url_name(url: &reqwest::Url) -> Result<String, String> {
         .decode_utf8()
         .map_err(|_| "Імʼя інсталятора не є UTF-8")?
         .into_owned();
-    safe_name(&name)?;
+    safe_name_for(platform, &name)?;
     Ok(name)
 }
 
-fn resolve_installer(source: &str, file: &str) -> Result<reqwest::Url, String> {
+fn resolve_installer_for(
+    platform: Platform,
+    source: &str,
+    file: &str,
+) -> Result<reqwest::Url, String> {
     let url = if file.starts_with("https://") {
         https_url(file)?
     } else {
         // URL::join нормалізує ../, тому перевірка відбувається до нього.
-        safe_name(file)?;
+        safe_name_for(platform, file)?;
         manifest_url(source)?
             .join(file)
             .map_err(|_| "Некоректна адреса інсталятора")?
     };
-    url_name(&url)?;
+    url_name_for(platform, &url)?;
     Ok(url)
 }
 
@@ -325,7 +387,35 @@ fn verify(bytes: &[u8], signature: &[u8], public_key: &str) -> Result<(), String
         .map_err(|_| "Підпис оновлення не підтверджено. Інсталятор не буде запущено".into())
 }
 
-async fn gh_check(owner: &str, repo: &str) -> Result<Found, String> {
+/// Вибір файлу з активів випуску. Підписаним вважаємо лише той, поруч з яким
+/// лежить `<імʼя>.sig`: без підпису fetch усе одно відмовить, тож і
+/// пропонувати такий файл немає сенсу.
+/// Windows: бажано `*setup*.exe`, за браком — будь-який підписаний .exe.
+/// macOS: лише .dmg з `aarch64` — запасного варіанта немає навмисно, щоб
+/// образ під чужу архітектуру не став «оновленням».
+fn pick_asset<'a>(platform: Platform, names: &[&'a str]) -> Option<&'a str> {
+    let signed: Vec<&'a str> = names
+        .iter()
+        .copied()
+        .filter(|name| {
+            safe_name_for(platform, name).is_ok()
+                && names.iter().any(|a| *a == format!("{name}.sig"))
+        })
+        .collect();
+    match platform {
+        Platform::Windows => signed
+            .iter()
+            .copied()
+            .find(|n| n.to_ascii_lowercase().contains("setup"))
+            .or_else(|| signed.first().copied()),
+        Platform::MacOs => signed
+            .iter()
+            .copied()
+            .find(|n| n.to_ascii_lowercase().contains("aarch64")),
+    }
+}
+
+async fn gh_check(platform: Platform, owner: &str, repo: &str) -> Result<Found, String> {
     let url = https_url(&format!(
         "https://api.github.com/repos/{owner}/{repo}/releases/latest"
     ))?;
@@ -354,31 +444,26 @@ async fn gh_check(owner: &str, repo: &str) -> Result<Found, String> {
         .get("assets")
         .and_then(|v| v.as_array())
         .ok_or("У випуску немає інсталятора")?;
-    let signed_exe = |asset: &&serde_json::Value| {
-        let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("");
-        safe_name(name).is_ok()
-            && assets.iter().any(|a| {
-                a.get("name").and_then(|v| v.as_str()) == Some(format!("{name}.sig").as_str())
-            })
-    };
+    let names: Vec<&str> = assets
+        .iter()
+        .filter_map(|a| a.get("name").and_then(|v| v.as_str()))
+        .collect();
+    let chosen = pick_asset(platform, &names).ok_or(match platform {
+        Platform::Windows => "У випуску ще немає інсталятора з підписом; спробуйте пізніше",
+        Platform::MacOs => {
+            "У випуску ще немає образу .dmg з підписом для macOS; спробуйте пізніше"
+        }
+    })?;
     let selected = assets
         .iter()
-        .filter(signed_exe)
-        .find(|a| {
-            a.get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_ascii_lowercase()
-                .contains("setup")
-        })
-        .or_else(|| assets.iter().find(signed_exe))
-        .ok_or("У випуску ще немає інсталятора з підписом; спробуйте пізніше")?;
+        .find(|a| a.get("name").and_then(|v| v.as_str()) == Some(chosen))
+        .ok_or("Немає адреси інсталятора")?;
     let file = selected
         .get("browser_download_url")
         .and_then(|v| v.as_str())
         .ok_or("Немає адреси інсталятора")?;
     let url = https_url(file)?;
-    url_name(&url)?;
+    url_name_for(platform, &url)?;
     let cur = current();
     Ok(Found {
         available: newer(&version, &cur),
@@ -398,13 +483,17 @@ async fn gh_check(owner: &str, repo: &str) -> Result<Found, String> {
 }
 
 pub async fn check(source: &str) -> Result<Found, String> {
+    check_for(Platform::current(), source).await
+}
+
+async fn check_for(platform: Platform, source: &str) -> Result<Found, String> {
     let src = source.trim();
     if src.is_empty() {
         return Err("Джерело оновлень не задано".into());
     }
     let remote = source_is_remote(src)?;
     if let Some((owner, repo)) = gh_repo(src) {
-        return gh_check(&owner, &repo).await;
+        return gh_check(platform, &owner, &repo).await;
     }
     if remote {
         let url = manifest_url(src)?;
@@ -416,7 +505,7 @@ pub async fn check(source: &str) -> Result<Found, String> {
         // Після перенаправлення відносний файл належить кінцевому маніфесту.
         let effective_url = response.url().to_string();
         let txt = response_bytes(response, MAX_MANIFEST).await?;
-        return from_manifest(&txt, &effective_url);
+        return from_manifest_for(platform, &txt, &effective_url);
     }
     let dir = PathBuf::from(src);
     if !dir.is_dir() {
@@ -424,7 +513,7 @@ pub async fn check(source: &str) -> Result<Found, String> {
     }
     let mut best = if dir.join("latest.json").is_file() {
         let txt = read_bounded(&local_file(&dir, "latest.json")?, MAX_MANIFEST)?;
-        let f = from_manifest(&txt, src)?;
+        let f = from_manifest_for(platform, &txt, src)?;
         if local_file(&dir, &f.file).is_ok() && local_file(&dir, &format!("{}.sig", f.file)).is_ok()
         {
             Some(f)
@@ -434,7 +523,7 @@ pub async fn check(source: &str) -> Result<Found, String> {
     } else {
         None
     };
-    if let Some((name, version)) = scan(&dir) {
+    if let Some((name, version)) = scan(platform, &dir) {
         if best
             .as_ref()
             .map(|b| newer(&version, &b.version))
@@ -454,17 +543,17 @@ pub async fn check(source: &str) -> Result<Found, String> {
     best.ok_or_else(|| "У теці немає інсталятора з підписом".into())
 }
 
-fn scan(dir: &Path) -> Option<(String, String)> {
+fn scan(platform: Platform, dir: &Path) -> Option<(String, String)> {
     let mut best: Option<(String, String)> = None;
     for entry in fs::read_dir(dir).ok()?.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        if safe_name(&name).is_err()
+        if safe_name_for(platform, &name).is_err()
             || local_file(dir, &name).is_err()
             || local_file(dir, &format!("{name}.sig")).is_err()
         {
             continue;
         }
-        if let Some(version) = ver_from_name(&name) {
+        if let Some(version) = ver_from_name_for(platform, &name) {
             if best
                 .as_ref()
                 .map(|(_, b)| newer(&version, b))
@@ -480,34 +569,39 @@ fn scan(dir: &Path) -> Option<(String, String)> {
 /// Виконуваний файл зʼявляється лише після перевірки саме тих байтів,
 /// які записуємо; повторного читання недовіреного джерела немає.
 pub async fn fetch(source: &str, file: &str) -> Result<PathBuf, String> {
+    fetch_for(Platform::current(), source, file).await
+}
+
+async fn fetch_for(platform: Platform, source: &str, file: &str) -> Result<PathBuf, String> {
     let source = source.trim();
     if source.is_empty() {
         return Err("Джерело оновлень не задано".into());
     }
     let remote = source_is_remote(source)?;
     let (name, bytes, signature) = if remote || gh_repo(source).is_some() {
-        let url = resolve_installer(source, file)?;
-        let name = url_name(&url)?;
+        let url = resolve_installer_for(platform, source, file)?;
+        let name = url_name_for(platform, &url)?;
         let signature = download(&signature_url(&url), MAX_SIGNATURE).await?;
         let bytes = download(&url, MAX_INSTALLER).await?;
         (name, bytes, signature)
     } else {
-        safe_name(file)?;
+        safe_name_for(platform, file)?;
         let dir = Path::new(source);
         let signature = read_bounded(&local_file(dir, &format!("{file}.sig"))?, MAX_SIGNATURE)?;
         let bytes = read_bounded(&local_file(dir, file)?, MAX_INSTALLER)?;
         (file.to_string(), bytes, signature)
     };
-    stage_verified(&name, &bytes, &signature, PUBLIC_KEY)
+    stage_verified(platform, &name, &bytes, &signature, PUBLIC_KEY)
 }
 
 fn stage_verified(
+    platform: Platform,
     name: &str,
     bytes: &[u8],
     signature: &[u8],
     public_key: &str,
 ) -> Result<PathBuf, String> {
-    safe_name(name)?;
+    safe_name_for(platform, name)?;
     verify(bytes, signature, public_key)?;
     let dir = tempfile::Builder::new()
         .prefix("groshi-update-")
@@ -522,8 +616,8 @@ fn stage_verified(
     output.write_all(bytes).map_err(|e| e.to_string())?;
     output.sync_all().map_err(|e| e.to_string())?;
     drop(output);
-    // Tauri запускає інсталятор після повернення з fetch, тому теку
-    // зберігаємо; незавершені завантаження TempDir видаляє автоматично.
+    // Tauri запускає інсталятор (на macOS — відкриває .dmg) після повернення
+    // з fetch, тому теку зберігаємо; незавершені завантаження TempDir видаляє автоматично.
     let _ = dir.keep();
     Ok(path)
 }
@@ -532,6 +626,188 @@ fn stage_verified(
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
+
+    // Наявні тести описують поведінку Windows і мають однаково проходити на
+    // будь-якій ОС (CI ганяє їх і на macOS), тому прив'язуємо їх до Windows
+    // явно, а не до платформи, на якій запущено тест. Власні функції модуля
+    // перекривають імпорт через `super::*`.
+    const WIN: Platform = Platform::Windows;
+    const MAC: Platform = Platform::MacOs;
+    fn safe_name(name: &str) -> Result<(), String> {
+        safe_name_for(WIN, name)
+    }
+    fn resolve_installer(source: &str, file: &str) -> Result<reqwest::Url, String> {
+        resolve_installer_for(WIN, source, file)
+    }
+    fn from_manifest(txt: &[u8], source: &str) -> Result<Found, String> {
+        from_manifest_for(WIN, txt, source)
+    }
+    fn stage_verified(
+        name: &str,
+        bytes: &[u8],
+        signature: &[u8],
+        public_key: &str,
+    ) -> Result<PathBuf, String> {
+        super::stage_verified(WIN, name, bytes, signature, public_key)
+    }
+    async fn check(source: &str) -> Result<Found, String> {
+        check_for(WIN, source).await
+    }
+    async fn fetch(source: &str, file: &str) -> Result<PathBuf, String> {
+        fetch_for(WIN, source, file).await
+    }
+
+    #[test]
+    fn macos_accepts_only_dmg_and_windows_only_exe() {
+        assert!(safe_name_for(MAC, "Groshi_1.37.0_aarch64.dmg").is_ok());
+        assert!(safe_name_for(MAC, "Groshi_Setup_1.37.0.exe").is_err());
+        assert!(safe_name_for(WIN, "Groshi_1.37.0_aarch64.dmg").is_err());
+        for file in [
+            "../x.dmg",
+            "..\\x.dmg",
+            "/x.dmg",
+            "x.dmg:stream",
+            "x.pkg",
+            "x.dmg ",
+            "%2e%2e.dmg",
+            ".dmg",
+        ] {
+            assert!(safe_name_for(MAC, file).is_err(), "{file}");
+        }
+        assert!(
+            resolve_installer_for(MAC, "https://example.com/r/latest.json", "../x.dmg").is_err()
+        );
+        let url = resolve_installer_for(
+            MAC,
+            "https://example.com/r/latest.json",
+            "Groshi_1.37.0_aarch64.dmg",
+        )
+        .unwrap();
+        assert_eq!(
+            signature_url(&url).as_str(),
+            "https://example.com/r/Groshi_1.37.0_aarch64.dmg.sig"
+        );
+    }
+
+    #[test]
+    fn macos_version_comes_from_dmg_with_arch_only() {
+        assert_eq!(
+            ver_from_name_for(MAC, "Groshi_1.37.0_aarch64.dmg").as_deref(),
+            Some("1.37.0")
+        );
+        assert_eq!(ver_from_name_for(MAC, "Groshi_1.37.0_x64.dmg"), None);
+        assert_eq!(ver_from_name_for(MAC, "Groshi_Setup_1.37.0.exe"), None);
+        assert_eq!(
+            ver_from_name_for(WIN, "Groshi_Setup_1.37.0.exe").as_deref(),
+            Some("1.37.0")
+        );
+        assert_eq!(ver_from_name_for(WIN, "Groshi_1.37.0_aarch64.dmg"), None);
+    }
+
+    #[test]
+    fn manifest_reads_platform_specific_field() {
+        let txt = br#"{"version":"99.0","file":"Groshi_Setup_99.0.exe","file_macos":"Groshi_99.0_aarch64.dmg"}"#;
+        let mac = from_manifest_for(MAC, txt, "https://example.com/r/latest.json").unwrap();
+        assert_eq!(mac.file, "https://example.com/r/Groshi_99.0_aarch64.dmg");
+        let win = from_manifest_for(WIN, txt, "https://example.com/r/latest.json").unwrap();
+        assert_eq!(win.file, "https://example.com/r/Groshi_Setup_99.0.exe");
+        // Маніфест без macOS-поля: macOS не підставляє чужий .exe.
+        let only_win = br#"{"version":"99.0","file":"Groshi_Setup_99.0.exe"}"#;
+        let err =
+            from_manifest_for(MAC, only_win, "https://example.com/r/latest.json").unwrap_err();
+        assert_eq!(err, "У маніфесті немає інсталятора для macOS");
+        // .exe у macOS-полі відхиляється так само, як сторонній файл.
+        let wrong = br#"{"version":"99.0","file_macos":"setup.exe"}"#;
+        assert!(from_manifest_for(MAC, wrong, "https://example.com/r/latest.json").is_err());
+        assert!(from_manifest_for(MAC, wrong, "some-local-dir").is_err());
+    }
+
+    #[test]
+    fn github_asset_choice_is_platform_specific_and_needs_signature() {
+        let names = [
+            "Groshi_1.37.0_x64-setup.exe",
+            "Groshi_1.37.0_x64-setup.exe.sig",
+            "Groshi_1.37.0_aarch64.dmg",
+            "Groshi_1.37.0_aarch64.dmg.sig",
+            "Groshi_1.37.0_x64.dmg",
+            "Groshi_1.37.0_x64.dmg.sig",
+        ];
+        assert_eq!(pick_asset(MAC, &names), Some("Groshi_1.37.0_aarch64.dmg"));
+        assert_eq!(pick_asset(WIN, &names), Some("Groshi_1.37.0_x64-setup.exe"));
+        // Без .sig файл не пропонується; образ іншої архітектури — теж.
+        assert_eq!(
+            pick_asset(
+                MAC,
+                &["Groshi_1.37.0_aarch64.dmg", "Groshi_1.37.0_x64.dmg.sig"]
+            ),
+            None
+        );
+        assert_eq!(
+            pick_asset(MAC, &["Groshi_1.37.0_x64.dmg", "Groshi_1.37.0_x64.dmg.sig"]),
+            None
+        );
+        assert_eq!(pick_asset(MAC, &names[..2]), None);
+        assert_eq!(pick_asset(WIN, &names[2..]), None);
+        // Windows і далі бере будь-який підписаний .exe, коли «setup» немає в імені.
+        assert_eq!(
+            pick_asset(WIN, &["Groshi.exe", "Groshi.exe.sig"]),
+            Some("Groshi.exe")
+        );
+    }
+
+    #[test]
+    fn local_folder_scan_picks_newest_signed_dmg_on_macos() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in [
+            "Groshi_1.9.0_aarch64.dmg",
+            "Groshi_1.10.0_aarch64.dmg",
+            "Groshi_1.11.0_aarch64.dmg", // без підпису
+            "Groshi_Setup_2.0.0.exe",
+            "Groshi_Setup_2.0.0.exe.sig",
+        ] {
+            fs::write(dir.path().join(name), b"synthetic").unwrap();
+        }
+        for name in ["Groshi_1.9.0_aarch64.dmg", "Groshi_1.10.0_aarch64.dmg"] {
+            fs::write(dir.path().join(format!("{name}.sig")), b"synthetic").unwrap();
+        }
+        assert_eq!(
+            scan(MAC, dir.path()),
+            Some(("Groshi_1.10.0_aarch64.dmg".into(), "1.10.0".into()))
+        );
+        assert_eq!(
+            scan(WIN, dir.path()),
+            Some(("Groshi_Setup_2.0.0.exe".into(), "2.0.0".into()))
+        );
+    }
+
+    #[test]
+    fn macos_dmg_is_staged_only_with_valid_signature() {
+        let key = SigningKey::from_bytes(&[42; 32]);
+        let bytes = b"Synthetic disk image payload, never mounted";
+        let signature = hex::encode(key.sign(bytes).to_bytes());
+        let public = hex::encode(key.verifying_key().to_bytes());
+        let name = "Groshi_9.9.9_aarch64.dmg";
+        let path = super::stage_verified(MAC, name, bytes, signature.as_bytes(), &public).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        assert!(
+            super::stage_verified(MAC, name, b"tampered", signature.as_bytes(), &public).is_err()
+        );
+        assert!(
+            super::stage_verified(MAC, "setup.exe", bytes, signature.as_bytes(), &public).is_err()
+        );
+        fs::remove_file(&path).unwrap();
+        fs::remove_dir(path.parent().unwrap()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn macos_local_fetch_requires_signature_file() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("Groshi_99.0.0_aarch64.dmg"), b"synthetic").unwrap();
+        let source = dir.path().to_str().unwrap();
+        assert!(fetch_for(MAC, source, "Groshi_99.0.0_aarch64.dmg").await.is_err());
+        assert!(fetch_for(MAC, source, "../Groshi_99.0.0_aarch64.dmg").await.is_err());
+        assert!(fetch_for(MAC, source, "Groshi_Setup_99.0.0.exe").await.is_err());
+    }
 
     #[tokio::test]
     async fn unsigned_installer_is_rejected() {

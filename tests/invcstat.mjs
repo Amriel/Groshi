@@ -11,6 +11,7 @@ import {createRequire} from 'node:module';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
+import {RESTORE_SCRIPT, reloadKeepingStorage} from './helpers/reload.mjs';
 
 const require = createRequire(import.meta.url);
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -20,6 +21,9 @@ const browser = await chromium.launch({executablePath: process.env.CHROMIUM || u
 try {
   for (const mode of ['browser', 'desktop']) {
     const context = await browser.newContext({viewport: {width: 1400, height: 1000}});
+    // Першим: відновлення знімка після reloadKeepingStorage, щоб посів нижче
+    // бачив уже відновлений deskState і не сіяв удруге.
+    await context.addInitScript(RESTORE_SCRIPT);
     // Дані «з минулої версії»: проєкти в роботі, рахунки по них уже виставлені.
     await context.addInitScript(() => {
       // Скрипт іде на кожне завантаження; після reload сіяти вдруге не можна,
@@ -89,7 +93,9 @@ try {
     // Перед reload — сам прапорець одноразовості на диску. Якщо колись він не
     // запишеться, проба скаже саме це, а не «стан стрибнув назад».
     assert.equal(await until(() => disk('invcStSync', mode), true), true, `${mode}: прапорець invcStSync збережено`);
-    await page.reload();
+    // Звичайний reload на CI іноді губив щойно записаний invcStSync, і
+    // вирівнювання спрацьовувало вдруге — див. helpers/reload.mjs.
+    await reloadKeepingStorage(page);
     await page.waitForFunction(() => typeof window.renderInvcLog === 'function');
     assert.equal((await st()).p1, 'active', `${mode}: вирівнювання станів має бути одноразовим`);
     await page.evaluate(() => { go('budget'); PJ_VIEW = 'list'; renderProjects(); });

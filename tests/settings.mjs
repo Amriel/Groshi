@@ -8,6 +8,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import {openDesktop} from './helpers/desktop-boot.mjs';
+import {RESTORE_SCRIPT, reloadKeepingStorage} from './helpers/reload.mjs';
 
 const require = createRequire(import.meta.url);
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -152,6 +153,7 @@ async function checkNarrow(pg, label) {
 try {
   // Браузерна збірка: каркас і міграція стану. Десктоп — окремий блок нижче.
   const context = await browser.newContext({viewport:{width:1400,height:900}});
+  await context.addInitScript(RESTORE_SCRIPT);
   await context.addInitScript(() => {
     localStorage.setItem('wizDone', 'true');
   });
@@ -165,7 +167,8 @@ try {
   async function openWith(old) {
     await page.goto(url); await page.waitForFunction(() => typeof window.go==='function');
     await page.evaluate(v => { sessionStorage.clear(); localStorage.setItem('setSec', JSON.stringify(v)); }, old);
-    await page.reload(); await page.waitForFunction(() => typeof window.go==='function');
+    // Звичайний reload на CI іноді губив щойно записаний setSec — див. helpers/reload.mjs.
+    await reloadKeepingStorage(page); await page.waitForFunction(() => typeof window.go==='function');
     await page.evaluate(() => go('settings'));
     await page.waitForSelector('#tab-settings:not([hidden])');
   }
