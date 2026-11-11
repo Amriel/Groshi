@@ -1531,7 +1531,7 @@ dependencies = [
 
 [[package]]
 name = "groshi"
-version = "1.36.1"
+version = "1.37.0"
 dependencies = [
  "ed25519-dalek",
  "hex",
