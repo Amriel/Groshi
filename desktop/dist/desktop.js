@@ -42,6 +42,7 @@
     reveal: n => inv ? inv('reveal', { name: n || null }) : null,
     openUrl: u => inv ? inv('open_url', { url: u }) : window.open(u, '_blank'),
     saveText: (name, text) => inv ? inv('save_text', { name, text }) : Promise.reject('лише в застосунку'),
+    savePdf: (name, html) => inv ? inv('save_pdf', { name, html }) : Promise.reject('лише в застосунку'),
 
     version: () => inv ? inv('app_version') : Promise.resolve('—'),
     updSource: () => inv ? inv('update_source') : Promise.resolve(''),

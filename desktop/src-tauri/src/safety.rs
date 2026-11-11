@@ -166,7 +166,7 @@ pub fn export_name(name: &str) -> bool {
         return false;
     }
     let Some((stem, extension)) = name.rsplit_once('.') else { return false };
-    if stem.is_empty() || !["html", "csv", "txt", "json", "ics"].contains(&extension.to_ascii_lowercase().as_str()) {
+    if stem.is_empty() || !["html", "csv", "txt", "json", "ics", "pdf"].contains(&extension.to_ascii_lowercase().as_str()) {
         return false;
     }
     let base = name.split('.').next().unwrap_or("").trim_end_matches(' ').to_uppercase();
@@ -177,6 +177,20 @@ pub fn export_name(name: &str) -> bool {
 }
 
 pub fn save_export(dir: &Path, name: &str, text: &str) -> Result<PathBuf, String> {
+    let (mut file, path) = create_export(dir, name)?;
+    file.write_all(text.as_bytes()).and_then(|_| file.sync_all()).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
+/// PDF пише сам WebView2 за шляхом, тож тут лише займаємо вільне ім’я
+/// (create_new) з тими самими перевірками, що й для текстових експортів:
+/// інакше «INV-007.pdf» мовчки затер би вже відправлений клієнту рахунок.
+pub fn reserve_pdf(dir: &Path, name: &str) -> Result<PathBuf, String> {
+    if !name.to_ascii_lowercase().ends_with(".pdf") { return Err("Очікується ім’я .pdf".into()); }
+    create_export(dir, name).map(|(_, path)| path)
+}
+
+fn create_export(dir: &Path, name: &str) -> Result<(std::fs::File, PathBuf), String> {
     if !export_name(name) { return Err("Неприпустиме ім’я або розширення експорту".into()); }
     let dir = directory(dir)?;
     let (stem, extension) = name.rsplit_once('.').unwrap();
@@ -184,10 +198,7 @@ pub fn save_export(dir: &Path, name: &str, text: &str) -> Result<PathBuf, String
         let leaf = if number == 0 { name.to_string() } else { format!("{stem} ({number}).{extension}") };
         let path = dir.join(leaf);
         match OpenOptions::new().write(true).create_new(true).open(&path) {
-            Ok(mut file) => {
-                file.write_all(text.as_bytes()).and_then(|_| file.sync_all()).map_err(|e| e.to_string())?;
-                return Ok(path);
-            }
+            Ok(file) => return Ok((file, path)),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(e) => return Err(format!("Не вдалося зберегти експорт: {e}")),
         }
@@ -515,7 +526,7 @@ mod tests {
 
     #[test]
     fn exports_reject_executables_reserved_names_and_path_escapes() {
-        for name in ["рахунок.html", "звіт 2026.csv", "copy.JSON", "normalcalendar.ics"] { assert!(export_name(name)); }
+        for name in ["рахунок.html", "звіт 2026.csv", "copy.JSON", "normalcalendar.ics", "INV-007.pdf"] { assert!(export_name(name)); }
         for name in ["", "../report.txt", "C:\\report.txt", "report.cmd", "report.html.exe", "CON.txt", "nul.JSON", "LPT1.csv", "COM².txt", "report.txt ", "report.txt.", "bad\n.txt", "a:stream.txt", ".txt"] {
             assert!(!export_name(name), "{name:?}");
         }
@@ -529,6 +540,16 @@ mod tests {
         assert_ne!(original, second);
         assert_eq!(fs::read(original).unwrap(), b"original");
         assert_eq!(fs::read(second).unwrap(), b"new");
+    }
+
+    #[test]
+    fn pdf_reservation_keeps_existing_invoice() {
+        let temp = Temp::new();
+        let original = temp.file("INV-007.pdf", b"sent");
+        let next = reserve_pdf(&temp.0, "INV-007.pdf").unwrap();
+        assert_ne!(original, next);
+        assert_eq!(fs::read(original).unwrap(), b"sent");
+        assert!(reserve_pdf(&temp.0, "INV-007.html").is_err());
     }
 
     #[test]

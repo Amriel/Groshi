@@ -39,6 +39,12 @@ ed25519-dalek = "2.2"
 tempfile = "3"
 percent-encoding = "2"
 
+# Рахунок у PDF: WebView2 PrintToPdf (src/pdf.rs). Версії — ті самі, що
+# вже тягне wry, щоб типи контролера з tauri збігалися з нашими.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows-core = "0.61"
+
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
 

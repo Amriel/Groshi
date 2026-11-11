@@ -6952,6 +6952,27 @@ ${o.act ? `<p>${L('This document is also an act of services rendered: the servic
 </body></html>`;
 }
 
+/* Рахунок клієнту потрібен у PDF, а не в .html, який ще треба самому
+   відкрити й «надрукувати» через Ctrl+P. У десктопі PDF друкує сам WebView2
+   (команда save_pdf) з того ж invoiceHtml() — макет один, текст у PDF
+   справжній. Якщо PDF не вдався (macOS, старий WebView2) або це браузерна
+   збірка — лишається старий шлях: .html і підказка про «Зберегти як PDF». */
+function invoiceSave(no, html){
+  const D = window.__DESK__;
+  const hint = (t, ms)=>{ const m = el('pjMsg'); if(!m) return;
+    m.hidden = false; m.textContent = t; setTimeout(()=>{ m.hidden = true; }, ms || 12000); };
+  const asHtml = why=>{
+    download(`${no}.html`, html, 'text/html;charset=utf-8');
+    hint((why ? `PDF не вийшов (${why}). ` : '') + ((D && D.tauri)
+      ? `${no}.html ліг у «Завантаження» — відкрийте його і ${modKey()}P → «Зберегти як PDF».`
+      : `${no}.html збережено — відкрийте його і ${modKey()}P → «Зберегти як PDF».`));
+  };
+  if(!(D && D.tauri && D.savePdf)){ asHtml(); return; }
+  D.savePdf(`${no}.pdf`, html)
+    .then(path=>{ appToast(`Збережено: ${path}`); hint(`${no}.pdf ліг у «Завантаження».`, 8000); })
+    .catch(e=>asHtml(String(e)));
+}
+
 async function invoiceFlow(p){
   if(!BIZPROF.length){ if(!await bizAsk(null)) return; }
   if(!p.rows.length){ pjToast('У прорахунку немає рядків — нема з чого зібрати рахунок.'); return; }
@@ -7009,7 +7030,7 @@ async function invoiceFlow(p){
     k *= +p.usd;
   }
   const html = invoiceHtml(p, { ...r, biz, lang, k, act: r.fmt.includes('акт') });
-  download(`${r.no}.html`, html, 'text/html;charset=utf-8');
+  invoiceSave(r.no, html);
   const tot = invcRows(p, (a)=>a, k).reduce((s,x)=>s+x.amount,0);
   pjLog(p, `Рахунок ${r.no} на ${fmt(Math.round(tot))} ${r.ccy}${k!==1?` (k=${k.toFixed(2)})`:''}`, true);
   /* журнал виставлених: з нього апка сама бачитиме, чи прийшла оплата */
@@ -7022,11 +7043,6 @@ async function invoiceFlow(p){
      має показати це одразу, без повторного відкриття */
   if(invcSyncStatus(INVCLOG[0])){ const st = el('pjStatus'); if(st) st.value = p.status; }
   pjSave();
-  const m = el('pjMsg'); if(m){ m.hidden = false;
-    m.textContent = (window.__DESK__ && __DESK__.tauri)
-      ? `${r.no}.html ліг у «Завантаження» і відкрився — ${modKey()}P → «Зберегти як PDF».`
-      : `${r.no}.html збережено — відкрийте його і ${modKey()}P → «Зберегти як PDF».`;
-    setTimeout(()=>{ m.hidden = true; }, 12000); }
   bizUi();
 }
 

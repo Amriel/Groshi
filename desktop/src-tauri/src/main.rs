@@ -10,6 +10,7 @@ mod binance;
 mod ibkr;
 mod mono;
 mod nbu;
+mod pdf;
 mod quotes;
 mod safety;
 mod store;
@@ -1419,6 +1420,7 @@ fn main() {
             pick_directory,
             backup_run,
             save_text,
+            pdf::save_pdf,
             quote_detail,
             quote_news,
             quotes_today,
