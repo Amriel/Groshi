@@ -141,6 +141,30 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
 .txtags .chip{border:1px solid var(--border)}
 .tx-meta .txtagb{margin-left:6px}
+/* Борг: «Кому» і галочка в картці операції, рядки людей на Огляді.
+   Колір — лише у бейджі; картки й рядки без смуг і підсвіток. */
+.debtbox{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px;margin:12px 0 0}
+.debtbox[hidden]{display:none}
+.debtbox .debtwho{flex:1 1 220px;max-width:340px}
+.debtbox .debtwho>span{display:block;margin-bottom:7px;font-size:11px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+.debtbox .debtwho input{width:100%}
+.debtbox .debtback{height:var(--ctl,36px);cursor:pointer}
+/* Рядок людини — кнопка: розгортається з клавіатури так само, як мишею. */
+.debtp{display:flex;width:100%;justify-content:space-between;align-items:baseline;gap:10px;
+  padding:5px 0;text-align:left;font-size:var(--fs-sm)}
+.debtp>:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.debtp .num{white-space:nowrap}
+.debtp .arr{display:inline-block;width:1em;color:var(--text-mute)}
+.debtd{margin:2px 0 8px 1em;padding:0}
+.debtd[hidden]{display:none}
+.debti{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:6px 0;
+  border-top:1px solid var(--border-soft);font-size:var(--fs-sm)}
+.debti .dw{flex:1 1 140px;min-width:0}
+.debti .num{white-space:nowrap}
+.debti .dn{flex:1 0 100%;color:var(--text-mute);font-size:var(--fs-xs)}
+.debti .dact{flex:1 0 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+.debtbk{margin-top:8px}
 /* .lnk і .pinchip — у блоці «ЕКРАНИ» (Операції). */
 
 /* ── однодатне поле: та сама сітка, що й у виборі періоду ── */
@@ -2068,6 +2092,14 @@ svg.sprite{position:absolute;width:0;height:0}
       <div class="cardhead"><h2>Капітал</h2><span class="hint" id="nwHint"></span>
         <button class="btn sm" id="nwCfgBtn">Інше майно</button></div>
       <div id="nwBody"></div>
+    </div>
+    <!-- Борги: картка є завжди (порожня — «Боргів немає»), бо інакше
+         перший ручний борг нізвідки було б додати. -->
+    <div class="card" id="debtCard">
+      <div class="cardhead"><h2>Борги</h2><span class="hint">вам винні</span>
+        <button class="btn sm" id="debtAddBtn">+ Борг</button></div>
+      <div id="debtBody"></div>
+      <datalist id="debtNames"></datalist>
     </div>
     <div id="ovBalSlot"></div>
   </div>
@@ -4644,7 +4676,7 @@ function renderTx(){
             txNote(t.id) ? ` <i class="pin" data-tip="${esc(txNote(t.id))}">✎</i>` : ''}${
             subOfTx(t) ? ' <i class="pin">↻</i>' : ''}</span>
           <span class="tx-meta"><span class="tx-when">${isOpen?'▾':'▸'} ${byDate ? clock : (t.date + (clock ? ' ' + clock : ''))}</span><span class="tag">${esc(cat)}</span>${
-            txTag(t.id) ? `<span class="tag txtagb">${TAGN[txTag(t.id)]}</span>` : ''}</span>
+            txTag(t.id) ? `<span class="tag txtagb">${esc(tagText(t.id))}</span>` : ''}</span>
         </span>
         <span class="tx-amt num-md${t.dir==='income'?' inc':''}">${t.dir==='income'?'+':'−'}${num2(t.amount)}${
           sub ? `<em class="ccy"${subTip}>${sub}</em>` : ''}</span>
@@ -4933,14 +4965,8 @@ addEventListener('click', e=>{
   e.stopPropagation();
   const id = b.dataset.txtag, k = txTag(id) === b.dataset.k ? '' : b.dataset.k;
   setTxTag(id, k);
-  document.querySelectorAll(`[data-txtag="${CSS.escape(id)}"]`)
-    .forEach(c => c.setAttribute('aria-pressed', String(c.dataset.k === k)));
-  document.querySelectorAll(`.txrow[data-id="${CSS.escape(id)}"] .tx-meta`).forEach(m => {
-    let g = m.querySelector('.txtagb');
-    if(!k){ if(g) g.remove(); return; }
-    if(!g){ g = document.createElement('span'); g.className = 'tag txtagb'; m.append(g); }
-    g.textContent = TAGN[k];
-  });
+  syncTagUi(id);
+  renderDebts();
 }, true);
 addEventListener('keydown', e=>{ if(e.target.matches('[data-note]')) e.stopPropagation(); }, true);
 addEventListener('focusout', e=>{
@@ -4948,6 +4974,7 @@ addEventListener('focusout', e=>{
   if(!ta.matches || !ta.matches('[data-note]')) return;
   const had = txNote(ta.dataset.note);
   setTxNote(ta.dataset.note, ta.value);
+  renderDebts();                       // примітка показується і в картці «Борги»
   if(!!had !== !!txNote(ta.dataset.note)) afterCardChange();
 }, true);
 
@@ -5150,9 +5177,15 @@ function detailCard(t){
     <label class="notebox"><span>Ваша примітка</span>
       <textarea data-note="${esc(t.id)}" placeholder="за що це було, з ким ділили, чи повертати">${esc(txNote(t.id))}</textarea>
       <span class="hint">Зберігається у браузері разом із рештою налаштувань — банк про неї не знає.</span></label>
-    ${tagOK(t) ? `<div class="txtags" role="group" aria-label="Мета переказу"><span>Мета</span>${
-      TAGS.map(([k, n]) => `<button class="chip txtag" data-txtag="${esc(t.id)}" data-k="${k}"
-        aria-pressed="${txTag(t.id)===k}">${n}</button>`).join('')}</div>` : ''}
+    ${t.dir==='expense' ? `<div class="txtags" role="group" aria-label="${tagOK(t) ? 'Мета переказу' : 'Позначка'}"><span>${tagOK(t) ? 'Мета' : 'Позначка'}</span>${
+      tagChips(t).map(([k, n]) => `<button class="chip txtag" data-txtag="${esc(t.id)}" data-k="${k}"
+        aria-pressed="${txTag(t.id)===k}">${n}</button>`).join('')}</div>
+    <div class="debtbox" data-debtbox="${esc(t.id)}"${txTag(t.id)==='debt' ? '' : ' hidden'}>
+      <label class="debtwho"><span>Кому</span>
+        <input data-dwho="${esc(t.id)}" maxlength="40" autocomplete="off" placeholder="Імʼя" data-combo="debtNames"
+          value="${esc(txDebt(t.id).who)}"></label>
+      <label class="optlabel debtback"><input type="checkbox" data-dback="${esc(t.id)}"${
+        txDebt(t.id).back ? ' checked' : ''}> повернуто</label></div>` : ''}
     <div class="acts">
       <button class="btn" data-same="${esc(t.merchant)}">Усі ${nOps(same.length)} «${esc(t.merchant)}» · ${money(spent)}</button>
       ${ofSub
@@ -5509,6 +5542,202 @@ const tagOK = t => t.dir==='expense' && ['Перекази','Готівка'].in
 function setTxTag(id, k){
   if(k && TAGN[k]) TXTAG[id] = k; else delete TXTAG[id];
   saveTxTags();
+  /* «Кому» і «повернуто» мають сенс лише при мітці «борг»: зняли її або
+     змінили на іншу — запис зникає, інакше в картці «Борги» лишився б
+     борг, якого людина вже не вважає боргом. */
+  if(k !== 'debt' && TXDEBT[id]){ delete TXDEBT[id]; saveTxDebts(); }
+}
+
+/* ── борги, які винні МЕНІ ────────────────────────────────────────
+   Власник хоче позначити операцію як борг (заплатив за друга, позичив
+   гроші), вказати кому, і бачити на Огляді, хто скільки винен. Лише один
+   напрямок і лише галочка «повернуто» — часткових повернень немає (так
+   обрав власник). Імена людей зберігаються тут і в Порадника НЕ йдуть:
+   ні txDebts, ні debtsMan не входять до ADV_SNAP_KEYS і не читаються
+   advData(). Борг без операції (позичив готівкою) — окремий список. */
+let TXDEBT = store.get('txDebts', {});
+let DEBTM = store.get('debtsMan', []);
+const saveTxDebts = () => store.set('txDebts', TXDEBT);
+const saveDebtsMan = () => store.set('debtsMan', DEBTM);
+const txDebt = id => TXDEBT[id] || {who:'', back:false};
+/* Переказам і готівці — усі чотири мітки; будь-яка інша витрата може
+   бути лише боргом (заплатив за друга в кафе). */
+const tagChips = t => tagOK(t) ? TAGS : TAGS.filter(([k]) => k === 'debt');
+function tagText(id){
+  const k = txTag(id); if(!k) return '';
+  if(k !== 'debt') return TAGN[k];
+  const d = txDebt(id);
+  return ['борг', d.who, d.back && 'повернуто'].filter(Boolean).join(' · ');
+}
+function setTxDebt(id, patch){
+  TXDEBT[id] = {...txDebt(id), ...patch};
+  saveTxDebts();
+}
+/* Усе, що показує мітку операції, оновлюється на місці: перемальовування
+   списку згорнуло б картку й скинуло прокрутку. */
+function syncTagUi(id){
+  const k = txTag(id), q = CSS.escape(id);
+  document.querySelectorAll(`[data-txtag="${q}"]`)
+    .forEach(c => c.setAttribute('aria-pressed', String(c.dataset.k === k)));
+  document.querySelectorAll(`[data-debtbox="${q}"]`).forEach(bx => {
+    bx.hidden = k !== 'debt';
+    const d = txDebt(id), inp = bx.querySelector('[data-dwho]'), ck = bx.querySelector('[data-dback]');
+    if(inp && document.activeElement !== inp) inp.value = d.who;
+    if(ck) ck.checked = !!d.back;
+  });
+  document.querySelectorAll(`.txrow[data-id="${q}"] .tx-meta`).forEach(m => {
+    let g = m.querySelector('.txtagb');
+    if(!k){ if(g) g.remove(); return; }
+    if(!g){ g = document.createElement('span'); g.className = 'tag txtagb'; m.append(g); }
+    g.textContent = tagText(id);
+  });
+  refreshDebtNames();
+}
+/* Борги з операцій + ручні — один плоский список; решту (групування,
+   суми) рахує renderDebts. Операція, якої вже нема в даних, боргом не
+   лишається: мітка в txTags могла пережити видалену ручну операцію. */
+function debtItems(){
+  const out = [];
+  for(const t of TX){
+    if(t.dir !== 'expense' || txTag(t.id) !== 'debt') continue;
+    const d = txDebt(t.id);
+    out.push({id:t.id, man:false, who:d.who || '', amount:t.amount, date:t.date,
+      note:txNote(t.id), title:t.merchant, back:!!d.back});
+  }
+  for(const m of DEBTM)
+    out.push({id:m.id, man:true, who:(m.who || '').trim(), amount:+m.amount || 0, date:m.date || '',
+      note:m.note || '', title:'', back:!!m.back});
+  return out;
+}
+function debtNames(){
+  const seen = new Map();
+  for(const i of debtItems()){ const k = i.who.toLowerCase(); if(k && !seen.has(k)) seen.set(k, i.who); }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, 'uk'));
+}
+function refreshDebtNames(){
+  const dl = el('debtNames'); if(!dl) return;
+  dl.innerHTML = debtNames().map(v => `<option value="${esc(v)}"></option>`).join('');
+}
+function setDebtBack(id, back){
+  if(id.startsWith('dm:')){ const m = DEBTM.find(x => x.id === id); if(!m) return; m.back = back; saveDebtsMan(); }
+  else { setTxDebt(id, {back}); syncTagUi(id); }
+  renderDebts();
+}
+/* «Кому» зберігається на виході з поля (change = blur, Enter або вибір у
+   підказці), а не на кожну літеру: інакше кожне натискання перемальовувало б
+   картку «Борги» й забирало каретку. */
+function commitDebtWho(inp){
+  const id = inp.dataset.dwho, who = inp.value.trim().slice(0, 40);
+  if(who === txDebt(id).who) return;
+  setTxDebt(id, {who});
+  syncTagUi(id);
+  renderDebts();
+}
+const DEBT_UI = {open:new Set(), back:false};     // що розгорнуто — переживає перемальовування
+const dmyFull = iso => /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.split('-').reverse().join('.') : '';
+function renderDebts(){
+  const body = el('debtBody'); if(!body) return;
+  el('debtAddBtn').onclick = () => debtEdit();
+  refreshDebtNames();
+  const all = debtItems();
+  const open = all.filter(i => !i.back), done = all.filter(i => i.back);
+  const sum = a => a.reduce((s, i) => s + i.amount, 0);
+  const group = a => { const g = new Map();
+    for(const i of a){ const k = i.who.toLowerCase();
+      if(!g.has(k)) g.set(k, {key:k, name:i.who, items:[]}); g.get(k).items.push(i); }
+    return [...g.values()]; };
+  const people = group(open).map(g => ({...g, sum:sum(g.items)})).sort((a, b) => b.sum - a.sum);
+  const item = (i, showWho) => `<div class="debti">
+      <span class="dw">${showWho ? `<b>${esc(i.who || 'без імені')}</b> · ` : ''}${
+        esc(dmyFull(i.date))}${i.date ? ' · ' : ''}${i.man ? 'вручну' : esc(i.title)}</span>
+      <span class="num">${money(i.amount)}</span>
+      ${i.note ? `<span class="dn">${esc(i.note)}</span>` : ''}
+      <span class="dact"><label class="optlabel"><input type="checkbox" data-dback="${esc(i.id)}"${
+        i.back ? ' checked' : ''}> повернуто</label>${
+        i.man ? `<button class="btn sm" data-dedit="${esc(i.id)}">Змінити</button>
+                 <button class="btn sm" data-ddel="${esc(i.id)}">Видалити</button>` : ''}</span></div>`;
+  if(!all.length){
+    body.innerHTML = '<p class="muted ovnote">Боргів немає. Позначте витрату міткою «борг» або додайте борг кнопкою вище.</p>';
+    return;
+  }
+  body.innerHTML = `<div class="num-lg">${money(sum(open))}</div>
+    <div class="ovnote">${open.length ? `неповернуто: ${plural(open.length, 'борг', 'борги', 'боргів')}` : 'усе повернуто'}</div>`
+    + people.map(g => { const on = DEBT_UI.open.has(g.key); return `
+      <button class="ovline debtp" data-dp="${esc(g.key)}" aria-expanded="${on}">
+        <span><i class="arr">${on ? '▾' : '▸'}</i>${esc(g.name || 'без імені')} <span class="muted">· ${
+          plural(g.items.length, 'борг', 'борги', 'боргів')}</span></span>
+        <span class="num">${money(g.sum)}</span></button>
+      <div class="debtd" data-dd="${esc(g.key)}"${on ? '' : ' hidden'}>${
+        g.items.map(i => item(i, false)).join('')}</div>`; }).join('')
+    + (done.length ? `<button class="btn sm debtbk" id="debtBackBtn" aria-expanded="${DEBT_UI.back}">Повернуті (${done.length})</button>
+      <div class="debtd" id="debtBackList"${DEBT_UI.back ? '' : ' hidden'}>${
+        done.map(i => item(i, true)).join('')}</div>` : '');
+}
+addEventListener('click', e=>{
+  const c = e.target.closest && e.target;
+  if(!c) return;
+  const p = c.closest('[data-dp]');
+  if(p){
+    const k = p.dataset.dp, on = !DEBT_UI.open.has(k);
+    if(on) DEBT_UI.open.add(k); else DEBT_UI.open.delete(k);
+    p.setAttribute('aria-expanded', String(on));
+    p.querySelector('.arr').textContent = on ? '▾' : '▸';
+    const box = [...document.querySelectorAll('[data-dd]')].find(x => x.dataset.dd === k);
+    if(box) box.hidden = !on;
+    return;
+  }
+  if(c.closest('#debtBackBtn')){
+    DEBT_UI.back = !DEBT_UI.back;
+    el('debtBackBtn').setAttribute('aria-expanded', String(DEBT_UI.back));
+    el('debtBackList').hidden = !DEBT_UI.back;
+    return;
+  }
+  const ed = c.closest('[data-dedit]');
+  if(ed){ debtEdit(ed.dataset.dedit); return; }
+  const dl = c.closest('[data-ddel]');
+  if(dl) debtDel(dl.dataset.ddel);
+});
+addEventListener('change', e=>{
+  const t = e.target;
+  if(!t.matches) return;
+  if(t.matches('[data-dback]')) setDebtBack(t.dataset.dback, t.checked);
+  else if(t.matches('[data-dwho]')) commitDebtWho(t);
+});
+/* Форма «+ Борг» / «Змінити». Сума вводиться текстом, тож помилку
+   показуємо у вікні й відкриваємо його знову з уже введеним — інакше
+   одна літера в сумі коштувала б перевведення всієї форми. */
+async function debtEdit(id){
+  const cur = id ? DEBTM.find(x => x.id === id) : null;
+  if(id && !cur) return;
+  let v = {who:cur ? cur.who : '', amount:cur ? String(cur.amount) : '',
+           date:cur ? cur.date : todayISO(), note:cur ? cur.note || '' : ''}, err = '';
+  for(;;){
+    const r = await uiAsk({title:cur ? 'Змінити борг' : 'Новий борг', ok:'Зберегти', text:err,
+      fields:[
+        {key:'who', label:'Кому', value:v.who, placeholder:'Імʼя', list:debtNames()},
+        {key:'amount', label:'Сума, ₴', value:v.amount, half:true},
+        {key:'date', label:'Дата', value:v.date, half:true, placeholder:'РРРР-ММ-ДД або ДД.ММ.РРРР'},
+        {key:'note', label:'Примітка', value:v.note}]});
+    if(!r) return;
+    v = {...v, ...r};
+    const amount = Math.round(nwAmt(r.amount) * 100) / 100;
+    if(!(amount > 0)){ err = 'Сума має бути більшою за нуль'; continue; }
+    const date = subParseDate(r.date, '');
+    if(!date){ err = 'Дату впишіть як РРРР-ММ-ДД або ДД.ММ.РРРР'; continue; }
+    const row = {who:r.who.slice(0, 40), amount, date, note:r.note};
+    if(cur) Object.assign(cur, row);
+    else DEBTM.push({id:'dm:' + Date.now(), ...row, back:false});
+    saveDebtsMan(); renderDebts();
+    return;
+  }
+}
+async function debtDel(id){
+  const m = DEBTM.find(x => x.id === id); if(!m) return;
+  if(!await uiConfirm({title:'Видалити борг?',
+      text:`${m.who || 'Без імені'} · ${money(m.amount)}${m.date ? ' · ' + dmyFull(m.date) : ''}. Зникне назавжди.`,
+      ok:'Видалити'})) return;
+  DEBTM = DEBTM.filter(x => x.id !== id);
+  saveDebtsMan(); renderDebts();
 }
 function setTxNote(id, txt){
   txt = (txt||'').trim();
@@ -7688,6 +7917,11 @@ addEventListener('focusin', e=>{
   function scan(){
     document.querySelectorAll('select:not([data-csel])').forEach(build);
     document.querySelectorAll('input[list]:not([data-cmb])').forEach(buildCombo);
+    /* Поля, що зʼявляються в шаблонних рядках (картка операції), просять
+       підказки через data-combo: сирого <input list> у розмітці не лишається
+       навіть на мить до сканування, тож системна випадайка не блимне. */
+    document.querySelectorAll('input[data-combo]:not([data-cmb])').forEach(inp=>{
+      inp.setAttribute('list', inp.dataset.combo); buildCombo(inp); });
     // елемент могли перемалювати — його меню в body лишилось би сиротою
     document.querySelectorAll('.cselm').forEach(m=>{ if(!m._owner) return;
       if(!m._owner.isConnected) m.remove(); });
@@ -9605,7 +9839,7 @@ function render(){
       grain==='day' ? 'Витрати по днях' : grain==='week' ? 'Витрати по тижнях' : 'Витрати по місяцях';
     chartCats(el('chartCats'), rows);
     renderTopMerch(el('topMerch'), rows);
-    renderOvExtras(); renderNw(); renderTrip(); renderFop(); renderInvcDue();
+    renderOvExtras(); renderNw(); renderDebts(); renderTrip(); renderFop(); renderInvcDue();
     /* Заголовок розділу без карток — це рядок нізвідки. «Робота»
        зʼявляється тільки разом із ФОП-карткою. */
     const ws = el('ovWorkSec');

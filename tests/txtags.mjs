@@ -1,7 +1,8 @@
 // Мітки переказів у картці операції: «борг / квартира / рідним / подарунок».
 // Мету переказу людям і зняття готівки з виписки не видно — Порадник
 // просив саме її (відгук 30.10.2026). Сторожимо:
-//  · чипи є лише в картці витрати «Перекази»/«Готівка»;
+//  · усі чотири чипи є лише в картці витрати «Перекази»/«Готівка»; в інших
+//    витрат — рівно один чип «борг» (заплатив за друга в кафе — теж борг);
 //  · клік ставить мітку (aria-pressed, localStorage.txTags, бейдж у рядку),
 //    повторний клік знімає;
 //  · картка й рядок не зсуваються від кліку (±0.5 px).
@@ -41,13 +42,17 @@ try {
   const card0 = await rect('.txdetail'), row0 = await rect(`.txrow[data-id="${ids.people}"]`);
 
   await chips.filter({hasText: 'борг'}).click();
+  // Під чипами зʼявилось поле «Кому» — картка стала вищою, а от її положення
+  // й ширина, як і рядок, лишаються (висоту звіряємо після зняття мітки).
+  const cardDebt = await rect('.txdetail');
+  near(card0.slice(0, 3), cardDebt.slice(0, 3), 'картка з боргом');
+  assert.ok(cardDebt[3] > card0[3], 'поле «Кому» додало висоти');
   await page.locator('.txdetail').screenshot({path: path.join(root, '.test-artifacts', 'txtags-card.png')});
   assert.equal(await chips.filter({hasText: 'борг'}).getAttribute('aria-pressed'), 'true');
   assert.equal(await chips.filter({hasText: 'квартира'}).getAttribute('aria-pressed'), 'false');
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('txTags'))), {[ids.people]: 'debt'});
   assert.equal(await row.locator('.txtagb').innerText(), 'борг', 'бейдж у рядку');
   assert.ok(await page.locator('.txdetail').isVisible(), 'клік по чипу не закрив картку');
-  near(card0, await rect('.txdetail'), 'картка');
   near(row0, await rect(`.txrow[data-id="${ids.people}"]`), 'рядок');
 
   await chips.filter({hasText: 'рідним'}).click();
@@ -60,7 +65,7 @@ try {
   await page.keyboard.press('Escape');
   await row.click();                                   // згорнути
   await page.locator(`.txrow[data-id="${ids.food}"]`).click();
-  assert.equal(await page.locator('.txdetail .txtag').count(), 0, 'у «Продуктів» міток немає');
+  assert.deepEqual(await page.locator('.txdetail .txtag').allInnerTexts(), ['борг'], 'у «Продуктів» лише чип «борг»');
   assert.deepEqual(errors, [], 'помилки сторінки');
   console.log('txtags: мітки ставляться, знімаються, нічого не смикається — OK');
   await context.close();
