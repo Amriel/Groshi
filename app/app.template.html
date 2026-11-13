@@ -163,7 +163,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .debti .dw{flex:1 1 140px;min-width:0}
 .debti .num{white-space:nowrap}
 .debti .dn{flex:1 0 100%;color:var(--text-mute);font-size:var(--fs-xs)}
-.debti .dact{flex:1 0 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+.debti .dact{flex:1 0 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+/* Галочка ліворуч, кнопки праворуч: у вузькій картці «Видалити» інакше
+   переносився сам на окремий рядок. */
+.debti .dact .optlabel{margin-right:auto}
 .debtbk{margin-top:8px}
 /* .lnk і .pinchip — у блоці «ЕКРАНИ» (Операції). */
 
@@ -5654,8 +5657,7 @@ function renderDebts(){
       ${i.note ? `<span class="dn">${esc(i.note)}</span>` : ''}
       <span class="dact"><label class="optlabel"><input type="checkbox" data-dback="${esc(i.id)}"${
         i.back ? ' checked' : ''}> повернуто</label>${
-        i.man ? `<button class="btn sm" data-dedit="${esc(i.id)}">Змінити</button>
-                 <button class="btn sm" data-ddel="${esc(i.id)}">Видалити</button>` : ''}</span></div>`;
+        i.man ? `<button class="btn sm" data-dedit="${esc(i.id)}">Змінити</button>` : ''}<button class="btn sm" data-ddel="${esc(i.id)}">Видалити</button></span></div>`;
   if(!all.length){
     body.innerHTML = '<p class="muted ovnote">Боргів немає. Позначте витрату міткою «борг» або додайте борг кнопкою вище.</p>';
     return;
@@ -5731,7 +5733,21 @@ async function debtEdit(id){
     return;
   }
 }
+/* Борг з операції теж видаляється з картки (власник не міг прибрати
+   помилково позначену витрату, не шукаючи її в «Операціях»). Сама операція
+   лишається — знімається лише мітка «борг» разом із «Кому»/«повернуто». */
 async function debtDel(id){
+  if(!id.startsWith('dm:')){
+    const t = TX.find(x => x.id === id); if(!t) return;
+    const d = txDebt(id);
+    if(!await uiConfirm({title:'Прибрати борг?',
+        text:`${d.who || 'Без імені'} · ${money(t.amount)} · ${dmyFull(t.date)} · ${t.merchant}. Операція лишиться, з неї зніметься мітка «борг».`,
+        ok:'Прибрати'})) return;
+    setTxTag(id, '');
+    syncTagUi(id);
+    renderDebts();
+    return;
+  }
   const m = DEBTM.find(x => x.id === id); if(!m) return;
   if(!await uiConfirm({title:'Видалити борг?',
       text:`${m.who || 'Без імені'} · ${money(m.amount)}${m.date ? ' · ' + dmyFull(m.date) : ''}. Зникне назавжди.`,

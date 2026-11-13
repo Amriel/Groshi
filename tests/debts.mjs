@@ -136,6 +136,25 @@ async function run(page, errors, kind, theme) {
   await page.evaluate(() => go('overview'));
   assert.match(await page.locator('#debtBody').innerText(), /Боргів немає/);
 
+  // Борг з операції прибирається прямо з картки «Борги»: операція лишається,
+  // знімається лише мітка. Галочка й кнопка — в одному рядку (не переносяться).
+  await page.evaluate(() => go('tx'));
+  await openCard();
+  await page.locator('.txdetail .txtag').click();
+  await page.evaluate(() => go('overview'));
+  await page.locator('#debtBody .debtp').first().click();
+  const act = page.locator('#debtBody .debtd:not([hidden]) .dact').first();
+  const tops = await act.evaluate(n => [...n.children].map(c => Math.round(c.getBoundingClientRect().top + c.offsetHeight / 2)));
+  assert.ok(Math.max(...tops) - Math.min(...tops) <= 2, `${tag}галочка й «Видалити» в одному рядку: ${tops}`);
+  await act.locator('[data-ddel]').click();
+  await page.waitForSelector('#modal.on');
+  assert.match(await page.locator('#modal').innerText(), /Операція лишиться/);
+  await page.locator('#modalYes').click();
+  await page.waitForFunction(() => !document.querySelector('#modal.on'));
+  assert.match(await page.locator('#debtBody').innerText(), /Боргів немає/, tag + 'борг з операції прибрано');
+  assert.equal(await page.evaluate(id => txTag(id), food.id), '', tag + 'мітку знято');
+  assert.equal(await page.evaluate(id => TX.some(t => t.id === id), food.id), true, tag + 'операція лишилась');
+
   // Імена не потрапляють у знімок для Порадника.
   const adv = await page.evaluate(() => JSON.stringify(typeof advData === 'function' ? advData() : {}));
   assert.ok(!adv.includes('Петро') && !adv.includes('Оля'), tag + 'імена не йдуть у Порадника');
