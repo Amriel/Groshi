@@ -167,7 +167,22 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 /* Галочка ліворуч, кнопки праворуч: у вузькій картці «Видалити» інакше
    переносився сам на окремий рядок. */
 .debti .dact .optlabel{margin-right:auto}
+/* Висота рядка боргу не залежить від режиму: у режимі вибору в .dact лише галочка
+   (нижча за кнопку), і без мінімуму рядки стискались би на 12 px при вході. */
+.debti .dact{min-height:var(--ctl-sm)}
 .debtbk{margin-top:8px}
+#debtSelBtn[hidden]{display:none}
+/* Натиснута «Вибрати» має відрізнятись: без цього не видно, що режим увімкнено
+   і що повторне натискання з нього виводить. Той самий вигляд, що в .chip. */
+#debtSelBtn[aria-pressed="true"]{background:var(--surface-3)}
+/* Режим вибору: у шапці кнопки не ховаються й не міняють текст (інакше
+   підказка «вам винні» на вузькій картці стрибала б), стан — aria-pressed.
+   Вибране показує лише сама галочка: без тонування рядка й бокових смуг. */
+.debtsel{display:flex;flex-wrap:nowrap;gap:8px;margin-top:12px}
+.debtsel .btn{white-space:nowrap}
+/* Фіксована ширина + рівні цифри: «Видалити вибрані (N)» не розпирається від
+   зміни N, поки ставиш галочки (інакше кнопка смикалась би під пальцем). */
+.debtsel #debtSelDel{min-width:22ch;font-variant-numeric:tabular-nums}
 /* .lnk і .pinchip — у блоці «ЕКРАНИ» (Операції). */
 
 /* ── однодатне поле: та сама сітка, що й у виборі періоду ── */
@@ -2100,6 +2115,7 @@ svg.sprite{position:absolute;width:0;height:0}
          перший ручний борг нізвідки було б додати. -->
     <div class="card" id="debtCard">
       <div class="cardhead"><h2>Борги</h2><span class="hint">вам винні</span>
+        <button class="btn sm" id="debtSelBtn" aria-pressed="false" hidden>Вибрати</button>
         <button class="btn sm" id="debtAddBtn">+ Борг</button></div>
       <div id="debtBody"></div>
       <datalist id="debtNames"></datalist>
@@ -5636,13 +5652,38 @@ function commitDebtWho(inp){
   syncTagUi(id);
   renderDebts();
 }
-const DEBT_UI = {open:new Set(), back:false};     // що розгорнуто — переживає перемальовування
+/* open/back — що розгорнуто (переживає перемальовування). sel — режим вибору
+   кількох боргів: усе показується розгорнутим через цей прапорець, а не через
+   open/back, щоб після виходу розгорнутість була такою, як до входу. */
+const DEBT_UI = {open:new Set(), back:false, sel:false, picked:new Set()};
 const dmyFull = iso => /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.split('-').reverse().join('.') : '';
+/* Лічильник і disabled міняються на місці: перемальовування картки на кожну
+   галочку скидало б прокрутку й фокус. */
+function syncDebtSel(){
+  const b = el('debtSelDel'); if(!b) return;
+  const n = DEBT_UI.picked.size;
+  b.textContent = `Видалити вибрані (${n})`;
+  b.disabled = !n;
+}
+function debtSelMode(on){
+  DEBT_UI.sel = on; DEBT_UI.picked.clear();
+  renderDebts();
+}
 function renderDebts(){
   const body = el('debtBody'); if(!body) return;
   el('debtAddBtn').onclick = () => debtEdit();
   refreshDebtNames();
   const all = debtItems();
+  /* Рендер викликають і з інших місць (мітка/примітка операції), тож вибране
+     могло вказувати на борг, якого вже нема. */
+  const ids = new Set(all.map(i => i.id));
+  for(const id of [...DEBT_UI.picked]) if(!ids.has(id)) DEBT_UI.picked.delete(id);
+  if(!all.length) DEBT_UI.sel = false;
+  const sel = DEBT_UI.sel;
+  const sb = el('debtSelBtn');
+  sb.hidden = !all.length;
+  sb.setAttribute('aria-pressed', String(sel));
+  sb.onclick = () => debtSelMode(!DEBT_UI.sel);
   const open = all.filter(i => !i.back), done = all.filter(i => i.back);
   const sum = a => a.reduce((s, i) => s + i.amount, 0);
   const group = a => { const g = new Map();
@@ -5655,31 +5696,74 @@ function renderDebts(){
         esc(dmyFull(i.date))}${i.date ? ' · ' : ''}${i.man ? 'вручну' : esc(i.title)}</span>
       <span class="num">${money(i.amount)}</span>
       ${i.note ? `<span class="dn">${esc(i.note)}</span>` : ''}
-      <span class="dact"><label class="optlabel"><input type="checkbox" data-dback="${esc(i.id)}"${
-        i.back ? ' checked' : ''}> повернуто</label>${
-        i.man ? `<button class="btn sm" data-dedit="${esc(i.id)}">Змінити</button>` : ''}<button class="btn sm" data-ddel="${esc(i.id)}">Видалити</button></span></div>`;
+      <span class="dact">${sel
+        /* data-dsel, не data-dback: слухач change для dback позначив би борг повернутим. */
+        ? `<label class="optlabel"><input type="checkbox" data-dsel="${esc(i.id)}"${
+            DEBT_UI.picked.has(i.id) ? ' checked' : ''}> вибрати</label>`
+        : `<label class="optlabel"><input type="checkbox" data-dback="${esc(i.id)}"${
+          i.back ? ' checked' : ''}> повернуто</label>${
+          i.man ? `<button class="btn sm" data-dedit="${esc(i.id)}">Змінити</button>` : ''}<button class="btn sm" data-ddel="${esc(i.id)}">Видалити</button>`}</span></div>`;
   if(!all.length){
     body.innerHTML = '<p class="muted ovnote">Боргів немає. Позначте витрату міткою «борг» або додайте борг кнопкою вище.</p>';
     return;
   }
   body.innerHTML = `<div class="num-lg">${money(sum(open))}</div>
     <div class="ovnote">${open.length ? `неповернуто: ${plural(open.length, 'борг', 'борги', 'боргів')}` : 'усе повернуто'}</div>`
-    + people.map(g => { const on = DEBT_UI.open.has(g.key); return `
+    + people.map(g => { const on = sel || DEBT_UI.open.has(g.key); return `
       <button class="ovline debtp" data-dp="${esc(g.key)}" aria-expanded="${on}">
         <span><i class="arr">${on ? '▾' : '▸'}</i>${esc(g.name || 'без імені')} <span class="muted">· ${
           plural(g.items.length, 'борг', 'борги', 'боргів')}</span></span>
         <span class="num">${money(g.sum)}</span></button>
       <div class="debtd" data-dd="${esc(g.key)}"${on ? '' : ' hidden'}>${
         g.items.map(i => item(i, false)).join('')}</div>`; }).join('')
-    + (done.length ? `<button class="btn sm debtbk" id="debtBackBtn" aria-expanded="${DEBT_UI.back}">Повернуті (${done.length})</button>
-      <div class="debtd" id="debtBackList"${DEBT_UI.back ? '' : ' hidden'}>${
-        done.map(i => item(i, true)).join('')}</div>` : '');
+    + (done.length ? `<button class="btn sm debtbk" id="debtBackBtn" aria-expanded="${sel || DEBT_UI.back}">Повернуті (${done.length})</button>
+      <div class="debtd" id="debtBackList"${sel || DEBT_UI.back ? '' : ' hidden'}>${
+        done.map(i => item(i, true)).join('')}</div>` : '')
+    + (sel ? `<div class="debtsel"><button class="btn sm" id="debtSelDel" disabled></button>
+      <button class="btn sm" id="debtSelCancel">Скасувати</button></div>` : '');
+  if(sel){
+    syncDebtSel();
+    el('debtSelDel').onclick = debtSelDelete;
+    el('debtSelCancel').onclick = () => debtSelMode(false);
+  }
+}
+async function debtSelDelete(){
+  const live = () => { const ids = new Set(DEBT_UI.picked);
+    return debtItems().filter(i => ids.has(i.id)); };
+  const stats = a => ({n:a.length, sum:a.reduce((s, i) => s + i.amount, 0),
+    man:a.filter(i => i.man).length, tx:a.filter(i => !i.man).length});
+  const st = stats(live()); if(!st.n) return;
+  const parts = [];
+  if(st.man) parts.push(`Додані вручну (${st.man}) зникнуть назавжди.`);
+  if(st.tx) parts.push(`З операцій (${st.tx}): операції лишаться, з них зніметься мітка «борг».`);
+  if(!await uiConfirm({title:'Видалити вибрані борги?',
+      text:`${plural(st.n, 'борг', 'борги', 'боргів')} на ${money(st.sum)}. ${parts.join(' ')}`,
+      ok:'Видалити'})) return;
+  /* Поки було відкрите вікно, дані могли змінитись — діємо лише над тим, що лишилось. */
+  const items = live(); if(!items.length) return;
+  const manIds = new Set(items.filter(i => i.man).map(i => i.id));
+  for(const i of items) if(!i.man){ setTxTag(i.id, ''); syncTagUi(i.id); }
+  if(manIds.size){ DEBTM = DEBTM.filter(x => !manIds.has(x.id)); saveDebtsMan(); }
+  debtSelMode(false);
 }
 addEventListener('click', e=>{
   const c = e.target.closest && e.target;
   if(!c) return;
   const p = c.closest('[data-dp]');
   if(p){
+    if(DEBT_UI.sel){
+      /* У режимі вибору рядок людини не згортає, а позначає всі її борги
+         (усі вже позначені — знімає з усіх). */
+      const box = [...document.querySelectorAll('[data-dd]')].find(x => x.dataset.dd === p.dataset.dp);
+      const cbs = box ? [...box.querySelectorAll('[data-dsel]')] : [];
+      const all = cbs.every(x => x.checked);
+      for(const x of cbs){
+        x.checked = !all;
+        if(x.checked) DEBT_UI.picked.add(x.dataset.dsel); else DEBT_UI.picked.delete(x.dataset.dsel);
+      }
+      syncDebtSel();
+      return;
+    }
     const k = p.dataset.dp, on = !DEBT_UI.open.has(k);
     if(on) DEBT_UI.open.add(k); else DEBT_UI.open.delete(k);
     p.setAttribute('aria-expanded', String(on));
@@ -5689,6 +5773,7 @@ addEventListener('click', e=>{
     return;
   }
   if(c.closest('#debtBackBtn')){
+    if(DEBT_UI.sel) return;                         // у режимі вибору список повернутих завжди відкритий
     DEBT_UI.back = !DEBT_UI.back;
     el('debtBackBtn').setAttribute('aria-expanded', String(DEBT_UI.back));
     el('debtBackList').hidden = !DEBT_UI.back;
@@ -5703,6 +5788,10 @@ addEventListener('change', e=>{
   const t = e.target;
   if(!t.matches) return;
   if(t.matches('[data-dback]')) setDebtBack(t.dataset.dback, t.checked);
+  else if(t.matches('[data-dsel]')){
+    if(t.checked) DEBT_UI.picked.add(t.dataset.dsel); else DEBT_UI.picked.delete(t.dataset.dsel);
+    syncDebtSel();
+  }
   else if(t.matches('[data-dwho]')) commitDebtWho(t);
 });
 /* Форма «+ Борг» / «Змінити». Сума вводиться текстом, тож помилку
