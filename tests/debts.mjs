@@ -6,6 +6,8 @@
 //    бейдж у рядку — «борг · Імʼя» (і «· повернуто»), на місці;
 //  · картка «Борги» рахує лише неповернуте; «+ Борг» через uiAsk додає
 //    ручний борг, «Змінити» і «Видалити» (з підтвердженням) працюють;
+//  · під сумою — «неповернуто: N борги · ≈ сума в другій валюті» (alt()); без
+//    курсу чи за «усе повернуто» підпису й завислого « · » немає;
 //  · галочка «повернуто» — одне поле на картку операції й картку «Борги»;
 //  · зняття мітки прибирає борг і запис у txDebts;
 //  · картка операції й рядок не зсуваються (±0.5 px) від галочки;
@@ -94,6 +96,29 @@ async function run(page, errors, kind, theme) {
   await page.locator('[data-dedit]').click();
   await modal({1: '700'});
   assert.equal(await sumText(), await moneyOf(food.amount + 700), tag + 'сума після «Змінити»');
+
+  // Сума в другій валюті: у рядку «неповернуто» через « · », лише за наявного курсу.
+  const note = () => page.locator('#debtBody .ovnote').first().innerText();
+  const fxSaved = await page.evaluate(() => ({now: window.FX_NOW, usd: RATE_NOW.USD}));
+  await page.evaluate(() => { window.FX_NOW = {USD: 40}; renderDebts(); });
+  assert.equal(await page.evaluate(() => fxOf('USD')), 40, tag + 'курс у пробі');
+  const altOf = n => page.evaluate(v => alt(v), n);
+  const total = food.amount + 700;
+  const altTxt = await altOf(total);
+  assert.match(altTxt, /^≈ .+ \$$/, tag + 'alt() з курсом дає «≈ N $»');
+  assert.equal(await note(), `неповернуто: 2 борги · ${altTxt}`, tag + 'сума в другій валюті в рядку .ovnote');
+  // Без курсу (ні банківського, ні вивченого) — без «≈» і без завислого « · ».
+  await page.evaluate(() => { window.FX_NOW = undefined; delete RATE_NOW.USD; renderDebts(); });
+  assert.equal(await page.evaluate(() => fxOf('USD')), 0, tag + 'курсу немає');
+  assert.equal(await note(), 'неповернуто: 2 борги', tag + 'без курсу підпису немає');
+  // «Усе повернуто» — підпису немає навіть із курсом.
+  await page.evaluate(id => {
+    window.FX_NOW = {USD: 40}; setTxDebt(id, {back: true}); DEBTM.forEach(m => { m.back = true; }); renderDebts();
+  }, food.id);
+  assert.equal(await note(), 'усе повернуто', tag + 'усе повернуто — без підпису');
+  await page.evaluate(id => { setTxDebt(id, {back: false}); DEBTM.forEach(m => { m.back = false; }); }, food.id);
+  // Прибираємо за собою: курс і стан як були.
+  await page.evaluate(s => { window.FX_NOW = s.now; if (s.usd !== undefined) RATE_NOW.USD = s.usd; renderDebts(); }, fxSaved);
 
   // Скріншот картки в поточній темі.
   await page.locator('#debtCard').scrollIntoViewIfNeeded();

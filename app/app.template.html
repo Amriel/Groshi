@@ -5707,8 +5707,12 @@ function renderDebts(){
     body.innerHTML = '<p class="muted ovnote">Боргів немає. Позначте витрату міткою «борг» або додайте борг кнопкою вище.</p>';
     return;
   }
+  /* Сума в другій валюті — як у «Капіталі»; лише для загальної суми, не для
+     рядків людей. Без курсу alt() порожній, а за нульової суми підпис «≈ 0 $»
+     зайвий — у обох випадках без завислого « · ». */
+  const altSum = open.length ? alt(sum(open)) : '';
   body.innerHTML = `<div class="num-lg">${money(sum(open))}</div>
-    <div class="ovnote">${open.length ? `неповернуто: ${plural(open.length, 'борг', 'борги', 'боргів')}` : 'усе повернуто'}</div>`
+    <div class="ovnote">${open.length ? `неповернуто: ${plural(open.length, 'борг', 'борги', 'боргів')}${altSum ? ' · ' + altSum : ''}` : 'усе повернуто'}</div>`
     + people.map(g => { const on = sel || DEBT_UI.open.has(g.key); return `
       <button class="ovline debtp" data-dp="${esc(g.key)}" aria-expanded="${on}">
         <span><i class="arr">${on ? '▾' : '▸'}</i>${esc(g.name || 'без імені')} <span class="muted">· ${
